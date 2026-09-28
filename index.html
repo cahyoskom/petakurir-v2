@@ -1026,6 +1026,8 @@
         let currentFilter = 'semua';
         let currentMapFilter = 'semua';
         let currentDetailId = null;
+        let bulkSelectedIds = new Set();
+        let ocrCsvData = null;
 
         // Initialize IndexedDB
         function initDB() {
@@ -2429,8 +2431,6 @@ self.addEventListener('fetch', (e) => {
         // OCR FUNCTIONS
         // ============================================
 
-        let ocrCsvData = null;
-
         async function processOCR() {
             const fileInput = document.getElementById('ocr-image-input');
             const file = fileInput.files[0];
@@ -2748,9 +2748,6 @@ self.addEventListener('fetch', (e) => {
 
             showModal('Sukses', `✓ ${filtered.length} data diexport`);
         }
-
-        // Bulk update variables
-        let bulkSelectedIds = new Set();
 
         function toggleBulkSelect(addrId) {
             if (bulkSelectedIds.has(addrId)) {
@@ -3144,6 +3141,7 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
             updateMapMarkers();
             updateAddressList();
             showModal('Sukses', `✓ ${count} alamat diimport!\n\n${detectDuplicate ? '🔍 Duplikat terdeteksi & digabung' : '✓ Semua disimpan terpisah (tidak ada merge)'}\n\n📦 Status: Order`);
+        }
 
         async function clearDemoData() {
             const addresses = await getAllAddresses();
