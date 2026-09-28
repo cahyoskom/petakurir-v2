@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="Peta Kurir">
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%232563eb' width='180' height='180'/><text x='90' y='110' font-size='100' fill='white' text-anchor='middle' dominant-baseline='middle'>🗺️</text></svg>">
     <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Peta Kurir%22,%22short_name%22:%22KurirMap%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fff%22,%22theme_color%22:%22%232563eb%22,%22orientation%22:%22portrait%22}">
-    <title>Kurir Map</title>
+    <title>Peta Kurir</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
     <style>
         * {
@@ -906,6 +906,12 @@
                 </div>
             </div>
 
+            <!-- Input Mode Toggle -->
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <button class="btn-primary" id="voice-mode-btn" style="flex: 1; background: var(--primary);">🎤 Voice</button>
+                <button class="btn-secondary" id="manual-mode-btn" style="flex: 1;">✏️ Manual</button>
+            </div>
+
             <div id="voice-input-section">
                 <button class="btn-primary" id="voice-start-btn" style="width: 100%; margin-bottom: 12px;">
                     🎤 Mulai Bicara
@@ -1627,13 +1633,15 @@ self.addEventListener('fetch', (e) => {
         async function showRecordSheet() {
             resetRecordForm();
 
-            // Show record sheet first
-            document.getElementById('record-sheet').classList.add('active');
+            // Show loading state first
+            const recordSheet = document.getElementById('record-sheet');
+            recordSheet.classList.add('active');
+            
+            // Show loading in GPS section
+            document.getElementById('gps-status').innerHTML = '<span class="loading"></span> Mengambil lokasi...';
 
             // Get GPS & show map for adjustment
             if (navigator.geolocation) {
-                document.getElementById('gps-status').innerHTML = '<span class="loading"></span> Mengambil lokasi...';
-
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         currentLocation = {
@@ -1641,20 +1649,29 @@ self.addEventListener('fetch', (e) => {
                             longitude: pos.coords.longitude
                         };
                         
-                        // Initialize map adjustment UI
+                        // Initialize map and wait for it to be ready
                         setTimeout(() => {
                             initLocationAdjustment();
+                            // Ensure voice section is visible after map init
+                            document.getElementById('voice-input-section').style.display = 'block';
+                            document.getElementById('manual-form').style.display = 'none';
                         }, 100);
                     },
                     (err) => {
                         // GPS failed - show manual input fallback
                         console.warn('Geolocation error:', err);
                         initManualLocationInput();
+                        // Ensure voice section is visible
+                        document.getElementById('voice-input-section').style.display = 'block';
+                        document.getElementById('manual-form').style.display = 'none';
                     }
                 );
             } else {
                 // Geolocation not supported - show manual input
                 initManualLocationInput();
+                // Ensure voice section is visible
+                document.getElementById('voice-input-section').style.display = 'block';
+                document.getElementById('manual-form').style.display = 'none';
             }
         }
 
@@ -1670,54 +1687,66 @@ self.addEventListener('fetch', (e) => {
                 container.innerHTML = `
                     <div style="margin: -16px -16px 16px -16px; height: 200px; background: #f3f4f6;" id="adjustment-map"></div>
                     <div style="text-align: center; font-size: 13px; color: var(--text-light); margin-top: 12px;">
-                        ✓ GPS berhasil. Sesuaikan pin di peta jika perlu.<br>
+                        ✓ GPS berhasil. <strong>Geser pin</strong> atau <strong>tap peta</strong> untuk sesuaikan lokasi.<br>
                         <strong>${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}</strong>
                     </div>
                 `;
 
                 // Initialize adjustment map
-                adjustmentMap = L.map('adjustment-map').setView(
-                    [currentLocation.latitude, currentLocation.longitude], 
-                    16
-                );
+                try {
+                    adjustmentMap = L.map('adjustment-map', {
+                        dragging: true,
+                        touchZoom: true,
+                        tap: true,
+                        zoomControl: true
+                    }).setView(
+                        [currentLocation.latitude, currentLocation.longitude], 
+                        16
+                    );
 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap contributors',
-                    maxZoom: 19
-                }).addTo(adjustmentMap);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors',
+                        maxZoom: 19
+                    }).addTo(adjustmentMap);
 
-                // Draggable marker
-                adjustmentMarker = L.marker(
-                    [currentLocation.latitude, currentLocation.longitude],
-                    { draggable: true }
-                ).addTo(adjustmentMap);
+                    // Draggable marker
+                    adjustmentMarker = L.marker(
+                        [currentLocation.latitude, currentLocation.longitude],
+                        { draggable: true }
+                    ).addTo(adjustmentMap);
 
-                // Update location when marker dragged
-                adjustmentMarker.on('dragend', () => {
-                    const pos = adjustmentMarker.getLatLng();
-                    currentLocation = {
-                        latitude: pos.lat,
-                        longitude: pos.lng
-                    };
-                    container.querySelector('strong').textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
-                });
+                    // Update location when marker dragged
+                    adjustmentMarker.on('dragend', () => {
+                        const pos = adjustmentMarker.getLatLng();
+                        currentLocation = {
+                            latitude: pos.lat,
+                            longitude: pos.lng
+                        };
+                        container.querySelector('strong').textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+                    });
 
-                // Also allow tap to set marker
-                adjustmentMap.on('click', (e) => {
-                    const pos = e.latlng;
-                    adjustmentMarker.setLatLng(pos);
-                    currentLocation = {
-                        latitude: pos.lat,
-                        longitude: pos.lng
-                    };
-                    container.querySelector('strong').textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
-                });
+                    // Also allow tap to set marker
+                    adjustmentMap.on('click', (e) => {
+                        const pos = e.latlng;
+                        adjustmentMarker.setLatLng(pos);
+                        currentLocation = {
+                            latitude: pos.lat,
+                            longitude: pos.lng
+                        };
+                        container.querySelector('strong').textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+                    });
 
-                // Center map
-                setTimeout(() => {
-                    adjustmentMap.invalidateSize();
-                    adjustmentMap.setView([currentLocation.latitude, currentLocation.longitude], 16);
-                }, 50);
+                    // Center map and enable interactions
+                    setTimeout(() => {
+                        adjustmentMap.invalidateSize(true);
+                        adjustmentMap.setView([currentLocation.latitude, currentLocation.longitude], 16);
+                        console.log('✓ Location adjustment map initialized');
+                    }, 50);
+                } catch (err) {
+                    console.error('Map initialization error:', err);
+                    document.getElementById('gps-status').innerHTML = '❌ Map gagal dimuat. Input manual lat/lng.';
+                    initManualLocationInput();
+                }
             }
 
             // Initialize voice input
@@ -1793,6 +1822,32 @@ self.addEventListener('fetch', (e) => {
                 item.classList.remove('checked');
                 item.querySelector('input').checked = false;
             });
+            
+            // Default to voice mode
+            switchToVoiceMode();
+        }
+
+        // ============================================
+        // INPUT MODE SWITCHING
+        // ============================================
+
+        function switchToVoiceMode() {
+            document.getElementById('voice-input-section').style.display = 'block';
+            document.getElementById('manual-form').style.display = 'none';
+            document.getElementById('voice-mode-btn').style.background = 'var(--primary)';
+            document.getElementById('voice-mode-btn').style.color = 'white';
+            document.getElementById('manual-mode-btn').style.background = 'var(--bg-alt)';
+            document.getElementById('manual-mode-btn').style.color = 'var(--text)';
+        }
+
+        function switchToManualMode() {
+            document.getElementById('voice-input-section').style.display = 'none';
+            document.getElementById('manual-form').style.display = 'block';
+            document.getElementById('voice-mode-btn').style.background = 'var(--bg-alt)';
+            document.getElementById('voice-mode-btn').style.color = 'var(--text)';
+            document.getElementById('manual-mode-btn').style.background = 'var(--primary)';
+            document.getElementById('manual-mode-btn').style.color = 'white';
+            document.getElementById('form-name').focus();
         }
 
         async function saveRecord() {
@@ -2165,9 +2220,31 @@ self.addEventListener('fetch', (e) => {
             // Close detail sheet
             document.getElementById('detail-sheet').classList.remove('active');
 
+            // Clean up any existing adjustment map
+            if (adjustmentMap) {
+                adjustmentMap.off();
+                adjustmentMap.remove();
+                adjustmentMap = null;
+                adjustmentMarker = null;
+            }
+
             // Open record sheet with data
+            resetRecordForm();
             document.getElementById('record-sheet').classList.add('active');
-            document.getElementById('manual-form').style.display = 'block';
+            
+            // Switch to manual mode for editing
+            switchToManualMode();
+
+            // Set current location to edit address location
+            currentLocation = {
+                latitude: address.latitude,
+                longitude: address.longitude
+            };
+
+            // Initialize location adjustment map for editing
+            setTimeout(() => {
+                initLocationAdjustment();
+            }, 150);
 
             document.getElementById('form-name').value = address.recipient_name;
             document.getElementById('form-gang').value = address.gang || '';
@@ -3403,6 +3480,8 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
         document.getElementById('save-record-btn').addEventListener('click', saveRecord);
 
         document.getElementById('voice-start-btn').addEventListener('click', startVoiceInput);
+        document.getElementById('voice-mode-btn').addEventListener('click', switchToVoiceMode);
+        document.getElementById('manual-mode-btn').addEventListener('click', switchToManualMode);
 
         document.getElementById('detail-edit-btn').addEventListener('click', editAddress);
         document.getElementById('detail-nav-btn').addEventListener('click', navigateToAddress);
