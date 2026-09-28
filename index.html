@@ -2136,10 +2136,21 @@ self.addEventListener('fetch', (e) => {
                 const recipient = addr.recipients.find((r) => r.name === displayName);
                 if (recipient) {
                     recipient.status = newStatus;
+                    recipient.updated_at = new Date().toISOString();
                     
-                    // Update delivery_status to "belum selesai" if any recipient belum selesai
-                    const hasIncomplete = addr.recipients.some((r) => r.status === 'belum selesai');
-                    addr.delivery_status = hasIncomplete ? 'belum selesai' : 'berhasil';
+                    // Update delivery_status based on recipients statuses
+                    const statuses = addr.recipients.map((r) => r.status);
+                    
+                    if (statuses.includes('tidak order')) {
+                        addr.delivery_status = 'tidak order';
+                    } else if (statuses.includes('order')) {
+                        addr.delivery_status = 'order';
+                    } else if (statuses.includes('belum selesai')) {
+                        addr.delivery_status = 'belum selesai';
+                    } else {
+                        // All berhasil or gagal
+                        addr.delivery_status = 'berhasil';
+                    }
                     
                     // Add to history
                     if (!addr.history) addr.history = [];
@@ -2275,6 +2286,7 @@ self.addEventListener('fetch', (e) => {
         async function updateAddress() {
             const address = await getAddressById(currentDetailId);
 
+            // Update basic fields
             address.recipient_name = document.getElementById('form-name').value;
             address.gang = document.getElementById('form-gang').value;
             address.house_number = document.getElementById('form-house-number').value;
@@ -2284,15 +2296,32 @@ self.addEventListener('fetch', (e) => {
             address.payment_status = document.getElementById('form-payment').value;
             address.location_type = document.getElementById('form-location-type').value;
 
+            // Update location (CRITICAL - pin dragging)
+            if (currentLocation) {
+                address.latitude = currentLocation.latitude;
+                address.longitude = currentLocation.longitude;
+            }
+
+            // Update recipients array name (CRITICAL - recipient edit)
+            if (address.recipients && address.recipients.length > 0) {
+                address.recipients[0].name = document.getElementById('form-name').value;
+                address.recipients[0].updated_at = new Date().toISOString();
+            }
+
+            // Update problem tags
             const problems = [];
             document.querySelectorAll('#problems-group .checkbox-item.checked').forEach((item) => {
                 problems.push(item.textContent.trim());
             });
             address.problem_tags = problems;
 
+            // Update timestamp
+            address.updated_at = new Date().toISOString();
+
             await saveAddress(address);
             closeRecordSheet();
             updateMapMarkers();
+            updateAddressList();
             showModal('Sukses', '✓ Alamat diperbarui!');
         }
 
@@ -2872,6 +2901,8 @@ self.addEventListener('fetch', (e) => {
         async function bulkUpdateStatus(newStatus) {
             if (bulkSelectedIds.size === 0) return;
 
+            const countToUpdate = bulkSelectedIds.size; // Store count before clearing
+
             for (const addrId of bulkSelectedIds) {
                 const addr = await getAddressById(addrId);
                 if (!addr || !addr.recipients) continue;
@@ -2879,11 +2910,22 @@ self.addEventListener('fetch', (e) => {
                 // Update ALL recipients to new status
                 addr.recipients.forEach((recipient) => {
                     recipient.status = newStatus;
+                    recipient.updated_at = new Date().toISOString();
                 });
 
-                // Update delivery_status
-                const hasIncomplete = addr.recipients.some((r) => r.status === 'belum selesai');
-                addr.delivery_status = hasIncomplete ? 'belum selesai' : 'berhasil';
+                // Update delivery_status based on recipients statuses
+                const statuses = addr.recipients.map((r) => r.status);
+                
+                if (statuses.includes('tidak order')) {
+                    addr.delivery_status = 'tidak order';
+                } else if (statuses.includes('order')) {
+                    addr.delivery_status = 'order';
+                } else if (statuses.includes('belum selesai')) {
+                    addr.delivery_status = 'belum selesai';
+                } else {
+                    // All berhasil or gagal
+                    addr.delivery_status = 'berhasil';
+                }
 
                 // Add to history
                 if (!addr.history) addr.history = [];
@@ -2901,7 +2943,7 @@ self.addEventListener('fetch', (e) => {
             updateBulkUI();
             updateAddressList();
             updateMapMarkers();
-            showModal('Sukses', `✓ ${bulkSelectedIds.size} alamat diupdate`);
+            showModal('Sukses', `✓ ${countToUpdate} alamat diupdate`);
         }
 
         function exportCSVTemplate() {
