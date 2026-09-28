@@ -1,0 +1,3584 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="Peta Kurir - Buku alamat pribadi kurir berbasis GPS">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Peta Kurir">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%232563eb' width='180' height='180'/><text x='90' y='110' font-size='100' fill='white' text-anchor='middle' dominant-baseline='middle'>🗺️</text></svg>">
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Peta Kurir%22,%22short_name%22:%22PK%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fff%22,%22theme_color%22:%22%232563eb%22,%22orientation%22:%22portrait%22}">
+    <title>Peta Kurir</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #ffffff;
+            --bg-alt: #f3f4f6;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #d1d5db;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1f2937;
+                --bg-alt: #111827;
+                --text: #f3f4f6;
+                --text-light: #d1d5db;
+                --border: #4b5563;
+            }
+        }
+
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        body {
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 12px 16px;
+            padding-top: max(12px, env(safe-area-inset-top, 0px));
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .menu-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .page {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .page.active {
+            display: flex;
+        }
+
+        #map-page {
+            flex-direction: column;
+        }
+
+        #map {
+            flex: 1;
+            z-index: 1;
+        }
+
+        .search-bar {
+            padding: 12px;
+            background: var(--bg-alt);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .search-bar input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .search-bar input::placeholder {
+            color: var(--text-light);
+        }
+
+        .search-bar button {
+            padding: 8px 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .fab-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .fab {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+        }
+
+        .fab.secondary {
+            background: var(--secondary);
+            width: 50px;
+            height: 50px;
+            font-size: 18px;
+        }
+
+        .page > .fab-container {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+        }
+
+        .menu-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 200;
+        }
+
+        .menu-overlay.active {
+            display: block;
+        }
+
+        .sidebar {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100%;
+            background: var(--bg);
+            z-index: 201;
+            flex-direction: column;
+            padding-top: env(safe-area-inset-top, 0px);
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+
+        .sidebar.active {
+            display: flex;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-header h2 {
+            font-size: 16px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text);
+        }
+
+        .sidebar-menu {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-menu button {
+            background: none;
+            border: none;
+            text-align: left;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .sidebar-menu button:active {
+            background: var(--bg-alt);
+        }
+
+        .bottom-sheet {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg);
+            z-index: 150;
+            border-radius: 12px 12px 0 0;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+            }
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .bottom-sheet.active {
+            display: block;
+        }
+
+        .sheet-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 10;
+        }
+
+        .sheet-header h3 {
+            font-size: 16px;
+        }
+
+        .sheet-content {
+            padding: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .checkbox-item input {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .checkbox-item.checked {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .action-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--bg-alt);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .address-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .address-item {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .address-item:active {
+            background: var(--bg-alt);
+        }
+
+        .address-item-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .address-item-details {
+            font-size: 12px;
+            color: var(--text-light);
+            line-height: 1.4;
+        }
+
+        .address-item-meta {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        .voice-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+            margin-left: 8px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .modal h2 {
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+
+        .modal p {
+            margin-bottom: 16px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-light);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            padding: 12px;
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            flex-shrink: 0;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .history-item {
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .history-date {
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .history-details {
+            color: var(--text-light);
+            line-height: 1.4;
+        }
+
+        .record-status {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--bg-alt);
+            color: var(--text);
+        }
+
+        .record-status.success {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .record-status.warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--text-light);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: none;
+            color: var(--text-light);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .info-box {
+            background: var(--bg-alt);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 6px;
+            background: var(--bg-alt);
+            color: var(--text);
+            border-radius: 3px;
+            font-size: 11px;
+            margin-right: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🗺️ Peta Kurir</h1>
+            <button class="menu-btn" id="menu-btn">☰</button>
+        </header>
+
+        <main>
+            <!-- MAP PAGE -->
+            <div class="page active" id="map-page">
+                <div class="search-bar">
+                    <input type="text" id="search-input" placeholder="Cari nama / gang / nomor / patokan">
+                    <button id="search-btn">Cari</button>
+                </div>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-map-filter="semua">Semua</button>
+                    <button class="filter-btn" data-map-filter="order">Order</button>
+                    <button class="filter-btn" data-map-filter="tidak-order">Tidak Order</button>
+                    <button class="filter-btn" data-map-filter="belum">Belum Selesai</button>
+                    <button class="filter-btn" data-map-filter="berhasil">Berhasil</button>
+                    <button class="filter-btn" data-map-filter="bermasalah">Bermasalah</button>
+                    <button class="filter-btn" data-map-filter="cod">COD</button>
+                    <button class="filter-btn" data-map-filter="nitip">Nitip</button>
+                    <button class="filter-btn" data-map-filter="sulit">Sulit</button>
+                </div>
+                <div id="map"></div>
+                
+                <!-- ZOOM TO CURRENT LOCATION BUTTON -->
+                <button id="zoom-to-location-btn" title="Ke Lokasi Saya" style="
+                    position: absolute;
+                    top: 110px;
+                    right: 12px;
+                    z-index: 999;
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 50%;
+                    background: white;
+                    border: 2px solid #2563eb;
+                    color: #2563eb;
+                    font-size: 20px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                    transition: all 0.2s ease;
+                    font-weight: bold;
+                " onmouseover="this.style.background='#2563eb'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#2563eb';">
+                    🎯
+                </button>
+
+                <div class="fab-container">
+                    <button class="fab" id="record-btn" title="Catat Selesai">✓</button>
+                </div>
+            </div>
+
+            <!-- ADDRESS LIST PAGE -->
+            <div class="page" id="list-page">
+                <div class="search-bar">
+                    <input type="text" id="list-search-input" placeholder="Cari alamat...">
+                    <button id="list-search-btn">Cari</button>
+                    <button id="voice-search-btn" title="Voice search" style="padding: 8px 12px; background: var(--secondary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">🎤</button>
+                </div>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="semua">Semua</button>
+                    <button class="filter-btn" data-filter="order">Order</button>
+                    <button class="filter-btn" data-filter="tidak-order">Tidak Order</button>
+                    <button class="filter-btn" data-filter="belum">Belum Selesai</button>
+                    <button class="filter-btn" data-filter="berhasil">Berhasil</button>
+                    <button class="filter-btn" data-filter="bermasalah">Bermasalah</button>
+                    <button class="filter-btn" data-filter="cod">COD</button>
+                    <button class="filter-btn" data-filter="nitip">Nitip</button>
+                    <button class="filter-btn" data-filter="sulit">Sulit</button>
+                </div>
+
+                <!-- BULK UPDATE SECTION -->
+                <div id="bulk-section" style="display: none; background: var(--bg-alt); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <label style="font-weight: 600; font-size: 13px;">
+                            <input type="checkbox" id="bulk-select-all" style="cursor: pointer; margin-right: 6px;">
+                            Pilih Semua (<span id="bulk-count">0</span>)
+                        </label>
+                        <button id="bulk-cancel-btn" style="padding: 4px 8px; background: var(--border); border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Batal</button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 6px;">
+                        <button id="bulk-status-order" style="flex: 1; padding: 8px; background: #8b5cf6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">📦 Order</button>
+                        <button id="bulk-status-tidak-order" style="flex: 1; padding: 8px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">❌ Tidak Order</button>
+                        <button id="bulk-status-belum" style="flex: 1; padding: 8px; background: #f59e0b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">🔔 Belum</button>
+                        <button id="bulk-status-berhasil" style="flex: 1; padding: 8px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">✓ Berhasil</button>
+                        <button id="bulk-status-gagal" style="flex: 1; padding: 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">❌ Gagal</button>
+                    </div>
+                </div>
+
+                <div class="address-list" id="address-list"></div>
+            </div>
+
+            <!-- BACKUP PAGE -->
+            <div class="page" id="backup-page">
+                <div class="sheet-content">
+                    <div class="info-box">
+                        💾 Data Anda disimpan di perangkat ini. Lakukan backup secara berkala agar tidak hilang.
+                    </div>
+
+                    <h3 style="margin-bottom: 12px; font-size: 14px;">Export Data</h3>
+                    
+                    <button class="btn-primary" id="export-json-btn" style="width: 100%; margin-bottom: 12px;">
+                        📥 Export JSON (Backup Lengkap)
+                    </button>
+
+                    <button class="btn-secondary" id="export-csv-btn" style="width: 100%; margin-bottom: 24px;">
+                        📊 Export CSV (Untuk Excel)
+                    </button>
+
+                    <button class="btn-secondary" id="export-csv-template-btn" style="width: 100%; margin-bottom: 24px;">
+                        📋 Export Template CSV (Contoh Import)
+                    </button>
+
+                    <!-- SHORT EXPORT SECTION -->
+                    <h3 style="margin-bottom: 12px; font-size: 14px;">📄 Export Singkat</h3>
+
+                    <div style="background: var(--bg-alt); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                        <input type="text" id="short-export-name" placeholder="Cari nama..." style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; margin-bottom: 8px; box-sizing: border-box;">
+                        
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <input type="date" id="short-export-date-start" style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px;">
+                            <input type="date" id="short-export-date-end" style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px;">
+                        </div>
+
+                        <button class="btn-secondary" id="export-short-csv-btn" style="width: 100%; font-size: 13px;">
+                            🔽 Export
+                        </button>
+                    </div>
+
+                    <h3 style="margin-bottom: 12px; font-size: 14px;">🤖 OCR Screenshot</h3>
+
+                    <div style="background: var(--bg-alt); padding: 12px; border-radius: 6px; margin-bottom: 24px;">
+                        <p style="font-size: 12px; color: var(--text-light); margin-bottom: 8px;">📸 Upload screenshot dari aplikasi kurir → auto convert ke CSV</p>
+                        
+                        <input type="file" id="ocr-image-input" accept="image/*" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; margin-bottom: 8px; box-sizing: border-box;">
+                        
+                        <button class="btn-secondary" id="ocr-process-btn" style="width: 100%; font-size: 13px; margin-bottom: 8px;">
+                            🔄 Process OCR
+                        </button>
+
+                        <textarea id="ocr-result" placeholder="OCR result akan muncul di sini..." style="width: 100%; height: 100px; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: monospace; box-sizing: border-box; display: none;"></textarea>
+
+                        <div id="ocr-buttons" style="display: none; gap: 8px; margin-top: 8px;">
+                            <button class="btn-secondary" id="ocr-export-csv-btn" style="flex: 1;">
+                                📊 Export CSV
+                            </button>
+                            <button class="btn-secondary" id="ocr-import-btn" style="flex: 1;">
+                                📤 Import Sekarang
+                            </button>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-bottom: 12px; font-size: 14px;">Import Data</h3>
+
+                    <button class="btn-secondary" id="import-json-btn" style="width: 100%; margin-bottom: 12px;">
+                        📤 Import JSON
+                    </button>
+
+                    <button class="btn-secondary" id="import-csv-btn" style="width: 100%; margin-bottom: 24px;">
+                        📤 Import CSV
+                    </button>
+
+                    <h3 style="margin-bottom: 12px; font-size: 14px; color: var(--danger);">Zona Bahaya</h3>
+
+                    <button class="btn-danger" id="clear-demo-btn" style="width: 100%; margin-bottom: 12px;">
+                        🗑️ Hapus Data Demo
+                    </button>
+
+                    <button class="btn-danger" id="clear-all-btn" style="width: 100%;">
+                        ⚠️ Hapus Semua Data
+                    </button>
+                </div>
+            </div>
+
+            <!-- SETTINGS PAGE -->
+            <div class="page" id="settings-page">
+                <div class="sheet-content">
+                    <h3 style="margin-bottom: 16px;">Tentang Aplikasi</h3>
+                    
+                    <div class="info-box">
+                        <strong>Peta Kurir v1.0</strong><br>
+                        Buku alamat pribadi kurir berbasis GPS + peta.<br><br>
+                        <strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.
+                    </div>
+
+                    <h3 style="margin-bottom: 12px; margin-top: 20px;">Teknologi</h3>
+                    
+                    <div style="font-size: 13px; color: var(--text-light); line-height: 1.6;">
+                        <p><strong>Peta:</strong> Leaflet.js + OpenStreetMap</p>
+                        <p><strong>Penyimpanan:</strong> IndexedDB (lokal)</p>
+                        <p><strong>Offline:</strong> Service Worker (PWA)</p>
+                        <p><strong>Voice:</strong> Web Speech API</p>
+                    </div>
+
+                    <h3 style="margin-bottom: 12px; margin-top: 20px;">Fitur</h3>
+
+                    <div style="font-size: 13px; color: var(--text-light); line-height: 1.8;">
+                        ✓ GPS otomatis<br>
+                        ✓ Voice input<br>
+                        ✓ Peta interaktif<br>
+                        ✓ Anti duplikat<br>
+                        ✓ History kunjungan<br>
+                        ✓ Search & filter<br>
+                        ✓ Backup/restore<br>
+                        ✓ Offline first<br>
+                        ✓ PWA Android
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MENU SIDEBAR -->
+    <div class="menu-overlay" id="menu-overlay"></div>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>Menu</h2>
+            <button class="close-btn" id="close-sidebar">×</button>
+        </div>
+        <div class="sidebar-menu">
+            <button data-page="map-page">🗺️ Peta</button>
+            <button data-page="list-page">📋 Daftar Alamat</button>
+            <button data-page="backup-page">💾 Backup</button>
+            <button data-page="settings-page">⚙️ Pengaturan</button>
+        </div>
+    </div>
+
+    <!-- BOTTOM SHEET FOR RECORDING -->
+    <div class="bottom-sheet" id="record-sheet">
+        <div class="sheet-header">
+            <h3>Catat Alamat Selesai</h3>
+            <button class="close-btn" id="close-record-sheet">×</button>
+        </div>
+        <div class="sheet-content">
+            <div class="form-group">
+                <label>Status GPS</label>
+                <div style="font-size: 14px; color: var(--text-light);">
+                    <div id="gps-status">Mengambil lokasi...</div>
+                </div>
+            </div>
+
+            <div id="voice-input-section">
+                <button class="btn-primary" id="voice-start-btn" style="width: 100%; margin-bottom: 12px;">
+                    🎤 Mulai Bicara
+                </button>
+                <div id="voice-status" style="font-size: 13px; color: var(--text-light); text-align: center; margin-bottom: 12px; min-height: 40px; display: flex; align-items: center; justify-content: center;"></div>
+            </div>
+
+            <div id="voice-result" style="display: none;">
+                <div class="form-group">
+                    <label>Catatan Voice (Mentah)</label>
+                    <textarea id="voice-transcript" readonly></textarea>
+                </div>
+            </div>
+
+            <div id="manual-form" style="display: none;">
+                <div class="form-group">
+                    <label>Nama Penerima</label>
+                    <input type="text" id="form-name" placeholder="Contoh: Pak Budi">
+                </div>
+
+                <div class="form-group">
+                    <label>Gang</label>
+                    <input type="text" id="form-gang" placeholder="Contoh: Gang 4">
+                </div>
+
+                <div class="form-group">
+                    <label>Nomor Rumah</label>
+                    <input type="text" id="form-house-number" placeholder="Contoh: 27">
+                </div>
+
+                <div class="form-group">
+                    <label>Alamat Lengkap</label>
+                    <input type="text" id="form-address" placeholder="Contoh: Jl. Raya No. 10">
+                </div>
+
+                <div class="form-group">
+                    <label>Patokan/Landmark</label>
+                    <input type="text" id="form-landmark" placeholder="Contoh: Pagar hitam, sebelah warung biru">
+                </div>
+
+                <div class="form-group">
+                    <label>Status Pembayaran</label>
+                    <select id="form-payment">
+                        <option value="belum">Belum diketahui</option>
+                        <option value="cod">COD normal</option>
+                        <option value="cod-transfer">COD minta transfer</option>
+                        <option value="transfer">Transfer</option>
+                        <option value="other">Minta metode lain</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipe Lokasi</label>
+                    <select id="form-location-type">
+                        <option value="jelas">Alamat jelas</option>
+                        <option value="nitip">Alamat nitip</option>
+                        <option value="sulit">Sulit ditemukan</option>
+                        <option value="patokan">Butuh patokan</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Masalah Pengantaran</label>
+                    <div class="checkbox-group" id="problems-group"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Catatan Tambahan</label>
+                    <textarea id="form-description" placeholder="Catatan lainnya..."></textarea>
+                </div>
+            </div>
+
+            <div class="action-buttons" style="margin-top: 20px;">
+                <button class="btn-secondary" id="cancel-record-btn">Batal</button>
+                <button class="btn-primary" id="save-record-btn">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM SHEET FOR ADDRESS DETAIL -->
+    <div class="bottom-sheet" id="detail-sheet">
+        <div class="sheet-header">
+            <h3 id="detail-name">Nama</h3>
+            <button class="close-btn" id="close-detail-sheet">×</button>
+        </div>
+        <div class="sheet-content">
+            <div id="detail-content"></div>
+            <div class="action-buttons" style="margin-top: 20px;">
+                <button class="btn-secondary" id="detail-edit-btn">✏️ Edit</button>
+                <button class="btn-secondary" id="detail-nav-btn">🧭 Navigasi</button>
+                <button class="btn-primary" id="detail-visit-btn">📍 Catat Kunjungan</button>
+                <button class="btn-danger" id="detail-delete-btn">🗑️ Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal" id="modal-content"></div>
+    </div>
+
+    <!-- HIDDEN FILE INPUTS -->
+    <input type="file" id="file-import-json" accept=".json" style="display: none;">
+    <input type="file" id="file-import-csv" accept=".csv" style="display: none;">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <script>
+        // ============================================
+        // DATABASE & INITIALIZATION
+        // ============================================
+
+        let db;
+        let map;
+        let currentLocation = null;
+        let currentAddresses = [];
+        let currentFilter = 'semua';
+        let currentMapFilter = 'semua';
+        let currentDetailId = null;
+
+        // Initialize IndexedDB
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open('PetaKurir', 2);
+
+                req.onerror = () => reject(req.error);
+                req.onsuccess = () => {
+                    db = req.result;
+                    resolve();
+                };
+
+                req.onupgradeneeded = (e) => {
+                    const database = e.target.result;
+                    
+                    // Migrate old version
+                    if (e.oldVersion < 2) {
+                        if (database.objectStoreNames.contains('addresses')) {
+                            database.deleteObjectStore('addresses');
+                        }
+                    }
+                    
+                    if (!database.objectStoreNames.contains('addresses')) {
+                        const store = database.createObjectStore('addresses', { keyPath: 'id' });
+                        store.createIndex('created_at', 'created_at');
+                        store.createIndex('location_type', 'location_type');
+                        store.createIndex('payment_status', 'payment_status');
+                    }
+                };
+            });
+        }
+
+        // Register Service Worker for PWA
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+const CACHE_NAME = 'peta-kurir-v1';
+
+self.addEventListener('install', (e) => {
+  console.log('SW: installing');
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (e) => {
+  console.log('SW: activating');
+  e.waitUntil(
+    caches.keys().then((names) => Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n))))
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (e) => {
+  // Skip map tiles
+  if (e.request.url.includes('tile.openstreetmap') || e.request.url.includes('googleapis')) return;
+  
+  e.respondWith(
+    caches.match(e.request).then((res) => {
+      if (res) return res;
+      return fetch(e.request).then((res) => {
+        if (!res || res.status !== 200 || res.type === 'error') return res;
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+        return res;
+      }).catch(() => {
+        // Offline fallback
+        return new Response('Offline');
+      });
+    })
+  );
+});
+`;
+
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                const url = URL.createObjectURL(blob);
+                navigator.serviceWorker.register(url).then((reg) => {
+                    console.log('SW: registered', reg);
+                }).catch((err) => {
+                    console.warn('SW: register error', err);
+                });
+            }
+        }
+
+        // Initialize map
+        function initMap() {
+            try {
+                const mapContainer = document.getElementById('map');
+                
+                if (!mapContainer) {
+                    console.error('❌ Map container not found');
+                    return;
+                }
+                
+                // Check if Leaflet is available
+                if (typeof L === 'undefined') {
+                    console.warn('⚠️ Leaflet not loaded, retrying...');
+                    mapContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Peta sedang memuat...</div>';
+                    setTimeout(initMap, 1500);
+                    return;
+                }
+                
+                // Ensure map container is visible with proper sizing
+                mapContainer.style.backgroundColor = '#e5e7eb';
+                mapContainer.style.display = 'block';
+                mapContainer.style.width = '100%';
+                mapContainer.style.height = '100%';
+                mapContainer.style.minHeight = '400px';
+                mapContainer.style.position = 'relative';
+                
+                // Remove existing map if any
+                if (map) {
+                    try {
+                        map.remove();
+                    } catch (e) {
+                        console.warn('Could not remove previous map', e);
+                    }
+                }
+                mapContainer.innerHTML = '';
+                
+                // Initialize map with error handling
+                console.log('🗺️ Initializing Leaflet map...');
+                map = L.map('map', {
+                    attributionControl: true,
+                    zoomControl: true
+                }).setView([-6.2088, 106.8650], 13);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19,
+                    errorTileUrl: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect fill="%23f5f5f5" width="256" height="256"/></svg>'
+                }).addTo(map);
+                
+                console.log('✓ Map initialized successfully');
+                
+                // Force resize
+                map.invalidateSize(true);
+                
+                // Load markers after map is ready
+                updateMapMarkers();
+
+                console.log('✓ Map initialized');
+                
+                // Get current location
+                if (navigator.geolocation) {
+                    navigator.geolocation.watchPosition(
+                        (pos) => {
+                            currentLocation = {
+                                latitude: pos.coords.latitude,
+                                longitude: pos.coords.longitude
+                            };
+                            if (map) {
+                                updateMapMarkers();
+                            }
+                        },
+                        () => { }
+                    );
+                }
+                
+                updateMapMarkers();
+            } catch (err) {
+                console.error('Map init error:', err);
+                const mapContainer = document.getElementById('map');
+                if (mapContainer) {
+                    mapContainer.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">⚠️ Peta tidak tersedia. Coba refresh atau gunakan daftar alamat.</div>';
+                }
+            }
+        }
+
+        // ============================================
+        // MAP OPERATIONS
+        // ============================================
+
+        function zoomToCurrentLocation() {
+            if (!map) {
+                showModal('Error', '❌ Peta belum siap');
+                return;
+            }
+
+            const btn = document.getElementById('zoom-to-location-btn');
+            if (!btn) return;
+            
+            btn.style.opacity = '0.6';
+            btn.disabled = true;
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        
+                        currentLocation = {
+                            latitude: lat,
+                            longitude: lon
+                        };
+
+                        // Fly to location with animation
+                        if (map && map.flyTo) {
+                            map.flyTo([lat, lon], 16, {
+                                duration: 1.5
+                            });
+                        }
+
+                        // Update markers to show current location
+                        updateMapMarkers();
+
+                        btn.style.opacity = '1';
+                        btn.disabled = false;
+                    },
+                    (error) => {
+                        console.error('Geo error:', error);
+                        let errorMsg = '❌ GPS tidak tersedia';
+                        if (error.code === 1) errorMsg = '❌ Izin GPS ditolak. Aktifkan di setting.';
+                        else if (error.code === 2) errorMsg = '❌ Sinyal GPS lemah. Coba di area terbuka.';
+                        else if (error.code === 3) errorMsg = '❌ Timeout. Coba lagi.';
+                        
+                        showModal('Error', errorMsg);
+                        btn.style.opacity = '1';
+                        btn.disabled = false;
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                showModal('Error', '❌ Browser tidak support Geolocation');
+                btn.style.opacity = '1';
+                btn.disabled = false;
+            }
+        }
+
+        async function updateMapMarkers(searchText = '') {
+            // Remove existing markers
+            map.eachLayer((layer) => {
+                if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            // Add current location with pulse effect
+            if (currentLocation) {
+                // Blue circle untuk current location
+                L.circleMarker([currentLocation.latitude, currentLocation.longitude], {
+                    radius: 8,
+                    fillColor: '#2563eb',
+                    color: '#2563eb',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map).bindPopup('📍 Lokasi Anda Saat Ini');
+
+                // Outer pulsing circle
+                L.circleMarker([currentLocation.latitude, currentLocation.longitude], {
+                    radius: 15,
+                    fillColor: '#2563eb',
+                    color: '#2563eb',
+                    weight: 1,
+                    opacity: 0.3,
+                    fillOpacity: 0.1
+                }).addTo(map);
+            }
+
+            // Add address markers with filter
+            const addresses = await getAllAddresses();
+            
+            addresses.forEach((addr) => {
+                // Apply map filter
+                let shouldShow = true;
+                
+                if (currentMapFilter !== 'semua') {
+                    if (currentMapFilter === 'order') {
+                        shouldShow = addr.delivery_status === 'order';
+                    } else if (currentMapFilter === 'tidak-order') {
+                        shouldShow = addr.delivery_status === 'tidak order';
+                    } else if (currentMapFilter === 'belum') {
+                        shouldShow = addr.delivery_status === 'belum selesai';
+                    } else if (currentMapFilter === 'berhasil') {
+                        shouldShow = (!addr.problem_tags || addr.problem_tags.length === 0) && addr.delivery_status !== 'belum selesai';
+                    } else if (currentMapFilter === 'bermasalah') {
+                        shouldShow = addr.problem_tags && addr.problem_tags.length > 0;
+                    } else if (currentMapFilter === 'cod') {
+                        shouldShow = addr.payment_status && addr.payment_status.includes('cod');
+                    } else if (currentMapFilter === 'nitip') {
+                        shouldShow = addr.location_type === 'nitip';
+                    } else if (currentMapFilter === 'sulit') {
+                        shouldShow = addr.location_type === 'sulit' || addr.location_type === 'patokan';
+                    }
+                }
+                
+                if (!shouldShow) return;
+
+                // Apply search filter
+                if (searchText && searchText.length > 0) {
+                    // Check basic fields
+                    const basicMatch = (
+                        (addr.recipient_name || '').toLowerCase().includes(searchText) ||
+                        (addr.gang || '').toLowerCase().includes(searchText) ||
+                        (addr.house_number || '').toLowerCase().includes(searchText) ||
+                        (addr.landmark || '').toLowerCase().includes(searchText) ||
+                        (addr.address || '').toLowerCase().includes(searchText)
+                    );
+
+                    // Check recipients array names
+                    const recipientMatch = addr.recipients && addr.recipients.length > 0 &&
+                        addr.recipients.some((r) => 
+                            (r.name || '').toLowerCase().includes(searchText)
+                        );
+
+                    if (!basicMatch && !recipientMatch) {
+                        return; // Skip this marker
+                    }
+                }
+
+                // Determine color based on status
+                let markerColor = '#10b981'; // green (berhasil)
+                let markerIcon = '📍';
+
+                if (addr.delivery_status === 'order') {
+                    markerColor = '#8b5cf6'; // purple (order)
+                    markerIcon = '📦';
+                } else if (addr.delivery_status === 'tidak order') {
+                    markerColor = '#6366f1'; // indigo (tidak order)
+                    markerIcon = '❌';
+                } else if (addr.delivery_status === 'belum selesai') {
+                    markerColor = '#f59e0b'; // orange (belum selesai)
+                    markerIcon = '🔔';
+                } else if (addr.problem_tags && addr.problem_tags.length > 0) {
+                    markerColor = '#ef4444'; // red (bermasalah)
+                    markerIcon = '⚠️';
+                } else if (addr.location_type === 'nitip') {
+                    markerColor = '#f59e0b'; // orange (nitip)
+                    markerIcon = '📦';
+                } else if (addr.location_type === 'sulit' || addr.location_type === 'patokan') {
+                    markerColor = '#f59e0b'; // orange (sulit)
+                    markerIcon = '🔍';
+                }
+
+                // Create custom icon
+                const icon = L.divIcon({
+                    html: `<div style="
+                        background: ${markerColor};
+                        color: white;
+                        border-radius: 50%;
+                        width: 36px;
+                        height: 36px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 18px;
+                        border: 3px solid white;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                        cursor: pointer;
+                    ">${markerIcon}</div>`,
+                    className: 'custom-marker',
+                    iconSize: [36, 36],
+                    iconAnchor: [18, 18],
+                    popupAnchor: [0, -20]
+                });
+
+                const marker = L.marker([addr.latitude, addr.longitude], { icon: icon }).addTo(map);
+
+                // Enhanced popup
+                const problemTags = addr.problem_tags && addr.problem_tags.length > 0 
+                    ? `<div style="color: #ef4444; font-size: 11px; margin-top: 4px;">⚠️ ${addr.problem_tags.join(', ')}</div>`
+                    : '';
+
+                const paymentBadge = addr.payment_status 
+                    ? `<div style="display: inline-block; background: #e5e7eb; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-top: 4px;">${formatPaymentStatus(addr.payment_status)}</div>`
+                    : '';
+
+                const popup = `
+                    <div style="font-size: 13px; min-width: 150px;">
+                        <strong>${addr.recipient_name}</strong><br>
+                        ${addr.gang || ''} ${addr.house_number || ''}<br>
+                        <small style="color: #666;">${addr.landmark || addr.address || ''}</small>
+                        ${paymentBadge}
+                        ${problemTags}
+                        <div style="margin-top: 6px; font-size: 11px; color: #999;">
+                            Kunjungan: ${addr.visit_count || 1}x
+                        </div>
+                        <div style="margin-top: 6px; text-align: center; font-size: 12px;">
+                            <strong style="color: #2563eb; cursor: pointer;" onclick="showAddressDetail('${addr.id}')">👉 Lihat Detail</strong>
+                        </div>
+                    </div>
+                `;
+
+                marker.bindPopup(popup);
+
+                // Also click marker to show detail
+                marker.on('click', () => {
+                    showAddressDetail(addr.id);
+                });
+            });
+        }
+
+        // ============================================
+        // ADDRESS OPERATIONS
+        // ============================================
+
+        async function getAllAddresses() {
+            return new Promise((resolve) => {
+                const store = db.transaction('addresses').objectStore('addresses');
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+            });
+        }
+
+        async function getAddressById(id) {
+            return new Promise((resolve) => {
+                const store = db.transaction('addresses').objectStore('addresses');
+                const req = store.get(id);
+                req.onsuccess = () => resolve(req.result);
+            });
+        }
+
+        async function saveAddress(address) {
+            return new Promise((resolve, reject) => {
+                if (!address.id) {
+                    address.id = 'addr_' + Date.now();
+                }
+                if (!address.created_at) {
+                    address.created_at = new Date().toISOString();
+                }
+                address.updated_at = new Date().toISOString();
+                if (!address.history) {
+                    address.history = [];
+                }
+                if (!address.visit_count) {
+                    address.visit_count = 0;
+                }
+                
+                // Migrate old data: recipient_name → recipients array
+                if (address.recipient_name && (!address.recipients || address.recipients.length === 0)) {
+                    address.recipients = [{
+                        name: address.recipient_name,
+                        status: address.delivery_status || 'berhasil',
+                        added_at: address.created_at
+                    }];
+                }
+                
+                // Ensure recipients array exists
+                if (!address.recipients) {
+                    address.recipients = [];
+                }
+
+                const store = db.transaction('addresses', 'readwrite').objectStore('addresses');
+                const req = store.put(address);
+                req.onsuccess = () => resolve(address.id);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function deleteAddress(id) {
+            return new Promise((resolve, reject) => {
+                const store = db.transaction('addresses', 'readwrite').objectStore('addresses');
+                const req = store.delete(id);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function checkDuplicate(latitude, longitude, newAddress) {
+            const addresses = await getAllAddresses();
+            const THRESHOLD = 0.00005; // ~5 meters
+
+            for (const addr of addresses) {
+                const latDiff = Math.abs(addr.latitude - latitude);
+                const lonDiff = Math.abs(addr.longitude - longitude);
+
+                if (latDiff < THRESHOLD && lonDiff < THRESHOLD) {
+                    // Check nomor rumah saja, bukan alamat lengkap
+                    if (newAddress && newAddress.house_number) {
+                        const existingNum = (addr.house_number || '').toLowerCase().trim();
+                        const newNum = newAddress.house_number.toLowerCase().trim();
+                        
+                        // Jika nomor rumah berbeda, tidak merge
+                        if (existingNum && newNum && existingNum !== newNum) {
+                            continue; // Skip this duplicate check
+                        }
+                    }
+                    return addr;
+                }
+            }
+            return null;
+        }
+
+        // ============================================
+        // VOICE INPUT
+        // ============================================
+
+        let recognition = null;
+        let isListening = false;
+
+        function initVoiceRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                document.getElementById('voice-input-section').innerHTML = '<div style="color: var(--text-light);">Voice tidak tersedia di browser Anda.</div>';
+                document.getElementById('manual-form').style.display = 'block';
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'id-ID';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isListening = true;
+                document.getElementById('voice-status').innerHTML = '🎤 Sedang mendengarkan...<span class="voice-indicator"></span>';
+            };
+
+            recognition.onresult = (e) => {
+                const transcript = Array.from(e.results)
+                    .map((result) => result[0].transcript)
+                    .join(' ');
+
+                document.getElementById('voice-transcript').value = transcript;
+                parseVoiceInput(transcript);
+            };
+
+            recognition.onerror = (e) => {
+                document.getElementById('voice-status').innerHTML = '❌ Error: ' + e.error;
+                isListening = false;
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                if (document.getElementById('voice-transcript').value) {
+                    document.getElementById('voice-result').style.display = 'block';
+                }
+            };
+        }
+
+        function startVoiceInput() {
+            if (!recognition) {
+                document.getElementById('manual-form').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('voice-result').style.display = 'none';
+            document.getElementById('manual-form').style.display = 'none';
+            document.getElementById('voice-status').innerHTML = '';
+
+            try {
+                recognition.start();
+            } catch (e) {
+                // Already listening
+            }
+        }
+
+        function parseVoiceInput(text) {
+            // Simple parsing - extract information from voice transcript
+            // User says: "Pak Budi, Gang 4 nomor 27, pagar hitam, sebelah warung biru, COD minta transfer"
+
+            // Split by comma or common separators
+            const parts = text.split(/[,\/]/);
+
+            let name = '', gang = '', house = '', landmark = '', payment = '', description = '';
+
+            parts.forEach((part) => {
+                part = part.trim().toLowerCase();
+
+                if (!name && part.length > 0 && !part.includes('gang') && !part.includes('nomor') && !part.includes('cod')) {
+                    name = part;
+                } else if (part.includes('gang')) {
+                    gang = part.replace('gang', '').trim();
+                } else if (part.includes('nomor') || part.includes('no')) {
+                    house = part.replace(/nomor|no/g, '').trim();
+                } else if (!landmark && (part.includes('pagar') || part.includes('sebelah') || part.includes('warung') || part.includes('toko'))) {
+                    landmark = part;
+                } else if (part.includes('cod')) {
+                    payment = part.includes('transfer') ? 'cod-transfer' : 'cod';
+                }
+            });
+
+            // Capitalize names
+            if (name) {
+                name = name.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            }
+            if (gang) {
+                gang = 'Gang ' + gang;
+            }
+
+            // Fill form
+            document.getElementById('form-name').value = name;
+            document.getElementById('form-gang').value = gang;
+            document.getElementById('form-house-number').value = house;
+            document.getElementById('form-landmark').value = landmark;
+            if (payment) {
+                document.getElementById('form-payment').value = payment;
+            }
+
+            // Show manual form for review
+            document.getElementById('manual-form').style.display = 'block';
+        }
+
+        // ============================================
+        // RECORD FLOW
+        // ============================================
+
+        async function showRecordSheet() {
+            resetRecordForm();
+
+            // Show record sheet first
+            document.getElementById('record-sheet').classList.add('active');
+
+            // Get GPS & show map for adjustment
+            if (navigator.geolocation) {
+                document.getElementById('gps-status').innerHTML = '<span class="loading"></span> Mengambil lokasi...';
+
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        currentLocation = {
+                            latitude: pos.coords.latitude,
+                            longitude: pos.coords.longitude
+                        };
+                        
+                        // Initialize map adjustment UI
+                        setTimeout(() => {
+                            initLocationAdjustment();
+                        }, 100);
+                    },
+                    (err) => {
+                        // GPS failed - show manual input fallback
+                        console.warn('Geolocation error:', err);
+                        initManualLocationInput();
+                    }
+                );
+            } else {
+                // Geolocation not supported - show manual input
+                initManualLocationInput();
+            }
+        }
+
+        let adjustmentMap = null;
+        let adjustmentMarker = null;
+
+        function initLocationAdjustment() {
+            // Create mini map for location adjustment
+            const container = document.getElementById('gps-status');
+            
+            if (!adjustmentMap) {
+                // Create map container
+                container.innerHTML = `
+                    <div style="margin: -16px -16px 16px -16px; height: 200px; background: #f3f4f6;" id="adjustment-map"></div>
+                    <div style="text-align: center; font-size: 13px; color: var(--text-light); margin-top: 12px;">
+                        ✓ GPS berhasil. Sesuaikan pin di peta jika perlu.<br>
+                        <strong>${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}</strong>
+                    </div>
+                `;
+
+                // Initialize adjustment map
+                adjustmentMap = L.map('adjustment-map').setView(
+                    [currentLocation.latitude, currentLocation.longitude], 
+                    16
+                );
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(adjustmentMap);
+
+                // Draggable marker
+                adjustmentMarker = L.marker(
+                    [currentLocation.latitude, currentLocation.longitude],
+                    { draggable: true }
+                ).addTo(adjustmentMap);
+
+                // Update location when marker dragged
+                adjustmentMarker.on('dragend', () => {
+                    const pos = adjustmentMarker.getLatLng();
+                    currentLocation = {
+                        latitude: pos.lat,
+                        longitude: pos.lng
+                    };
+                    container.querySelector('strong').textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+                });
+
+                // Also allow tap to set marker
+                adjustmentMap.on('click', (e) => {
+                    const pos = e.latlng;
+                    adjustmentMarker.setLatLng(pos);
+                    currentLocation = {
+                        latitude: pos.lat,
+                        longitude: pos.lng
+                    };
+                    container.querySelector('strong').textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+                });
+
+                // Center map
+                setTimeout(() => {
+                    adjustmentMap.invalidateSize();
+                    adjustmentMap.setView([currentLocation.latitude, currentLocation.longitude], 16);
+                }, 50);
+            }
+
+            // Initialize voice input
+            initVoiceRecognition();
+        }
+
+        function initManualLocationInput() {
+            // If GPS failed, show manual input for coordinates
+            const container = document.getElementById('gps-status');
+            
+            container.innerHTML = `
+                <div style="padding: 12px 0;">
+                    <div style="font-size: 13px; color: var(--danger); margin-bottom: 12px;">
+                        ⚠️ Lokasi GPS tidak tersedia. Input manual:
+                    </div>
+                    <div class="form-group" style="margin-bottom: 8px;">
+                        <label style="font-size: 11px;">Latitude</label>
+                        <input type="number" id="manual-lat" placeholder="-6.2088" step="0.00001" style="padding: 8px; width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 11px;">Longitude</label>
+                        <input type="number" id="manual-lon" placeholder="106.8650" step="0.00001" style="padding: 8px; width: 100%;">
+                    </div>
+                    <button class="btn-secondary" onclick="useManualCoordinates()" style="width: 100%; margin-top: 8px; padding: 8px; font-size: 13px;">
+                        ✓ Gunakan Koordinat
+                    </button>
+                </div>
+            `;
+
+            // Show manual form
+            document.getElementById('manual-form').style.display = 'block';
+            initVoiceRecognition();
+        }
+
+        function useManualCoordinates() {
+            const lat = parseFloat(document.getElementById('manual-lat').value);
+            const lon = parseFloat(document.getElementById('manual-lon').value);
+
+            if (isNaN(lat) || isNaN(lon)) {
+                showModal('Error', '❌ Latitude dan Longitude harus angka valid.');
+                return;
+            }
+
+            if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                showModal('Error', '❌ Koordinat di luar jangkauan (Lat: -90 to 90, Lon: -180 to 180).');
+                return;
+            }
+
+            currentLocation = {
+                latitude: lat,
+                longitude: lon
+            };
+
+            document.getElementById('gps-status').innerHTML = `✓ Lokasi manual<br><small>${lat.toFixed(5)}, ${lon.toFixed(5)}</small>`;
+        }
+
+        function resetRecordForm() {
+            document.getElementById('voice-result').style.display = 'none';
+            document.getElementById('manual-form').style.display = 'false';
+            document.getElementById('voice-status').innerHTML = '';
+            document.getElementById('voice-transcript').value = '';
+            document.getElementById('form-name').value = '';
+            document.getElementById('form-gang').value = '';
+            document.getElementById('form-house-number').value = '';
+            document.getElementById('form-address').value = '';
+            document.getElementById('form-landmark').value = '';
+            document.getElementById('form-payment').value = 'belum';
+            document.getElementById('form-location-type').value = 'jelas';
+            document.getElementById('form-description').value = '';
+
+            // Clear problem checkboxes
+            document.querySelectorAll('#problems-group .checkbox-item').forEach((item) => {
+                item.classList.remove('checked');
+                item.querySelector('input').checked = false;
+            });
+        }
+
+        async function saveRecord() {
+            if (!currentLocation || currentLocation.latitude === undefined || currentLocation.longitude === undefined) {
+                showModal('Error', '❌ Lokasi belum diset. Input koordinat manual terlebih dahulu.');
+                return;
+            }
+
+            const name = document.getElementById('form-name').value.trim();
+            if (!name) {
+                showModal('Error', 'Nama penerima harus diisi.');
+                return;
+            }
+
+            // Get problem tags
+            const problems = [];
+            document.querySelectorAll('#problems-group .checkbox-item.checked').forEach((item) => {
+                const label = item.textContent.trim();
+                problems.push(label);
+            });
+
+            const newAddress = {
+                recipient_name: name,
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+                address: document.getElementById('form-address').value,
+                gang: document.getElementById('form-gang').value,
+                house_number: document.getElementById('form-house-number').value,
+                landmark: document.getElementById('form-landmark').value,
+                description: document.getElementById('form-description').value,
+                payment_status: document.getElementById('form-payment').value,
+                location_type: document.getElementById('form-location-type').value,
+                problem_tags: problems,
+                raw_voice_note: document.getElementById('voice-transcript').value,
+                visit_count: 1,
+                last_visit_at: new Date().toISOString(),
+                delivery_status: 'berhasil',
+                recipients: [{
+                    name: name,
+                    status: 'berhasil',
+                    added_at: new Date().toISOString()
+                }],
+                history: [{
+                    date: new Date().toISOString(),
+                    status: 'berhasil',
+                    payment_status: document.getElementById('form-payment').value,
+                    landmark: document.getElementById('form-landmark').value,
+                    notes: document.getElementById('form-description').value
+                }]
+            };
+
+            // Check for duplicate
+            const duplicate = await checkDuplicate(currentLocation.latitude, currentLocation.longitude);
+
+            if (duplicate) {
+                showDuplicateModal(duplicate, newAddress);
+            } else {
+                // Save new address
+                await saveAddress(newAddress);
+                closeRecordSheet();
+                updateMapMarkers();
+                showModal('Sukses', '✓ Alamat berhasil disimpan!');
+            }
+        }
+
+        function showDuplicateModal(existing, newData) {
+            const content = `
+                <h2>⚠️ Duplikat Terdeteksi</h2>
+                <p>Kemungkinan alamat ini sudah ada di database:</p>
+                <div class="info-box" style="margin: 16px 0;">
+                    <strong>${existing.recipient_name}</strong><br>
+                    ${existing.gang || ''} ${existing.house_number || ''}<br>
+                    <small>${existing.landmark || ''}</small>
+                </div>
+                <p style="font-size: 13px; color: var(--text-light);">Pilih aksi di bawah:</p>
+            `;
+
+            const modal = document.getElementById('modal-content');
+            modal.innerHTML = content;
+
+            const buttons = document.createElement('div');
+            buttons.className = 'modal-buttons';
+            buttons.innerHTML = `
+                <button class="btn-secondary" onclick="closeDuplicateModal()">Batal</button>
+                <button class="btn-primary" onclick="mergeDuplicate()">Gabungkan</button>
+                <button class="btn-secondary" onclick="saveDuplicateNew()">Simpan Baru</button>
+            `;
+            modal.appendChild(buttons);
+
+            // Store for later use
+            window.duplicateExisting = existing;
+            window.duplicateNewData = newData;
+
+            document.getElementById('modal').classList.add('active');
+        }
+
+        async function mergeDuplicate() {
+            const existing = window.duplicateExisting;
+            const newData = window.duplicateNewData;
+
+            existing.visit_count = (existing.visit_count || 0) + 1;
+            existing.last_visit_at = new Date().toISOString();
+
+            // Initialize recipients if not exists
+            if (!existing.recipients) {
+                existing.recipients = existing.recipient_name ? [{
+                    name: existing.recipient_name,
+                    status: existing.delivery_status || 'berhasil',
+                    added_at: existing.created_at
+                }] : [];
+            }
+
+            // Add new recipients (avoid duplicate names)
+            if (newData.recipients) {
+                newData.recipients.forEach((newRecipient) => {
+                    const exists = existing.recipients.some((r) => r.name.toLowerCase() === newRecipient.name.toLowerCase());
+                    if (!exists) {
+                        existing.recipients.push({
+                            name: newRecipient.name,
+                            status: newRecipient.status || 'belum selesai',
+                            added_at: new Date().toISOString()
+                        });
+                    }
+                });
+            }
+
+            if (!existing.history) existing.history = [];
+            existing.history.push({
+                date: new Date().toISOString(),
+                status: 'belum selesai',
+                payment_status: newData.payment_status,
+                landmark: newData.landmark,
+                notes: `${newData.recipients.map((r) => r.name).join(', ')} - ${newData.description}`
+            });
+
+            // Update with new data if provided
+            if (newData.landmark) existing.landmark = newData.landmark;
+            if (newData.payment_status) existing.payment_status = newData.payment_status;
+            if (newData.problem_tags.length > 0) existing.problem_tags = newData.problem_tags;
+            if (newData.description) existing.description = newData.description;
+            
+            // Set delivery status to "belum selesai" if has new recipients
+            existing.delivery_status = 'belum selesai';
+
+            await saveAddress(existing);
+            closeRecordSheet();
+            updateMapMarkers();
+            closeDuplicateModal();
+            showModal('Sukses', `✓ Alamat digabungkan! ${newData.recipients.length} recipient baru (status: belum selesai)`);
+        }
+
+        async function saveDuplicateNew() {
+            await saveAddress(window.duplicateNewData);
+            closeRecordSheet();
+            updateMapMarkers();
+            closeDuplicateModal();
+            showModal('Sukses', '✓ Alamat baru disimpan!');
+        }
+
+        function closeDuplicateModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        // ============================================
+        // ADDRESS DETAIL
+        // ============================================
+
+        async function showAddressDetail(id) {
+            const address = await getAddressById(id);
+            currentDetailId = id;
+
+            const detailContent = document.getElementById('detail-content');
+            let html = `
+                <div class="form-group">
+                    <label>Gang</label>
+                    <div>${address.gang || '-'}</div>
+                </div>
+                <div class="form-group">
+                    <label>Nomor Rumah</label>
+                    <div>${address.house_number || '-'}</div>
+                </div>
+                <div class="form-group">
+                    <label>Alamat</label>
+                    <div>${address.address || '-'}</div>
+                </div>
+                <div class="form-group">
+                    <label>Patokan/Landmark</label>
+                    <div>${address.landmark || '-'}</div>
+                </div>
+                <div class="form-group">
+                    <label>Status Pembayaran</label>
+                    <div><span class="tag">${formatPaymentStatus(address.payment_status)}</span></div>
+                </div>
+                <div class="form-group">
+                    <label>Tipe Lokasi</label>
+                    <div><span class="tag">${formatLocationType(address.location_type)}</span></div>
+                </div>
+            `;
+
+            // Display recipients with individual status
+            if (address.recipients && address.recipients.length > 0) {
+                html += `
+                    <div class="form-group">
+                        <label>Penerima (${address.recipients.length})</label>
+                        <div style="font-size: 13px; line-height: 1.8;">
+                `;
+                address.recipients.forEach((recipient) => {
+                    const statusColor = recipient.status === 'berhasil' ? '#10b981' : recipient.status === 'belum selesai' ? '#f59e0b' : '#ef4444';
+                    const statusLabel = recipient.status === 'berhasil' ? 'Selesai' : recipient.status === 'belum selesai' ? 'Belum Selesai' : 'Gagal';
+                    const escapedName = recipient.name.replace(/'/g, "\\'");
+                    html += `
+                        <div style="padding: 8px; background: var(--bg-alt); border-radius: 4px; margin-bottom: 6px;">
+                            <strong>${recipient.name}</strong><br>
+                            <span style="color: ${statusColor}; font-weight: 600; font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 3px; display: inline-block; background: rgba(0,0,0,0.05);" onclick="showRecipientStatusMenu('${address.id}', '${escapedName}', '${recipient.status}')">● ${statusLabel}</span><br>
+                            <small style="color: var(--text-light);">Ditambah: ${formatDate(recipient.added_at)}</small>
+                        </div>
+                    `;
+                });
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (address.problem_tags && address.problem_tags.length > 0) {
+                html += `
+                    <div class="form-group">
+                        <label>Masalah</label>
+                        <div>${address.problem_tags.map((t) => `<span class="tag">${t}</span>`).join('')}</div>
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="form-group">
+                    <label>Catatan</label>
+                    <div style="white-space: pre-wrap; font-size: 13px;">${address.description || '-'}</div>
+                </div>
+                <div class="form-group">
+                    <label>Statistik</label>
+                    <div style="font-size: 13px; line-height: 1.6;">
+                        <strong>Kunjungan:</strong> ${address.visit_count || 1}x<br>
+                        <strong>Terakhir:</strong> ${formatDate(address.last_visit_at || address.created_at)}<br>
+                        <strong>Dibuat:</strong> ${formatDate(address.created_at)}
+                    </div>
+                </div>
+            `;
+
+            if (address.history && address.history.length > 0) {
+                html += '<div class="form-group"><label>Riwayat Kunjungan</label>';
+                address.history.forEach((h) => {
+                    html += `
+                        <div class="history-item">
+                            <div class="history-date">${formatDate(h.date)}</div>
+                            <div class="history-details">
+                                <span class="record-status success">${h.status || 'berhasil'}</span>
+                                ${h.landmark ? `<br>Patokan: ${h.landmark}` : ''}
+                                ${h.payment_status ? `<br>Bayar: ${formatPaymentStatus(h.payment_status)}` : ''}
+                                ${h.notes ? `<br>Catatan: ${h.notes}` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            detailContent.innerHTML = html;
+            document.getElementById('detail-name').textContent = address.recipient_name;
+            document.getElementById('detail-sheet').classList.add('active');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
+        async function updateRecipientStatus(addrId, recipientName, newStatus) {
+            // Unescape name
+            const displayName = recipientName.replace(/\\'/g, "'");
+            
+            const addr = await getAddressById(addrId);
+            
+            if (addr.recipients) {
+                const recipient = addr.recipients.find((r) => r.name === displayName);
+                if (recipient) {
+                    recipient.status = newStatus;
+                    
+                    // Update delivery_status to "belum selesai" if any recipient belum selesai
+                    const hasIncomplete = addr.recipients.some((r) => r.status === 'belum selesai');
+                    addr.delivery_status = hasIncomplete ? 'belum selesai' : 'berhasil';
+                    
+                    // Add to history
+                    if (!addr.history) addr.history = [];
+                    addr.history.push({
+                        date: new Date().toISOString(),
+                        status: newStatus,
+                        payment_status: addr.payment_status,
+                        notes: `${displayName}: ${newStatus}`
+                    });
+                    
+                    await saveAddress(addr);
+                    
+                    // Close modal first
+                    closeModal();
+                    
+                    // Then refresh UI
+                    setTimeout(() => {
+                        showAddressDetail(addrId);
+                        updateMapMarkers();
+                        updateAddressList();
+                    }, 100);
+                }
+            }
+        }
+
+        function showRecipientStatusMenu(addrId, recipientName, currentStatus) {
+            // Unescape name for display
+            const displayName = recipientName.replace(/\\'/g, "'");
+            
+            const options = [
+                { label: '📦 Order', value: 'order', active: currentStatus === 'order' },
+                { label: '❌ Tidak Order', value: 'tidak order', active: currentStatus === 'tidak order' },
+                { label: '🔔 Belum Selesai', value: 'belum selesai', active: currentStatus === 'belum selesai' },
+                { label: '✓ Berhasil', value: 'berhasil', active: currentStatus === 'berhasil' },
+                { label: '❌ Gagal', value: 'gagal', active: currentStatus === 'gagal' }
+            ];
+
+            let html = `
+                <div style="padding: 16px; text-align: center;">
+                    <div style="font-size: 14px; margin-bottom: 16px; font-weight: 600;">
+                        Update Status: <strong>${displayName}</strong>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+            `;
+
+            options.forEach((opt) => {
+                const bgColor = opt.active ? '#2563eb' : '#f3f4f6';
+                const textColor = opt.active ? '#fff' : '#000';
+                html += `
+                    <button style="
+                        padding: 10px;
+                        background: ${bgColor};
+                        color: ${textColor};
+                        border: none;
+                        border-radius: 6px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        font-size: 13px;
+                    " onclick="updateRecipientStatus('${addrId}', '${recipientName}', '${opt.value}');">
+                        ${opt.label}
+                    </button>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            const modal = document.getElementById('modal-content');
+            modal.innerHTML = html;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        async function editAddress() {
+            const address = await getAddressById(currentDetailId);
+
+            // Close detail sheet
+            document.getElementById('detail-sheet').classList.remove('active');
+
+            // Open record sheet with data
+            document.getElementById('record-sheet').classList.add('active');
+            document.getElementById('manual-form').style.display = 'block';
+
+            document.getElementById('form-name').value = address.recipient_name;
+            document.getElementById('form-gang').value = address.gang || '';
+            document.getElementById('form-house-number').value = address.house_number || '';
+            document.getElementById('form-address').value = address.address || '';
+            document.getElementById('form-landmark').value = address.landmark || '';
+            document.getElementById('form-payment').value = address.payment_status || 'belum';
+            document.getElementById('form-location-type').value = address.location_type || 'jelas';
+            document.getElementById('form-description').value = address.description || '';
+
+            // Set problem tags
+            document.querySelectorAll('#problems-group .checkbox-item').forEach((item) => {
+                const label = item.textContent.trim();
+                if (address.problem_tags && address.problem_tags.includes(label)) {
+                    item.classList.add('checked');
+                    item.querySelector('input').checked = true;
+                } else {
+                    item.classList.remove('checked');
+                    item.querySelector('input').checked = false;
+                }
+            });
+
+            // Update save button to update instead
+            document.getElementById('save-record-btn').textContent = 'Update';
+            document.getElementById('save-record-btn').onclick = () => updateAddress();
+        }
+
+        async function updateAddress() {
+            const address = await getAddressById(currentDetailId);
+
+            address.recipient_name = document.getElementById('form-name').value;
+            address.gang = document.getElementById('form-gang').value;
+            address.house_number = document.getElementById('form-house-number').value;
+            address.address = document.getElementById('form-address').value;
+            address.landmark = document.getElementById('form-landmark').value;
+            address.description = document.getElementById('form-description').value;
+            address.payment_status = document.getElementById('form-payment').value;
+            address.location_type = document.getElementById('form-location-type').value;
+
+            const problems = [];
+            document.querySelectorAll('#problems-group .checkbox-item.checked').forEach((item) => {
+                problems.push(item.textContent.trim());
+            });
+            address.problem_tags = problems;
+
+            await saveAddress(address);
+            closeRecordSheet();
+            updateMapMarkers();
+            showModal('Sukses', '✓ Alamat diperbarui!');
+        }
+
+        async function deleteCurrentAddress() {
+            showConfirmModal('Hapus Alamat', 'Yakin hapus alamat ini? Riwayat akan hilang.', () => {
+                deleteAddress(currentDetailId);
+                document.getElementById('detail-sheet').classList.remove('active');
+                updateMapMarkers();
+                updateAddressList();
+                showModal('Sukses', '✓ Alamat dihapus!');
+            });
+        }
+
+        async function recordVisit() {
+            const address = await getAddressById(currentDetailId);
+
+            if (!address.history) address.history = [];
+
+            address.history.push({
+                date: new Date().toISOString(),
+                status: 'berhasil'
+            });
+
+            address.visit_count = (address.visit_count || 0) + 1;
+            address.last_visit_at = new Date().toISOString();
+
+            await saveAddress(address);
+            showAddressDetail(currentDetailId);
+            showModal('Sukses', '✓ Kunjungan tercatat!');
+        }
+
+        async function navigateToAddress() {
+            const address = await getAddressById(currentDetailId);
+
+            if (typeof navigator.permissions !== 'undefined') {
+                try {
+                    const result = await navigator.permissions.query({ name: 'geolocation' });
+                    if (result.state !== 'denied') {
+                        const url = `geo:${address.latitude},${address.longitude}`;
+                        if (/Android/i.test(navigator.userAgent)) {
+                            window.location.href = url;
+                        } else {
+                            window.open(`https://maps.google.com/?q=${address.latitude},${address.longitude}`);
+                        }
+                        return;
+                    }
+                } catch (e) { }
+            }
+
+            window.open(`https://maps.google.com/?q=${address.latitude},${address.longitude}`);
+        }
+
+        // ============================================
+        // LIST & SEARCH
+        // ============================================
+
+        async function updateAddressList() {
+            const addresses = await getAllAddresses();
+
+            // Apply filter
+            let filtered = addresses;
+            if (currentFilter !== 'semua') {
+                filtered = addresses.filter((addr) => {
+                    if (currentFilter === 'order') return addr.delivery_status === 'order';
+                    if (currentFilter === 'tidak-order') return addr.delivery_status === 'tidak order';
+                    if (currentFilter === 'belum') return addr.delivery_status === 'belum selesai';
+                    if (currentFilter === 'berhasil') return addr.problem_tags?.length === 0 && addr.delivery_status !== 'belum selesai';
+                    if (currentFilter === 'bermasalah') return addr.problem_tags?.length > 0;
+                    if (currentFilter === 'cod') return addr.payment_status?.includes('cod');
+                    if (currentFilter === 'nitip') return addr.location_type === 'nitip';
+                    if (currentFilter === 'sulit') return addr.location_type === 'sulit' || addr.location_type === 'patokan';
+                    return true;
+                });
+            }
+
+            // Apply search
+            const searchText = document.getElementById('list-search-input').value.toLowerCase();
+            if (searchText) {
+                filtered = filtered.filter((addr) => {
+                    // Check basic fields
+                    const basicMatch = (
+                        (addr.recipient_name || '').toLowerCase().includes(searchText) ||
+                        (addr.gang || '').toLowerCase().includes(searchText) ||
+                        (addr.house_number || '').toLowerCase().includes(searchText) ||
+                        (addr.landmark || '').toLowerCase().includes(searchText) ||
+                        (addr.address || '').toLowerCase().includes(searchText)
+                    );
+
+                    // Check recipients array names
+                    const recipientMatch = addr.recipients && addr.recipients.length > 0 &&
+                        addr.recipients.some((r) => 
+                            (r.name || '').toLowerCase().includes(searchText)
+                        );
+
+                    return basicMatch || recipientMatch;
+                });
+            }
+
+            currentAddresses = filtered;
+
+            const list = document.getElementById('address-list');
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>Tidak ada alamat</div></div>';
+                return;
+            }
+
+            list.innerHTML = filtered.map((addr) => {
+                let statusColor = '#10b981'; // default green (berhasil)
+                let statusLabel = '✓ Selesai';
+                
+                if (addr.delivery_status === 'order') {
+                    statusColor = '#8b5cf6'; // purple
+                    statusLabel = '📦 Order';
+                } else if (addr.delivery_status === 'tidak order') {
+                    statusColor = '#6366f1'; // indigo
+                    statusLabel = '❌ Tidak Order';
+                } else if (addr.delivery_status === 'belum selesai') {
+                    statusColor = '#f59e0b'; // orange
+                    statusLabel = '🔔 Belum Selesai';
+                }
+                
+                const recipientCount = addr.recipients ? addr.recipients.length : 1;
+                const isChecked = bulkSelectedIds.has(addr.id);
+                
+                return `
+                    <div class="address-item" data-addr-id="${addr.id}" onclick="showAddressDetail('${addr.id}')">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 4px;">
+                            <div style="display: flex; align-items: center; flex: 1;">
+                                <input type="checkbox" class="address-item-checkbox" data-addr-id="${addr.id}" 
+                                    ${isChecked ? 'checked' : ''} 
+                                    style="cursor: pointer; margin-right: 8px;" 
+                                    onclick="event.stopPropagation(); toggleBulkSelect('${addr.id}');">
+                                <div class="address-item-name">${addr.recipient_name}</div>
+                            </div>
+                            <span style="color: ${statusColor}; font-weight: 600; font-size: 12px;">${statusLabel}</span>
+                        </div>
+                        <div class="address-item-details">
+                            ${addr.gang || ''} ${addr.house_number || ''}<br>
+                            ${addr.landmark || addr.address || ''}
+                        </div>
+                        <div class="address-item-meta">
+                            📍 ${formatDate(addr.last_visit_at || addr.created_at)} · ${addr.visit_count || 1}x · ${recipientCount} penerima
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ============================================
+        // BACKUP & RESTORE
+        // ============================================
+
+        async function exportJSON() {
+            const addresses = await getAllAddresses();
+            const data = {
+                version: '1.0',
+                exported_at: new Date().toISOString(),
+                addresses: addresses
+            };
+
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `peta-kurir-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function exportCSV() {
+            const addresses = await getAllAddresses();
+
+            const headers = ['id', 'nama', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan'];
+
+            const rows = addresses.map((addr) => [
+                addr.id,
+                addr.recipient_name,
+                addr.gang,
+                addr.house_number,
+                addr.address,
+                addr.latitude,
+                addr.longitude,
+                addr.landmark,
+                addr.payment_status,
+                (addr.problem_tags || []).join('; '),
+                addr.location_type,
+                addr.visit_count || 1,
+                formatDate(addr.last_visit_at || addr.created_at),
+                addr.description
+            ]);
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach((row) => {
+                csv += row.map((cell) => {
+                    if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"'))) {
+                        return '"' + cell.replace(/"/g, '""') + '"';
+                    }
+                    return cell || '';
+                }).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `peta-kurir-export-${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ============================================
+        // OCR FUNCTIONS
+        // ============================================
+
+        let ocrCsvData = null;
+
+        async function processOCR() {
+            const fileInput = document.getElementById('ocr-image-input');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showModal('Error', '❌ Pilih file gambar terlebih dahulu');
+                return;
+            }
+
+            const btn = document.getElementById('ocr-process-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Processing OCR...';
+
+            try {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        // Process with Tesseract
+                        const { data: { text } } = await Tesseract.recognize(
+                            e.target.result,
+                            ['ind', 'eng'],
+                            { logger: (m) => console.log('OCR:', m.status, m.progress) }
+                        );
+
+                        // Parse OCR text to CSV
+                        ocrCsvData = parseOCRtoCSV(text);
+                        
+                        // Count entries
+                        const entryCount = (ocrCsvData.match(/\n/g) || []).length - 1; // -1 for header
+
+                        // Show result
+                        const resultArea = document.getElementById('ocr-result');
+                        resultArea.value = ocrCsvData;
+                        resultArea.style.display = 'block';
+
+                        const buttonsDiv = document.getElementById('ocr-buttons');
+                        buttonsDiv.style.display = 'flex';
+
+                        btn.disabled = false;
+                        btn.textContent = '🔄 Process OCR';
+
+                        showModal('Sukses', `✓ OCR berhasil!\n\n📊 Total ${entryCount} entries\n\nData siap diexport atau import.`);
+                    } catch (err) {
+                        console.error('Tesseract error:', err);
+                        showModal('Error', `❌ OCR gagal: ${err.message}`);
+                        btn.disabled = false;
+                        btn.textContent = '🔄 Process OCR';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } catch (err) {
+                console.error('Error:', err);
+                showModal('Error', `❌ Error: ${err.message}`);
+                btn.disabled = false;
+                btn.textContent = '🔄 Process OCR';
+            }
+        }
+
+        function parseOCRtoCSV(ocrText) {
+            // Parse OCR output ke CSV format
+            // Gunakan logic yang sama seperti Python script (berhasil extract 38)
+            
+            const lines = ocrText.split('\n');
+            const entries = [];
+
+            let i = 0;
+            while (i < lines.length) {
+                const line = lines[i].trim();
+                
+                // Find GTL tracking ID
+                const gtlMatch = line.match(/^(GTL\d+)/);
+                if (gtlMatch) {
+                    const entry = {
+                        id: gtlMatch[1],
+                        nama: '',
+                        gang: '',
+                        nomor: '',
+                        alamat: '',
+                        patokan: '',
+                        catatan: ''
+                    };
+                    
+                    // Next line often has name
+                    if (i + 1 < lines.length) {
+                        const nextLine = lines[i + 1].trim();
+                        if (nextLine && /^[A-Za-z\s]+$/.test(nextLine) && nextLine.length < 30) {
+                            entry.nama = nextLine.charAt(0).toUpperCase() + nextLine.slice(1).toLowerCase();
+                            i += 1;
+                        }
+                    }
+                    
+                    // Collect address lines (up to next GTL)
+                    const addrLines = [];
+                    let j = i + 1;
+                    while (j < lines.length) {
+                        const l = lines[j].trim();
+                        if (/^GTL\d+/.test(l)) {
+                            break;
+                        }
+                        // Skip noise lines (phone, status, OCR artifacts)
+                        if (l && !/sedang|proses|\(\+62\)|\[A0|\[\d+\]/.test(l)) {
+                            addrLines.push(l);
+                        }
+                        j++;
+                    }
+                    
+                    // Parse address lines
+                    for (const al of addrLines) {
+                        // Extract number (no., nomor, etc)
+                        const numMatch = al.match(/\bno\.?\s*(\d+[a-z]*)/i);
+                        if (numMatch) {
+                            entry.nomor = numMatch[1];
+                        }
+                        
+                        // Extract jalan/gang
+                        if (/^(jl|jalan|gang|gg)\b/i.test(al)) {
+                            entry.gang = al.substring(0, 50);
+                        }
+                        
+                        // Extract address (RT/RW/lokasi)
+                        if (/rt|rw|jakarta|cipedak|jagakarsa/i.test(al)) {
+                            entry.alamat = al.substring(0, 80);
+                        }
+                        
+                        // Extract patokan/landmark
+                        if (/depan|sebelah|dekat|rumah|toko|warung|mushola|blok|pagar|gang/i.test(al)) {
+                            entry.patokan = al.substring(0, 60);
+                        }
+                    }
+                    
+                    if (entry.nama || entry.alamat) {
+                        entries.push(entry);
+                    }
+                    
+                    i += 1;
+                } else {
+                    i += 1;
+                }
+            }
+
+            // Build CSV
+            let csv = 'id,nama,gang,nomor,alamat,latitude,longitude,patokan,status_pembayaran,masalah,tipe_lokasi,visit_count,kunjungan_terakhir,catatan\n';
+
+            for (const e of entries) {
+                csv += `${e.id || ''},${e.nama || ''},${e.gang || ''},${e.nomor || ''},${e.alamat || ''},,,,belum,,,1,,${e.catatan || 'Dari OCR'}\n`;
+            }
+
+            console.log(`✓ OCR parsed: ${entries.length} entries`);
+            return csv;
+        }
+
+        function exportOCRtoCSV() {
+            if (!ocrCsvData) {
+                showModal('Error', '❌ Tidak ada data OCR');
+                return;
+            }
+
+            const blob = new Blob([ocrCsvData], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `ocr-extract-${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function importOCRdata() {
+            if (!ocrCsvData) {
+                showModal('Error', '❌ Tidak ada data OCR');
+                return;
+            }
+
+            // Parse CSV
+            const lines = ocrCsvData.split('\n').filter((l) => l.trim() && !l.startsWith('id,'));
+            const addresses = [];
+
+            console.log(`Parsing ${lines.length} CSV lines`);
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+
+                const values = parseCSVLine(line);
+                if (values.length >= 5 && values[0]) {
+                    const recipients = (values[1] || '')
+                        .split(';')
+                        .map((n) => n.trim())
+                        .filter((n) => n);
+
+                    const addr = {
+                        id: values[0],
+                        recipient_name: values[1] || '',
+                        gang: values[2] || '',
+                        house_number: values[3] || '',
+                        address: values[4] || '',
+                        latitude: values[5] ? parseFloat(values[5]) : 0,
+                        longitude: values[6] ? parseFloat(values[6]) : 0,
+                        landmark: values[7] || '',
+                        payment_status: values[8] || 'belum',
+                        problem_tags: (values[9] || '')
+                            .split(';')
+                            .map((t) => t.trim())
+                            .filter((t) => t),
+                        location_type: values[10] || 'jelas',
+                        visit_count: parseInt(values[11]) || 1,
+                        description: values[13] || '',
+                        delivery_status: 'belum selesai',
+                        recipients: recipients.map((name) => ({
+                            name: name,
+                            status: 'belum selesai',
+                            added_at: new Date().toISOString()
+                        })),
+                        history: [{
+                            date: new Date().toISOString(),
+                            status: 'belum selesai',
+                            payment_status: values[8] || 'belum',
+                            landmark: values[7] || '',
+                            notes: `Import dari OCR: ${recipients.join(', ')}`
+                        }],
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    };
+
+                    if (addr.recipient_name && addr.address) {
+                        addresses.push(addr);
+                    }
+                }
+            }
+
+            console.log(`✓ Created ${addresses.length} address objects`);
+
+            if (addresses.length === 0) {
+                showModal('Error', '❌ Tidak ada data valid untuk diimport');
+                return;
+            }
+
+            window.importNewAddresses = addresses;
+            showImportModal('csv', addresses.length);
+        }
+
+        async function exportShortCSV() {
+            const nameFilter = document.getElementById('short-export-name').value.toLowerCase().trim();
+            const dateStart = document.getElementById('short-export-date-start').value;
+            const dateEnd = document.getElementById('short-export-date-end').value;
+
+            const addresses = await getAllAddresses();
+
+            // Apply filters
+            let filtered = addresses.filter((addr) => {
+                // Filter by name
+                if (nameFilter) {
+                    const nameMatch = (addr.recipient_name || '').toLowerCase().includes(nameFilter) ||
+                                    (addr.recipients || []).some((r) => r.name.toLowerCase().includes(nameFilter));
+                    if (!nameMatch) return false;
+                }
+
+                // Filter by date
+                if (dateStart || dateEnd) {
+                    const visitDate = addr.last_visit_at || addr.created_at;
+                    if (dateStart && visitDate < dateStart + 'T00:00:00') return false;
+                    if (dateEnd && visitDate > dateEnd + 'T23:59:59') return false;
+                }
+
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                showModal('Info', '⚠️ Tidak ada data yang sesuai filter.');
+                return;
+            }
+
+            // Export as CSV
+            const headers = ['id', 'nama', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan'];
+
+            const rows = filtered.map((addr) => [
+                addr.id,
+                addr.recipient_name,
+                addr.gang,
+                addr.house_number,
+                addr.address,
+                addr.latitude,
+                addr.longitude,
+                addr.landmark,
+                addr.payment_status,
+                (addr.problem_tags || []).join('; '),
+                addr.location_type,
+                addr.visit_count || 1,
+                formatDate(addr.last_visit_at || addr.created_at),
+                addr.description
+            ]);
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach((row) => {
+                csv += row.map((cell) => {
+                    if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"'))) {
+                        return '"' + cell.replace(/"/g, '""') + '"';
+                    }
+                    return cell || '';
+                }).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            
+            let filename = 'peta-kurir-export';
+            if (nameFilter) filename += `-${nameFilter}`;
+            if (dateStart) filename += `-from-${dateStart}`;
+            if (dateEnd) filename += `-to-${dateEnd}`;
+            filename += `.csv`;
+
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            showModal('Sukses', `✓ ${filtered.length} data diexport`);
+        }
+
+        // Bulk update variables
+        let bulkSelectedIds = new Set();
+
+        function toggleBulkSelect(addrId) {
+            if (bulkSelectedIds.has(addrId)) {
+                bulkSelectedIds.delete(addrId);
+            } else {
+                bulkSelectedIds.add(addrId);
+            }
+            updateBulkUI();
+        }
+
+        function toggleBulkSelectAll() {
+            const checkbox = document.getElementById('bulk-select-all');
+            const allItems = document.querySelectorAll('.address-item[data-addr-id]');
+            
+            if (checkbox.checked) {
+                allItems.forEach((item) => {
+                    bulkSelectedIds.add(item.dataset.addrId);
+                });
+            } else {
+                bulkSelectedIds.clear();
+            }
+            updateBulkUI();
+        }
+
+        function updateBulkUI() {
+            const bulkSection = document.getElementById('bulk-section');
+            const countSpan = document.getElementById('bulk-count');
+            const selectAllCheckbox = document.getElementById('bulk-select-all');
+
+            if (bulkSelectedIds.size > 0) {
+                bulkSection.style.display = 'block';
+                countSpan.textContent = bulkSelectedIds.size;
+                selectAllCheckbox.checked = false;
+
+                // Update address item checkboxes
+                document.querySelectorAll('.address-item-checkbox').forEach((checkbox) => {
+                    checkbox.checked = bulkSelectedIds.has(checkbox.dataset.addrId);
+                });
+            } else {
+                bulkSection.style.display = 'none';
+                selectAllCheckbox.checked = false;
+            }
+        }
+
+        async function bulkUpdateStatus(newStatus) {
+            if (bulkSelectedIds.size === 0) return;
+
+            for (const addrId of bulkSelectedIds) {
+                const addr = await getAddressById(addrId);
+                if (!addr || !addr.recipients) continue;
+
+                // Update ALL recipients to new status
+                addr.recipients.forEach((recipient) => {
+                    recipient.status = newStatus;
+                });
+
+                // Update delivery_status
+                const hasIncomplete = addr.recipients.some((r) => r.status === 'belum selesai');
+                addr.delivery_status = hasIncomplete ? 'belum selesai' : 'berhasil';
+
+                // Add to history
+                if (!addr.history) addr.history = [];
+                addr.history.push({
+                    date: new Date().toISOString(),
+                    status: newStatus,
+                    payment_status: addr.payment_status,
+                    notes: `Bulk update: ${newStatus}`
+                });
+
+                await saveAddress(addr);
+            }
+
+            bulkSelectedIds.clear();
+            updateBulkUI();
+            updateAddressList();
+            updateMapMarkers();
+            showModal('Sukses', `✓ ${bulkSelectedIds.size} alamat diupdate`);
+        }
+
+        function exportCSVTemplate() {
+            const template = `id,nama,gang,nomor,alamat,latitude,longitude,patokan,status_pembayaran,masalah,tipe_lokasi,visit_count,kunjungan_terakhir,catatan
+addr_001,Pak Budi,Gang 4,27,Jl. Raya No. 10,-6.2088,106.8650,Pagar hitam; sebelah warung biru,cod-transfer,Sulit dihubungi,-,1,Hari ini,COD minta transfer
+addr_002,Bu Siti,Gang 2,15,Jl. Makmur No. 5,-6.2100,106.8700,Sebelah toko roti,cod,,jelas,1,Kemarin,
+addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jalan buntu,transfer,Sulit ditemukan,sulit,1,Hari ini,Alamat sulit dicari`;
+
+            const blob = new Blob([template], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `peta-kurir-template.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importJSON() {
+            document.getElementById('file-import-json').click();
+        }
+
+        document.getElementById('file-import-json').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    showImportModal(data.addresses, 'json');
+                } catch (err) {
+                    showModal('Error', '❌ File JSON tidak valid.');
+                }
+            };
+            reader.readAsText(file);
+
+            e.target.value = '';
+        });
+
+        function importCSV() {
+            document.getElementById('file-import-csv').click();
+        }
+
+        document.getElementById('file-import-csv').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const csv = event.target.result;
+                    const lines = csv.split('\n');
+                    const headers = lines[0].split(',').map((h) => h.trim());
+
+                    const addresses = [];
+                    for (let i = 1; i < lines.length; i++) {
+                        if (!lines[i].trim()) continue;
+
+                        const values = parseCSVLine(lines[i]);
+                        
+                        // Parse recipients (bisa single atau multiple dipisah ";")
+                        const recipientNames = (values[1] || '')
+                            .split(';')
+                            .map((n) => n.trim())
+                            .filter((n) => n);
+                        
+                        const recipients = recipientNames.map((name) => ({
+                            name: name,
+                            status: 'belum selesai',
+                            added_at: new Date().toISOString()
+                        }));
+                        
+                        const addr = {
+                            id: values[0] || 'addr_' + Date.now(),
+                            recipient_name: values[1] || '', // Keep for compatibility
+                            gang: values[2] || '',
+                            house_number: values[3] || '',
+                            address: values[4] || '',
+                            latitude: parseFloat(values[5]) || 0,
+                            longitude: parseFloat(values[6]) || 0,
+                            landmark: values[7] || '',
+                            payment_status: values[8] || 'belum',
+                            problem_tags: (values[9] || '').split(';').map((t) => t.trim()).filter((t) => t),
+                            location_type: values[10] || 'jelas',
+                            visit_count: parseInt(values[11]) || 1,
+                            description: values[13] || '',
+                            delivery_status: 'belum selesai',
+                            recipients: recipients,
+                            history: [{
+                                date: new Date().toISOString(),
+                                status: 'belum selesai',
+                                payment_status: values[8] || 'belum',
+                                landmark: values[7] || '',
+                                notes: `Import dari OCR: ${recipientNames.join(', ')}`
+                            }]
+                        };
+
+                        if (addr.recipient_name && addr.latitude && addr.longitude) {
+                            addresses.push(addr);
+                        }
+                    }
+
+                    showImportModal(addresses, 'csv');
+                } catch (err) {
+                    showModal('Error', '❌ File CSV tidak valid.');
+                }
+            };
+            reader.readAsText(file);
+
+            e.target.value = '';
+        });
+
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+
+                if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+
+            result.push(current.trim());
+            return result;
+        }
+
+        async function showImportModal(newAddresses, type) {
+            const existing = await getAllAddresses();
+
+            const html = `
+                <h2>Import ${type === 'json' ? 'JSON' : 'CSV'}</h2>
+                <p>Ditemukan <strong>${newAddresses.length}</strong> alamat.</p>
+                <div style="margin: 16px 0;">
+                    <label style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <input type="radio" name="import-action" value="merge" checked>
+                        <span><strong>Gabungkan (Default)</strong><br><small>Cek duplikat dan gabungkan jika ada yang sama</small></span>
+                    </label>
+                    <label style="display: flex; gap: 8px;">
+                        <input type="radio" name="import-action" value="replace">
+                        <span><strong>Ganti Semua</strong><br><small>Hapus data sekarang dan gunakan data import</small></span>
+                    </label>
+                </div>
+            `;
+
+            const modal = document.getElementById('modal-content');
+            modal.innerHTML = html;
+
+            const buttons = document.createElement('div');
+            buttons.className = 'modal-buttons';
+            buttons.innerHTML = `
+                <button class="btn-secondary" onclick="document.getElementById('modal').classList.remove('active')">Batal</button>
+                <button class="btn-primary" onclick="confirmImport('${type}', ${newAddresses.length})">Import</button>
+            `;
+            modal.appendChild(buttons);
+
+            window.importNewAddresses = newAddresses;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        async function confirmImport(type, count) {
+            const action = document.querySelector('input[name="import-action"]:checked').value;
+
+            document.getElementById('modal').classList.remove('active');
+
+            if (action === 'replace') {
+                showConfirmModal('Ganti Semua Data', 'Semua data lokal saat ini akan dihapus. Lanjutkan?', async () => {
+                    // Clear existing
+                    const existing = await getAllAddresses();
+                    for (const addr of existing) {
+                        await deleteAddress(addr.id);
+                    }
+
+                    // Import new
+                    for (const addr of window.importNewAddresses) {
+                        await saveAddress(addr);
+                    }
+
+                    updateMapMarkers();
+                    updateAddressList();
+                    showModal('Sukses', `✓ ${count} alamat diimport!`);
+                });
+            } else {
+                // Show duplicate detection choice dialog
+                showDuplicateDetectionModal(type, count);
+            }
+        }
+
+        function showDuplicateDetectionModal(type, count) {
+            const html = `
+                <h2>Deteksi Duplikat</h2>
+                <p>Lokasi yang berdekatan (dalam 5 meter) akan dijadikan 1 record.</p>
+                <div style="margin: 16px 0;">
+                    <label style="display: flex; gap: 8px; margin-bottom: 12px; padding: 12px; background: var(--bg-alt); border-radius: 6px; cursor: pointer;">
+                        <input type="radio" name="duplicate-action" value="detect" checked>
+                        <span>
+                            <strong>Ya, Deteksi Duplikat</strong><br>
+                            <small>Lokasi berdekatan digabung menjadi 1 (default restore)</small>
+                        </span>
+                    </label>
+                    <label style="display: flex; gap: 8px; padding: 12px; background: var(--bg-alt); border-radius: 6px; cursor: pointer;">
+                        <input type="radio" name="duplicate-action" value="skip">
+                        <span>
+                            <strong>Tidak, Simpan Terpisah</strong><br>
+                            <small>Semua lokasi disimpan terpisah, meski berdekatan</small>
+                        </span>
+                    </label>
+                </div>
+            `;
+
+            const modal = document.getElementById('modal-content');
+            modal.innerHTML = html;
+
+            const buttons = document.createElement('div');
+            buttons.className = 'modal-buttons';
+            buttons.innerHTML = `
+                <button class="btn-secondary" onclick="document.getElementById('modal').classList.remove('active')">Batal</button>
+                <button class="btn-primary" onclick="proceedMergeImport('${type}', ${count})">Lanjut Import</button>
+            `;
+            modal.appendChild(buttons);
+
+            document.getElementById('modal').classList.add('active');
+        }
+
+        async function proceedMergeImport(type, count) {
+            const detectDuplicate = document.querySelector('input[name="duplicate-action"]:checked').value === 'detect';
+            
+            document.getElementById('modal').classList.remove('active');
+
+            // Store choice in window variable
+            window.importDetectDuplicate = detectDuplicate;
+            
+            // Merge
+            for (const newAddr of window.importNewAddresses) {
+                // Only check for duplicates if user selected "detect"
+                // Pass newAddr for address similarity check
+                const dup = detectDuplicate ? await checkDuplicate(newAddr.latitude, newAddr.longitude, newAddr) : null;
+
+                if (dup && detectDuplicate) {
+                    // Initialize recipients if not exists (migrating old data)
+                    if (!dup.recipients) {
+                        dup.recipients = dup.recipient_name ? [{
+                            name: dup.recipient_name,
+                            status: dup.delivery_status === 'belum selesai' ? 'belum selesai' : 'berhasil',
+                            added_at: dup.created_at
+                        }] : [];
+                    }
+
+                    // Check if any imported recipient name matches existing
+                    let hasMatchingRecipient = false;
+                    if (newAddr.recipients) {
+                        newAddr.recipients.forEach((newRecipient) => {
+                            const nameMatches = dup.recipients.some((r) => 
+                                r.name.toLowerCase() === newRecipient.name.toLowerCase()
+                            );
+                            
+                            if (nameMatches) {
+                                hasMatchingRecipient = true;
+                                // Mark matching recipient as "order" (order lagi)
+                            } else {
+                                // Add new recipient
+                                dup.recipients.push({
+                                    name: newRecipient.name,
+                                    status: 'order',
+                                    added_at: new Date().toISOString()
+                                });
+                            }
+                        });
+                    }
+
+                    // Merge history
+                    if (!dup.history) dup.history = [];
+                    if (newAddr.history) {
+                        dup.history.push(...newAddr.history);
+                    }
+                    
+                    dup.visit_count = (dup.visit_count || 0) + (newAddr.visit_count || 1);
+                    
+                    // Set delivery_status to "order" jika:
+                    // 1. Ada recipient yang sama (order lagi)
+                    // 2. Ada recipient baru
+                    if (hasMatchingRecipient || (newAddr.recipients && newAddr.recipients.length > 0)) {
+                        dup.delivery_status = 'order';
+                    }
+                    
+                    // Update info jika ada perubahan
+                    if (newAddr.problem_tags && newAddr.problem_tags.length > 0) {
+                        dup.problem_tags = [...(dup.problem_tags || []), ...newAddr.problem_tags];
+                        dup.problem_tags = [...new Set(dup.problem_tags)]; // Remove duplicates
+                    }
+                    if (newAddr.landmark) dup.landmark = newAddr.landmark;
+                    if (newAddr.payment_status) dup.payment_status = newAddr.payment_status;
+
+                    await saveAddress(dup);
+                } else {
+                    // No duplicate OR user selected "skip" → save as new with "order" status
+                    newAddr.delivery_status = 'order';
+                    await saveAddress(newAddr);
+                }
+            }
+
+            updateMapMarkers();
+            updateAddressList();
+            showModal('Sukses', `✓ ${count} alamat diimport!\n\n${detectDuplicate ? '🔍 Duplikat terdeteksi & digabung' : '✓ Semua disimpan terpisah (tidak ada merge)'}\n\n📦 Status: Order`);
+
+        async function clearDemoData() {
+            const addresses = await getAllAddresses();
+            const demoAddresses = addresses.filter((addr) => addr.recipient_name && ['Pak Budi', 'Bu Siti', 'Pak Ahmad'].includes(addr.recipient_name));
+
+            for (const addr of demoAddresses) {
+                await deleteAddress(addr.id);
+            }
+
+            updateMapMarkers();
+            updateAddressList();
+            showModal('Sukses', '✓ Data demo dihapus!');
+        }
+
+        async function clearAllData() {
+            showConfirmModal('Hapus Semua Data', 'Yakin menghapus SEMUA data? Tidak bisa diundo!', async () => {
+                const addresses = await getAllAddresses();
+                for (const addr of addresses) {
+                    await deleteAddress(addr.id);
+                }
+
+                updateMapMarkers();
+                updateAddressList();
+                showModal('Sukses', '✓ Semua data dihapus!');
+            });
+        }
+
+        // ============================================
+        // UI & NAVIGATION
+        // ============================================
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach((page) => page.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+
+            closeSidebar();
+
+            if (pageId === 'list-page') {
+                updateAddressList();
+            } else if (pageId === 'map-page') {
+                setTimeout(() => {
+                    if (map) {
+                        map.invalidateSize();
+                        updateMapMarkers();
+                    }
+                }, 100);
+            }
+        }
+
+        function showSidebar() {
+            document.getElementById('sidebar').classList.add('active');
+            document.getElementById('menu-overlay').classList.add('active');
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('active');
+            document.getElementById('menu-overlay').classList.remove('active');
+        }
+
+        function closeRecordSheet() {
+            document.getElementById('record-sheet').classList.remove('active');
+            document.getElementById('save-record-btn').textContent = 'Simpan';
+            document.getElementById('save-record-btn').onclick = () => saveRecord();
+
+            // Cleanup adjustment map
+            if (adjustmentMap) {
+                adjustmentMap.off();
+                adjustmentMap.remove();
+                adjustmentMap = null;
+                adjustmentMarker = null;
+            }
+        }
+
+        function showModal(title, message) {
+            const modal = document.getElementById('modal-content');
+            modal.innerHTML = `
+                <h2>${title}</h2>
+                <p>${message}</p>
+                <div class="modal-buttons">
+                    <button class="btn-primary" onclick="document.getElementById('modal').classList.remove('active')" style="flex: 1;">OK</button>
+                </div>
+            `;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function showConfirmModal(title, message, onConfirm) {
+            const modal = document.getElementById('modal-content');
+            modal.innerHTML = `
+                <h2>${title}</h2>
+                <p>${message}</p>
+            `;
+
+            const buttons = document.createElement('div');
+            buttons.className = 'modal-buttons';
+            buttons.innerHTML = `
+                <button class="btn-secondary" onclick="document.getElementById('modal').classList.remove('active')">Batal</button>
+                <button class="btn-danger" onclick="(${onConfirm.toString()})(); document.getElementById('modal').classList.remove('active')">Hapus</button>
+            `;
+            modal.appendChild(buttons);
+
+            document.getElementById('modal').classList.add('active');
+        }
+
+        // ============================================
+        // UTILITIES
+        // ============================================
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+
+            const date = new Date(dateString);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            if (date.toDateString() === today.toDateString()) {
+                return `Hari ini ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+            }
+
+            if (date.toDateString() === yesterday.toDateString()) {
+                return `Kemarin ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+            }
+
+            return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function formatPaymentStatus(status) {
+            const map = {
+                'cod': 'COD',
+                'cod-transfer': 'COD Transfer',
+                'transfer': 'Transfer',
+                'other': 'Lainnya',
+                'belum': 'Belum'
+            };
+            return map[status] || status;
+        }
+
+        function formatLocationType(type) {
+            const map = {
+                'jelas': 'Jelas',
+                'nitip': 'Nitip',
+                'sulit': 'Sulit',
+                'patokan': 'Patokan'
+            };
+            return map[type] || type;
+        }
+
+        // ============================================
+        // PROBLEM TAGS INITIALIZATION
+        // ============================================
+
+        function initProblemTags() {
+            const problems = [
+                'Sulit dihubungi',
+                'Tidak ada di rumah',
+                'Alamat tidak jelas',
+                'Alamat nitip',
+                'Sulit ditemukan',
+                'Jalan buntu',
+                'Sering FTD',
+                'Sering retur',
+                'COD bermasalah',
+                'Lainnya'
+            ];
+
+            const group = document.getElementById('problems-group');
+            group.innerHTML = problems.map((problem) => `
+                <label class="checkbox-item" onclick="this.classList.toggle('checked'); this.querySelector('input').checked = !this.querySelector('input').checked;">
+                    <input type="checkbox">
+                    <span>${problem}</span>
+                </label>
+            `).join('');
+        }
+
+        // ============================================
+        // VOICE SEARCH
+        // ============================================
+
+        let searchRecognition = null;
+
+        function initSearchVoiceRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                showModal('Error', 'Voice search tidak tersedia di browser Anda.');
+                return;
+            }
+
+            searchRecognition = new SpeechRecognition();
+            searchRecognition.lang = 'id-ID';
+            searchRecognition.continuous = false;
+            searchRecognition.interimResults = false;
+
+            searchRecognition.onstart = () => {
+                const btn = document.getElementById('voice-search-btn');
+                btn.textContent = '🎤 Mendengarkan...';
+                btn.style.background = 'var(--danger)';
+            };
+
+            searchRecognition.onresult = (e) => {
+                const transcript = Array.from(e.results)
+                    .map((result) => result[0].transcript)
+                    .join(' ')
+                    .toLowerCase();
+
+                document.getElementById('list-search-input').value = transcript;
+                updateAddressList();
+
+                const btn = document.getElementById('voice-search-btn');
+                btn.textContent = '🎤';
+                btn.style.background = 'var(--secondary)';
+            };
+
+            searchRecognition.onerror = (e) => {
+                showModal('Error', '❌ Voice error: ' + e.error);
+                const btn = document.getElementById('voice-search-btn');
+                btn.textContent = '🎤';
+                btn.style.background = 'var(--secondary)';
+            };
+
+            searchRecognition.onend = () => {
+                const btn = document.getElementById('voice-search-btn');
+                btn.textContent = '🎤';
+                btn.style.background = 'var(--secondary)';
+            };
+        }
+
+        function startVoiceSearch() {
+            if (!searchRecognition) {
+                initSearchVoiceRecognition();
+            }
+
+            try {
+                searchRecognition.start();
+            } catch (e) {
+                // Already listening
+            }
+        }
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+
+        document.getElementById('menu-btn').addEventListener('click', showSidebar);
+        document.getElementById('menu-overlay').addEventListener('click', closeSidebar);
+        document.getElementById('close-sidebar').addEventListener('click', closeSidebar);
+
+        document.querySelectorAll('[data-page]').forEach((btn) => {
+            btn.addEventListener('click', () => showPage(btn.dataset.page));
+        });
+
+        document.getElementById('zoom-to-location-btn').addEventListener('click', zoomToCurrentLocation);
+        document.getElementById('record-btn').addEventListener('click', showRecordSheet);
+        document.getElementById('close-record-sheet').addEventListener('click', () => {
+            closeRecordSheet();
+        });
+        document.getElementById('cancel-record-btn').addEventListener('click', () => {
+            closeRecordSheet();
+        });
+        document.getElementById('save-record-btn').addEventListener('click', saveRecord);
+
+        document.getElementById('voice-start-btn').addEventListener('click', startVoiceInput);
+
+        document.getElementById('detail-edit-btn').addEventListener('click', editAddress);
+        document.getElementById('detail-nav-btn').addEventListener('click', navigateToAddress);
+        document.getElementById('detail-visit-btn').addEventListener('click', recordVisit);
+        document.getElementById('detail-delete-btn').addEventListener('click', deleteCurrentAddress);
+        document.getElementById('close-detail-sheet').addEventListener('click', () => {
+            document.getElementById('detail-sheet').classList.remove('active');
+        });
+
+        document.getElementById('search-btn').addEventListener('click', () => {
+            // Filter markers on map by search text
+            const input = document.getElementById('search-input');
+            const text = input ? input.value.toLowerCase().trim() : '';
+            console.log('Search clicked:', text); // Debug
+            if (text) {
+                updateMapMarkers(text);
+            } else {
+                updateMapMarkers();
+            }
+        });
+
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const input = document.getElementById('search-input');
+                const text = input ? input.value.toLowerCase().trim() : '';
+                console.log('Search Enter:', text); // Debug
+                if (text) {
+                    updateMapMarkers(text);
+                } else {
+                    updateMapMarkers();
+                }
+            }
+        });
+
+        document.getElementById('list-search-btn').addEventListener('click', updateAddressList);
+        document.getElementById('list-search-input').addEventListener('input', updateAddressList);
+        document.getElementById('list-search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                updateAddressList();
+            }
+        });
+        document.getElementById('voice-search-btn').addEventListener('click', startVoiceSearch);
+
+        document.querySelectorAll('[data-filter]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-filter]').forEach((b) => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                updateAddressList();
+            });
+        });
+
+        document.querySelectorAll('[data-map-filter]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-map-filter]').forEach((b) => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMapFilter = btn.dataset.mapFilter;
+                updateMapMarkers();
+            });
+        });
+
+        document.getElementById('export-json-btn').addEventListener('click', exportJSON);
+        document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+        document.getElementById('export-csv-template-btn').addEventListener('click', exportCSVTemplate);
+        document.getElementById('export-short-csv-btn').addEventListener('click', exportShortCSV);
+        document.getElementById('bulk-select-all').addEventListener('change', toggleBulkSelectAll);
+        document.getElementById('bulk-cancel-btn').addEventListener('click', () => {
+            bulkSelectedIds.clear();
+            updateBulkUI();
+        });
+        document.getElementById('bulk-status-order').addEventListener('click', () => bulkUpdateStatus('order'));
+        document.getElementById('bulk-status-tidak-order').addEventListener('click', () => bulkUpdateStatus('tidak order'));
+        document.getElementById('bulk-status-belum').addEventListener('click', () => bulkUpdateStatus('belum selesai'));
+        document.getElementById('bulk-status-berhasil').addEventListener('click', () => bulkUpdateStatus('berhasil'));
+        document.getElementById('bulk-status-gagal').addEventListener('click', () => bulkUpdateStatus('gagal'));
+        document.getElementById('import-json-btn').addEventListener('click', importJSON);
+        document.getElementById('import-csv-btn').addEventListener('click', importCSV);
+        document.getElementById('clear-demo-btn').addEventListener('click', clearDemoData);
+        document.getElementById('clear-all-btn').addEventListener('click', clearAllData);
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+
+        async function init() {
+            try {
+                await initDB();
+                initMap();
+                registerServiceWorker();
+                initProblemTags();
+
+                // Add demo data if empty
+                const addresses = await getAllAddresses();
+                if (addresses.length === 0) {
+                    const demo = [
+                        {
+                            recipient_name: 'Pak Budi',
+                            gang: 'Gang 4',
+                            house_number: '27',
+                            landmark: 'Pagar hitam',
+                            latitude: -6.2088,
+                            longitude: 106.8650,
+                            payment_status: 'cod',
+                            location_type: 'jelas',
+                            problem_tags: [],
+                            visit_count: 1,
+                            history: [{
+                                date: new Date().toISOString(),
+                                status: 'berhasil'
+                            }]
+                        },
+                        {
+                            recipient_name: 'Bu Siti',
+                            gang: 'Gang 2',
+                            house_number: '15',
+                            landmark: 'Sebelah toko roti',
+                            latitude: -6.2100,
+                            longitude: 106.8700,
+                            payment_status: 'cod-transfer',
+                            location_type: 'jelas',
+                            problem_tags: [],
+                            visit_count: 1,
+                            history: [{
+                                date: new Date().toISOString(),
+                                status: 'berhasil'
+                            }]
+                        },
+                        {
+                            recipient_name: 'Pak Ahmad',
+                            gang: 'Gang 5',
+                            house_number: '8',
+                            landmark: 'Rumah hijau',
+                            latitude: -6.2050,
+                            longitude: 106.8600,
+                            payment_status: 'transfer',
+                            location_type: 'sulit',
+                            problem_tags: ['Sulit ditemukan'],
+                            visit_count: 1,
+                            history: [{
+                                date: new Date().toISOString(),
+                                status: 'berhasil'
+                            }]
+                        }
+                    ];
+
+                    for (const addr of demo) {
+                        await saveAddress(addr);
+                    }
+                }
+
+                updateMapMarkers();
+                showModal('Selamat Datang', '👋 Peta Kurir siap digunakan!\n\nCara pakai:\n1. Tap tombol ✓ besar\n2. Sesuaikan pin di peta (drag/tap)\n3. Bicara atau isi manual\n4. Simpan\n\nGunakan export JSON untuk backup! 💾');
+            } catch (err) {
+                console.error('Init error:', err);
+                showModal('Error', 'Gagal inisialisasi aplikasi: ' + err.message);
+            }
+        }
+
+        // Start app with delay untuk memastikan CDN loaded
+        window.addEventListener('load', () => {
+            // Longer delay for Tesseract + all CDN to load
+            setTimeout(init, 2000);
+            
+            // Add OCR event listeners after DOM ready
+            setTimeout(() => {
+                const processBtn = document.getElementById('ocr-process-btn');
+                const exportBtn = document.getElementById('ocr-export-csv-btn');
+                const importBtn = document.getElementById('ocr-import-btn');
+
+                if (processBtn) processBtn.addEventListener('click', processOCR);
+                if (exportBtn) exportBtn.addEventListener('click', exportOCRtoCSV);
+                if (importBtn) importBtn.addEventListener('click', importOCRdata);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
