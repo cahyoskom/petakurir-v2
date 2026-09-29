@@ -745,13 +745,14 @@
                         <button id="bulk-cancel-btn" style="padding: 4px 8px; background: var(--border); border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Batal</button>
                     </div>
                     
-                    <div style="display: flex; gap: 6px;">
-                        <button id="bulk-status-order" style="flex: 1; padding: 8px; background: #8b5cf6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">📦 Order</button>
-                        <button id="bulk-status-tidak-order" style="flex: 1; padding: 8px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">❌ Tidak Order</button>
-                        <button id="bulk-status-belum" style="flex: 1; padding: 8px; background: #f59e0b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">🔔 Belum</button>
-                        <button id="bulk-status-berhasil" style="flex: 1; padding: 8px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">✓ Berhasil</button>
-                        <button id="bulk-status-gagal" style="flex: 1; padding: 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">❌ Gagal</button>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <button id="bulk-status-tidak-order" style="flex: 1; min-width: 60px; padding: 8px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">❌ Tidak Order</button>
+                        <button id="bulk-status-belum" style="flex: 1; min-width: 60px; padding: 8px; background: #f59e0b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">🔔 Belum</button>
+                        <button id="bulk-status-berhasil" style="flex: 1; min-width: 60px; padding: 8px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">✓ Berhasil</button>
+                        <button id="bulk-status-gagal" style="flex: 1; min-width: 60px; padding: 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">❌ Gagal</button>
                     </div>
+                    <button id="bulk-merge-btn" style="width: 100%; padding: 8px; margin-top: 6px; background: #a78bfa; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">📌 Gabung Penerima dari Alamat Sama</button>
+                    <button id="optimize-route-btn" style="width: 100%; padding: 8px; margin-top: 6px; background: #06b6d4; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">🗺️ Optimasi Rute Belum Selesai</button>
                 </div>
 
                 <div class="address-list" id="address-list"></div>
@@ -1035,6 +1036,15 @@
         let bulkSelectedIds = new Set();
         let ocrCsvData = null;
 
+        // OpenRouteService Config - GANTI DENGAN API KEY DARI https://openrouteservice.org
+        const ORS_CONFIG = {
+            apiKey: 'YOUR_ORS_API_KEY_HERE', // Free: 40 req/min
+            apiUrl: 'https://api.openrouteservice.org/v2/directions/driving-car'
+        };
+        
+        // Distance cache untuk efficiency
+        let distanceCache = {};
+
         // Initialize IndexedDB
         function initDB() {
             return new Promise((resolve, reject) => {
@@ -1300,9 +1310,7 @@ self.addEventListener('fetch', (e) => {
                 let shouldShow = true;
                 
                 if (currentMapFilter !== 'semua') {
-                    if (currentMapFilter === 'order') {
-                        shouldShow = addr.delivery_status === 'order';
-                    } else if (currentMapFilter === 'tidak-order') {
+                    if (currentMapFilter === 'tidak-order') {
                         shouldShow = addr.delivery_status === 'tidak order';
                     } else if (currentMapFilter === 'belum') {
                         shouldShow = addr.delivery_status === 'belum selesai';
@@ -2074,6 +2082,7 @@ self.addEventListener('fetch', (e) => {
                 });
                 html += `
                         <button class="btn-secondary" style="width: 100%; padding: 8px; margin-top: 8px; font-size: 13px; cursor: pointer;" onclick="showAddRecipientModal('${address.id}')">➕ Tambah Penerima</button>
+                        ${address.recipients && address.recipients.length > 1 ? `<button class="btn-secondary" style="width: 100%; padding: 8px; margin-top: 4px; font-size: 13px; cursor: pointer; background: #f59e0b; color: white;" onclick="showSplitRecipientModal('${address.id}')">🔀 Pisahkan Penerima</button>` : ''}
                         </div>
                     </div>
                 `;
@@ -2148,7 +2157,6 @@ self.addEventListener('fetch', (e) => {
                     <div class="form-group">
                         <label>Status</label>
                         <div style="display: flex; flex-direction: column; gap: 6px;">
-                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; ${currentStatus === 'order' ? 'background: var(--primary); color: white;' : ''}" onclick="setEditRecipientStatus('order')">📦 Order</button>
                             <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; ${currentStatus === 'tidak order' ? 'background: var(--primary); color: white;' : ''}" onclick="setEditRecipientStatus('tidak order')">❌ Tidak Order</button>
                             <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; ${currentStatus === 'belum selesai' ? 'background: var(--primary); color: white;' : ''}" onclick="setEditRecipientStatus('belum selesai')">🔔 Belum Selesai</button>
                             <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; ${currentStatus === 'berhasil' ? 'background: var(--primary); color: white;' : ''}" onclick="setEditRecipientStatus('berhasil')">✓ Berhasil</button>
@@ -2212,10 +2220,10 @@ self.addEventListener('fetch', (e) => {
                     
                     if (statuses.includes('tidak order')) {
                         addr.delivery_status = 'tidak order';
-                    } else if (statuses.includes('order')) {
-                        addr.delivery_status = 'order';
                     } else if (statuses.includes('belum selesai')) {
                         addr.delivery_status = 'belum selesai';
+                    } else if (statuses.includes('gagal')) {
+                        addr.delivery_status = 'gagal';
                     } else {
                         addr.delivery_status = 'berhasil';
                     }
@@ -2259,9 +2267,8 @@ self.addEventListener('fetch', (e) => {
                     <div class="form-group">
                         <label>Status</label>
                         <div style="display: flex; flex-direction: column; gap: 6px;">
-                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; background: var(--primary); color: white;" onclick="setNewRecipientStatus('order')">📦 Order</button>
                             <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left;" onclick="setNewRecipientStatus('tidak order')">❌ Tidak Order</button>
-                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left;" onclick="setNewRecipientStatus('belum selesai')">🔔 Belum Selesai</button>
+                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; background: var(--primary); color: white;" onclick="setNewRecipientStatus('belum selesai')">🔔 Belum Selesai</button>
                             <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left;" onclick="setNewRecipientStatus('berhasil')">✓ Berhasil</button>
                             <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left;" onclick="setNewRecipientStatus('gagal')">❌ Gagal</button>
                         </div>
@@ -2274,7 +2281,7 @@ self.addEventListener('fetch', (e) => {
                 </div>
             `;
             
-            window.newRecipientData = { addrId, selectedStatus: 'order' };
+            window.newRecipientData = { addrId, selectedStatus: 'belum selesai' };
             
             document.getElementById('modal-content').innerHTML = html;
             document.getElementById('modal').classList.add('active');
@@ -2330,10 +2337,10 @@ self.addEventListener('fetch', (e) => {
             
             if (statuses.includes('tidak order')) {
                 addr.delivery_status = 'tidak order';
-            } else if (statuses.includes('order')) {
-                addr.delivery_status = 'order';
             } else if (statuses.includes('belum selesai')) {
                 addr.delivery_status = 'belum selesai';
+            } else if (statuses.includes('gagal')) {
+                addr.delivery_status = 'gagal';
             } else {
                 addr.delivery_status = 'berhasil';
             }
@@ -2390,8 +2397,8 @@ self.addEventListener('fetch', (e) => {
                         
                         if (statuses.includes('tidak order')) {
                             addr.delivery_status = 'tidak order';
-                        } else if (statuses.includes('order')) {
-                            addr.delivery_status = 'order';
+                        } else if (statuses.includes('gagal')) {
+                            addr.delivery_status = 'gagal';
                         } else if (statuses.includes('belum selesai')) {
                             addr.delivery_status = 'belum selesai';
                         } else {
@@ -2419,6 +2426,548 @@ self.addEventListener('fetch', (e) => {
             }
         }
 
+        // ============================================
+        // RECIPIENT SPLIT & MERGE
+        // ============================================
+
+        function showSplitRecipientModal(addrId) {
+            const loadAsync = async () => {
+                const addr = await getAddressById(addrId);
+                
+                if (!addr.recipients || addr.recipients.length <= 1) {
+                    showModal('Info', 'Penerima minimal 2 untuk pisahkan');
+                    return;
+                }
+                
+                let html = `
+                    <div style="padding: 16px;">
+                        <h2 style="margin-bottom: 16px; font-size: 16px;">Pilih Penerima untuk Dipisahkan</h2>
+                        <small style="color: var(--text-light);">Setiap penerima akan menjadi record terpisah dengan alamat sama</small>
+                        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                `;
+                
+                addr.recipients.forEach((r, idx) => {
+                    html += `
+                        <label style="display: flex; align-items: center; padding: 8px; background: var(--bg-alt); border-radius: 4px; cursor: pointer;">
+                            <input type="checkbox" class="split-checkbox" data-name="${r.name}" style="margin-right: 8px; cursor: pointer;">
+                            <span><strong>${r.name}</strong> - ${r.status}</span>
+                        </label>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 16px;">
+                            <button class="btn-primary" style="flex: 1; padding: 10px;" onclick="executeSplitRecipient('${addrId}')">✂️ Pisahkan</button>
+                            <button class="btn-secondary" style="flex: 1; padding: 10px;" onclick="closeModal()">Batal</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('modal-content').innerHTML = html;
+                document.getElementById('modal').classList.add('active');
+            };
+            
+            loadAsync();
+        }
+
+        async function executeSplitRecipient(addrId) {
+            const checkboxes = document.querySelectorAll('.split-checkbox:checked');
+            
+            if (checkboxes.length === 0) {
+                showModal('Error', '❌ Pilih minimal 1 penerima');
+                return;
+            }
+            
+            const addr = await getAddressById(addrId);
+            const namesToSplit = Array.from(checkboxes).map((cb) => cb.dataset.name);
+            
+            let splitCount = 0;
+            
+            // Split each selected recipient into a new record
+            for (const name of namesToSplit) {
+                const recipient = addr.recipients.find((r) => r.name === name);
+                
+                if (recipient) {
+                    // Create new record
+                    const newAddr = {
+                        id: 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                        latitude: addr.latitude,
+                        longitude: addr.longitude,
+                        recipient_name: recipient.name,
+                        recipients: [{
+                            name: recipient.name,
+                            status: recipient.status,
+                            added_at: new Date().toISOString()
+                        }],
+                        delivery_status: recipient.status,
+                        address: addr.address,
+                        gang: addr.gang,
+                        house_number: addr.house_number,
+                        landmark: addr.landmark,
+                        description: addr.description,
+                        payment_status: addr.payment_status,
+                        location_type: addr.location_type,
+                        problem_tags: addr.problem_tags || [],
+                        visit_count: 0,
+                        last_visit_at: null,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        history: [{
+                            date: new Date().toISOString(),
+                            notes: `Split dari: ${addr.recipient_name}`
+                        }],
+                        raw_voice_note: ''
+                    };
+                    
+                    await saveAddress(newAddr);
+                    splitCount++;
+                }
+            }
+            
+            // Remove split recipients from original
+            addr.recipients = addr.recipients.filter((r) => !namesToSplit.includes(r.name));
+            
+            // Update delivery_status
+            if (addr.recipients.length === 0) {
+                addr.delivery_status = 'tidak order';
+            } else {
+                const statuses = addr.recipients.map((r) => r.status);
+                if (statuses.includes('tidak order')) {
+                    addr.delivery_status = 'tidak order';
+                } else if (statuses.includes('gagal')) {
+                    addr.delivery_status = 'gagal';
+                } else if (statuses.includes('belum selesai')) {
+                    addr.delivery_status = 'belum selesai';
+                } else {
+                    addr.delivery_status = 'berhasil';
+                }
+            }
+            
+            // Add to history
+            if (!addr.history) addr.history = [];
+            addr.history.push({
+                date: new Date().toISOString(),
+                notes: `Pisahkan ${splitCount} penerima`
+            });
+            
+            await saveAddress(addr);
+            
+            closeModal();
+            setTimeout(() => {
+                updateMapMarkers();
+                updateAddressList();
+                showAddressDetail(addrId);
+                showModal('Sukses', `✓ ${splitCount} penerima dipisahkan jadi record baru!`);
+            }, 100);
+        }
+
+        // ============================================
+        // MERGE RECIPIENTS FROM MULTIPLE RECORDS
+        // ============================================
+
+        function showMergeRecipientsModal() {
+            const loadAsync = async () => {
+                const allAddresses = await getAllAddresses();
+                
+                // Group by address (gang + house_number)
+                const addressGroups = {};
+                
+                allAddresses.forEach((addr) => {
+                    const key = `${addr.gang || ''}-${addr.house_number || ''}`;
+                    if (!addressGroups[key]) {
+                        addressGroups[key] = [];
+                    }
+                    addressGroups[key].push(addr);
+                });
+                
+                // Filter only groups with multiple records
+                const mergeableGroups = Object.entries(addressGroups)
+                    .filter(([key, addrs]) => addrs.length > 1)
+                    .map(([key, addrs]) => ({
+                        key,
+                        addresses: addrs,
+                        label: `${addrs[0].gang || 'Gang'} No.${addrs[0].house_number || '?'} (${addrs.length} record)`
+                    }));
+                
+                if (mergeableGroups.length === 0) {
+                    showModal('Info', 'Tidak ada alamat yang bisa digabung (perlu minimal 2 record dengan gang + nomor sama)');
+                    return;
+                }
+                
+                let html = `
+                    <div style="padding: 16px;">
+                        <h2 style="margin-bottom: 16px; font-size: 16px;">Pilih Alamat untuk Digabung</h2>
+                        <small style="color: var(--text-light);">Semua penerima dari records berbeda akan digabung jadi 1 record</small>
+                        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;">
+                `;
+                
+                mergeableGroups.forEach((group) => {
+                    html += `
+                        <button class="btn-secondary" style="padding: 10px; text-align: left; cursor: pointer;" onclick="executeMergeRecipients('${group.key}')">
+                            <strong>${group.label}</strong><br>
+                            <small style="color: var(--text-light);">
+                                ${group.addresses.map((a) => `${a.recipient_name} (${a.recipients?.length || 1} penerima)`).join(', ')}
+                            </small>
+                        </button>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                        <button class="btn-secondary" style="width: 100%; padding: 10px; margin-top: 12px;" onclick="closeModal()">Batal</button>
+                    </div>
+                `;
+                
+                document.getElementById('modal-content').innerHTML = html;
+                document.getElementById('modal').classList.add('active');
+            };
+            
+            loadAsync();
+        }
+
+        async function executeMergeRecipients(groupKey) {
+            const allAddresses = await getAllAddresses();
+            const [gang, houseNum] = groupKey.split('-');
+            
+            const addressesToMerge = allAddresses.filter((addr) => 
+                (addr.gang || '') === gang && (addr.house_number || '') === houseNum
+            );
+            
+            if (addressesToMerge.length < 2) {
+                showModal('Error', 'Minimal 2 record untuk merge');
+                return;
+            }
+            
+            // Keep first record, merge others into it
+            const mainAddr = addressesToMerge[0];
+            
+            // Collect all recipients
+            const allRecipients = [];
+            addressesToMerge.forEach((addr) => {
+                if (addr.recipients && Array.isArray(addr.recipients)) {
+                    allRecipients.push(...addr.recipients);
+                } else if (addr.recipient_name) {
+                    allRecipients.push({
+                        name: addr.recipient_name,
+                        status: addr.delivery_status || 'order',
+                        added_at: addr.created_at || new Date().toISOString()
+                    });
+                }
+            });
+            
+            // Update main address
+            mainAddr.recipients = allRecipients;
+            mainAddr.recipient_name = allRecipients.map((r) => r.name).join(', ');
+            
+            // Update delivery_status
+            const statuses = mainAddr.recipients.map((r) => r.status);
+            if (statuses.includes('tidak order')) {
+                mainAddr.delivery_status = 'tidak order';
+            } else if (statuses.includes('gagal')) {
+                mainAddr.delivery_status = 'order';
+            } else if (statuses.includes('belum selesai')) {
+                mainAddr.delivery_status = 'belum selesai';
+            } else {
+                mainAddr.delivery_status = 'berhasil';
+            }
+            
+            // Add to history
+            if (!mainAddr.history) mainAddr.history = [];
+            mainAddr.history.push({
+                date: new Date().toISOString(),
+                notes: `Gabung ${addressesToMerge.length} record: ${addressesToMerge.map((a) => a.recipient_name).join(', ')}`
+            });
+            
+            await saveAddress(mainAddr);
+            
+            // Delete merged records
+            for (let i = 1; i < addressesToMerge.length; i++) {
+                await deleteAddress(addressesToMerge[i].id);
+            }
+            
+            closeModal();
+            setTimeout(() => {
+                updateMapMarkers();
+                updateAddressList();
+                showModal('Sukses', `✓ ${addressesToMerge.length} record digabung!`);
+            }, 100);
+        }
+
+        // ============================================
+        // ROUTING OPTIMIZATION
+        // ============================================
+
+        function calculateDistanceHaversine(lat1, lon1, lat2, lon2) {
+            // Fallback: Haversine formula - jarak straight line dalam km
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // Distance in km
+        }
+
+        async function calculateDistance(lat1, lon1, lat2, lon2) {
+            // Check cache first
+            const cacheKey = `${lat1.toFixed(4)},${lon1.toFixed(4)}-${lat2.toFixed(4)},${lon2.toFixed(4)}`;
+            if (distanceCache[cacheKey]) {
+                return distanceCache[cacheKey];
+            }
+            
+            // Try OpenRouteService first
+            if (ORS_CONFIG.apiKey && ORS_CONFIG.apiKey !== 'YOUR_ORS_API_KEY_HERE') {
+                try {
+                    // Format: lon,lat (OpenRouteService uses lon,lat order)
+                    const coords = `${lon1},${lat1};${lon2},${lat2}`;
+                    const url = `${ORS_CONFIG.apiUrl}?api_key=${ORS_CONFIG.apiKey}&coordinates=${coords}&format=json`;
+                    
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.routes && data.routes[0]) {
+                            // Return distance in km
+                            const distanceM = data.routes[0].summary.distance;
+                            const distanceKm = distanceM / 1000;
+                            distanceCache[cacheKey] = distanceKm;
+                            return distanceKm;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('OpenRouteService error, using Haversine fallback:', err);
+                }
+            }
+            
+            // Fallback to Haversine
+            const distance = calculateDistanceHaversine(lat1, lon1, lat2, lon2);
+            distanceCache[cacheKey] = distance;
+            return distance;
+        }
+
+        async function showOptimizeRouteModal() {
+            // Get all belum selesai addresses
+            const allAddresses = await getAllAddresses();
+            const pendingAddresses = allAddresses.filter((addr) => addr.delivery_status === 'belum selesai');
+            
+            if (pendingAddresses.length === 0) {
+                showModal('Info', 'Tidak ada alamat dengan status "Belum Selesai"');
+                return;
+            }
+            
+            // Show modal dengan peta untuk set start point
+            const html = `
+                <div style="padding: 16px;">
+                    <h2 style="margin-bottom: 8px; font-size: 16px;">Optimasi Rute - Pilih Titik Awal</h2>
+                    <small style="color: var(--text-light); display: block; margin-bottom: 12px;">
+                        ${pendingAddresses.length} alamat belum selesai akan dioptimasi. Tap di peta untuk set titik awal atau gunakan lokasi sekarang.
+                    </small>
+                    
+                    <div id="route-start-map" style="width: 100%; height: 300px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 12px;"></div>
+                    
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-primary" style="flex: 1; padding: 10px;" onclick="executeRouteOptimization()">🗺️ Mulai Optimasi</button>
+                        <button class="btn-secondary" style="flex: 1; padding: 10px;" onclick="closeModal()">Batal</button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modal-content').innerHTML = html;
+            document.getElementById('modal').classList.add('active');
+            
+            // Initialize map for start point selection
+            setTimeout(() => {
+                const mapContainer = document.getElementById('route-start-map');
+                if (mapContainer) {
+                    const startMap = L.map(mapContainer).setView([-6.2088, 106.8650], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap',
+                        maxZoom: 19
+                    }).addTo(startMap);
+                    
+                    // Default start marker
+                    let startMarker = L.marker([-6.2088, 106.8650], { draggable: true }).addTo(startMap);
+                    
+                    // Click to set start point
+                    startMap.on('click', (e) => {
+                        if (startMarker) startMarker.remove();
+                        startMarker = L.marker(e.latlng, { draggable: true }).addTo(startMap);
+                    });
+                    
+                    // Store start point for later
+                    window.routeStartPoint = {
+                        latitude: -6.2088,
+                        longitude: 106.8650,
+                        marker: startMarker
+                    };
+                    
+                    // Update on drag
+                    startMarker.on('drag', (e) => {
+                        window.routeStartPoint.latitude = e.target.getLatLng().lat;
+                        window.routeStartPoint.longitude = e.target.getLatLng().lng;
+                    });
+                }
+            }, 100);
+            
+            window.pendingAddressesForRoute = pendingAddresses;
+        }
+
+        function calculateNearestNeighbor(startPoint, addresses) {
+            // Nearest neighbor algorithm untuk TSP
+            const remaining = [...addresses];
+            const route = [startPoint];
+            let currentPoint = startPoint;
+            let totalDistance = 0;
+            
+            while (remaining.length > 0) {
+                let nearest = null;
+                let nearestDist = Infinity;
+                let nearestIndex = -1;
+                
+                // Cari yang paling dekat
+                for (let i = 0; i < remaining.length; i++) {
+                    const dist = calculateDistance(
+                        currentPoint.latitude, currentPoint.longitude,
+                        remaining[i].latitude, remaining[i].longitude
+                    );
+                    
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearest = remaining[i];
+                        nearestIndex = i;
+                    }
+                }
+                
+                if (nearest) {
+                    route.push(nearest);
+                    totalDistance += nearestDist;
+                    currentPoint = { latitude: nearest.latitude, longitude: nearest.longitude };
+                    remaining.splice(nearestIndex, 1);
+                }
+            }
+            
+            return { route, totalDistance };
+        }
+
+        async function executeRouteOptimization() {
+            if (!window.routeStartPoint || !window.pendingAddressesForRoute) {
+                showModal('Error', 'Data routing tidak ditemukan');
+                return;
+            }
+            
+            const startPoint = window.routeStartPoint;
+            const pendingAddresses = window.pendingAddressesForRoute;
+            
+            // Calculate optimal route
+            const { route, totalDistance } = calculateNearestNeighbor(startPoint, pendingAddresses);
+            
+            closeModal();
+            
+            // Display route in daftar and map
+            displayRouteList(route, totalDistance);
+            displayRouteOnMap(route, totalDistance);
+        }
+
+        function displayRouteList(route, totalDistance) {
+            // Create route list modal
+            let html = `
+                <div style="padding: 16px;">
+                    <h2 style="margin-bottom: 8px; font-size: 16px;">Rute Optimal - ${route.length} Lokasi</h2>
+                    <div style="background: var(--bg-alt); padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 13px;">
+                        <strong>Total Jarak:</strong> ${totalDistance.toFixed(2)} km | 
+                        <strong>Est. Waktu:</strong> ${Math.ceil(totalDistance * 2)} menit
+                    </div>
+                    
+                    <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
+            `;
+            
+            let cumulativeDistance = 0;
+            
+            for (let i = 0; i < route.length; i++) {
+                const addr = route[i];
+                let distFromPrev = 0;
+                
+                if (i === 0) {
+                    html += `
+                        <div style="padding: 8px; background: #06b6d4; color: white; border-radius: 4px; margin-bottom: 6px; font-weight: 600;">
+                            📍 START: ${addr.recipient_name || 'Titik Awal'}<br>
+                            <small>Lat: ${addr.latitude?.toFixed(4)}, Lon: ${addr.longitude?.toFixed(4)}</small>
+                        </div>
+                    `;
+                } else {
+                    distFromPrev = calculateDistance(
+                        route[i - 1].latitude, route[i - 1].longitude,
+                        addr.latitude, addr.longitude
+                    );
+                    cumulativeDistance += distFromPrev;
+                    
+                    html += `
+                        <div style="padding: 8px; background: var(--bg-alt); border-radius: 4px; margin-bottom: 6px; border-left: 4px solid #06b6d4;">
+                            <strong style="color: #06b6d4;">🔹 ${i}</strong> ${addr.recipient_name || 'Alamat'}<br>
+                            <small style="color: var(--text-light);">
+                                Jarak: ${distFromPrev.toFixed(2)} km | Kumulatif: ${cumulativeDistance.toFixed(2)} km<br>
+                                Gang: ${addr.gang || '-'} | No: ${addr.house_number || '-'}
+                            </small>
+                        </div>
+                    `;
+                }
+            }
+            
+            html += `
+                    </div>
+                    <button class="btn-secondary" style="width: 100%; padding: 10px; margin-top: 12px;" onclick="closeModal()">Tutup</button>
+                </div>
+            `;
+            
+            document.getElementById('modal-content').innerHTML = html;
+            document.getElementById('modal').classList.add('active');
+            
+            // Store for map display
+            window.currentRoute = route;
+            window.currentRouteTotalDistance = totalDistance;
+        }
+
+        function displayRouteOnMap(route, totalDistance) {
+            if (!map) return;
+            
+            // Clear previous route layers
+            if (window.routePolyline) {
+                map.removeLayer(window.routePolyline);
+            }
+            if (window.routeMarkers) {
+                window.routeMarkers.forEach((m) => map.removeLayer(m));
+            }
+            window.routeMarkers = [];
+            
+            // Draw route polyline
+            const routeCoords = route.map((addr) => [addr.latitude, addr.longitude]);
+            window.routePolyline = L.polyline(routeCoords, {
+                color: '#06b6d4',
+                weight: 3,
+                opacity: 0.8,
+                dashArray: '5, 5'
+            }).addTo(map);
+            
+            // Add numbered markers
+            route.forEach((addr, idx) => {
+                let icon = L.divIcon({
+                    html: `<div style="background: #06b6d4; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 600; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${idx}</div>`,
+                    iconSize: [32, 32],
+                    className: 'route-marker'
+                });
+                
+                const marker = L.marker([addr.latitude, addr.longitude], { icon }).addTo(map);
+                marker.bindPopup(`<strong>${idx}. ${addr.recipient_name}</strong><br>Gang: ${addr.gang || '-'} No: ${addr.house_number || '-'}`);
+                window.routeMarkers.push(marker);
+            });
+            
+            // Fit bounds
+            map.fitBounds(window.routePolyline.getBounds().pad(0.1));
+            
+            showModal('Rute Ditampilkan', `✓ Rute dengan ${route.length} lokasi (${totalDistance.toFixed(2)} km) ditampilkan di peta`);
+        }
+
         async function updateRecipientStatus(addrId, recipientName, newStatus) {
             // Unescape name
             const displayName = recipientName.replace(/\\'/g, "'");
@@ -2436,8 +2985,8 @@ self.addEventListener('fetch', (e) => {
                     
                     if (statuses.includes('tidak order')) {
                         addr.delivery_status = 'tidak order';
-                    } else if (statuses.includes('order')) {
-                        addr.delivery_status = 'order';
+                    } else if (statuses.includes('gagal')) {
+                        addr.delivery_status = 'gagal';
                     } else if (statuses.includes('belum selesai')) {
                         addr.delivery_status = 'belum selesai';
                     } else {
@@ -2474,7 +3023,6 @@ self.addEventListener('fetch', (e) => {
             const displayName = recipientName.replace(/\\'/g, "'");
             
             const options = [
-                { label: '📦 Order', value: 'order', active: currentStatus === 'order' },
                 { label: '❌ Tidak Order', value: 'tidak order', active: currentStatus === 'tidak order' },
                 { label: '🔔 Belum Selesai', value: 'belum selesai', active: currentStatus === 'belum selesai' },
                 { label: '✓ Berhasil', value: 'berhasil', active: currentStatus === 'berhasil' },
@@ -2725,10 +3273,7 @@ self.addEventListener('fetch', (e) => {
                 let statusColor = '#10b981'; // default green (berhasil)
                 let statusLabel = '✓ Selesai';
                 
-                if (addr.delivery_status === 'order') {
-                    statusColor = '#8b5cf6'; // purple
-                    statusLabel = '📦 Order';
-                } else if (addr.delivery_status === 'tidak order') {
+                if (addr.delivery_status === 'tidak order') {
                     statusColor = '#6366f1'; // indigo
                     statusLabel = '❌ Tidak Order';
                 } else if (addr.delivery_status === 'belum selesai') {
@@ -3211,8 +3756,8 @@ self.addEventListener('fetch', (e) => {
                 
                 if (statuses.includes('tidak order')) {
                     addr.delivery_status = 'tidak order';
-                } else if (statuses.includes('order')) {
-                    addr.delivery_status = 'order';
+                } else if (statuses.includes('gagal')) {
+                    addr.delivery_status = 'gagal';
                 } else if (statuses.includes('belum selesai')) {
                     addr.delivery_status = 'belum selesai';
                 } else {
@@ -3507,12 +4052,12 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
                             
                             if (nameMatches) {
                                 hasMatchingRecipient = true;
-                                // Mark matching recipient as "order" (order lagi)
+                                // Mark matching recipient as "belum selesai" (belum diproses)
                             } else {
                                 // Add new recipient
                                 dup.recipients.push({
                                     name: newRecipient.name,
-                                    status: 'order',
+                                    status: 'belum selesai',
                                     added_at: new Date().toISOString()
                                 });
                             }
@@ -3887,11 +4432,12 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
             bulkSelectedIds.clear();
             updateBulkUI();
         });
-        document.getElementById('bulk-status-order').addEventListener('click', () => bulkUpdateStatus('order'));
         document.getElementById('bulk-status-tidak-order').addEventListener('click', () => bulkUpdateStatus('tidak order'));
         document.getElementById('bulk-status-belum').addEventListener('click', () => bulkUpdateStatus('belum selesai'));
         document.getElementById('bulk-status-berhasil').addEventListener('click', () => bulkUpdateStatus('berhasil'));
         document.getElementById('bulk-status-gagal').addEventListener('click', () => bulkUpdateStatus('gagal'));
+        document.getElementById('bulk-merge-btn').addEventListener('click', showMergeRecipientsModal);
+        document.getElementById('optimize-route-btn').addEventListener('click', showOptimizeRouteModal);
         document.getElementById('import-json-btn').addEventListener('click', importJSON);
         document.getElementById('import-csv-btn').addEventListener('click', importCSV);
         document.getElementById('clear-demo-btn').addEventListener('click', clearDemoData);
