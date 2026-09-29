@@ -2059,14 +2059,21 @@ self.addEventListener('fetch', (e) => {
                     const statusLabel = recipient.status === 'berhasil' ? 'Selesai' : recipient.status === 'belum selesai' ? 'Belum Selesai' : 'Gagal';
                     const escapedName = recipient.name.replace(/'/g, "\\'");
                     html += `
-                        <div style="padding: 8px; background: var(--bg-alt); border-radius: 4px; margin-bottom: 6px;">
-                            <strong>${recipient.name}</strong><br>
-                            <span style="color: ${statusColor}; font-weight: 600; font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 3px; display: inline-block; background: rgba(0,0,0,0.05);" onclick="showRecipientStatusMenu('${address.id}', '${escapedName}', '${recipient.status}')">● ${statusLabel}</span><br>
-                            <small style="color: var(--text-light);">Ditambah: ${formatDate(recipient.added_at)}</small>
+                        <div style="padding: 8px; background: var(--bg-alt); border-radius: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex: 1;">
+                                <strong>${recipient.name}</strong><br>
+                                <span style="color: ${statusColor}; font-weight: 600; font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 3px; display: inline-block; background: rgba(0,0,0,0.05);" onclick="showRecipientStatusMenu('${address.id}', '${escapedName}', '${recipient.status}')">● ${statusLabel}</span><br>
+                                <small style="color: var(--text-light);">Ditambah: ${formatDate(recipient.added_at)}</small>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px; white-space: nowrap;" onclick="showEditRecipientModal('${address.id}', '${escapedName}', '${recipient.status}')">✏️</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px; white-space: nowrap; background: #ef4444; color: white;" onclick="confirmDeleteRecipient('${address.id}', '${escapedName}')">🗑️</button>
+                            </div>
                         </div>
                     `;
                 });
                 html += `
+                        <button class="btn-secondary" style="width: 100%; padding: 8px; margin-top: 8px; font-size: 13px; cursor: pointer;" onclick="showAddRecipientModal('${address.id}')">➕ Tambah Penerima</button>
                         </div>
                     </div>
                 `;
@@ -2123,6 +2130,292 @@ self.addEventListener('fetch', (e) => {
             const modal = document.getElementById('modal');
             if (modal) {
                 modal.classList.remove('active');
+            }
+        }
+
+        function showEditRecipientModal(addrId, recipientName, currentStatus) {
+            const displayName = recipientName.replace(/\\'/g, "'");
+            
+            const html = `
+                <div style="padding: 16px;">
+                    <h2 style="margin-bottom: 16px; font-size: 16px;">Edit Penerima</h2>
+                    
+                    <div class="form-group">
+                        <label>Nama Penerima</label>
+                        <input type="text" id="edit-recipient-name" value="${displayName}" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; box-sizing: border-box;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Status</label>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; ${currentStatus === 'order' ? 'background: var(--primary); color: white;' : ''}" onclick="setEditRecipientStatus('order')">📦 Order</button>
+                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; ${currentStatus === 'tidak order' ? 'background: var(--primary); color: white;' : ''}" onclick="setEditRecipientStatus('tidak order')">❌ Tidak Order</button>
+                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; ${currentStatus === 'belum selesai' ? 'background: var(--primary); color: white;' : ''}" onclick="setEditRecipientStatus('belum selesai')">🔔 Belum Selesai</button>
+                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; ${currentStatus === 'berhasil' ? 'background: var(--primary); color: white;' : ''}" onclick="setEditRecipientStatus('berhasil')">✓ Berhasil</button>
+                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; ${currentStatus === 'gagal' ? 'background: var(--primary); color: white;' : ''}" onclick="setEditRecipientStatus('gagal')">❌ Gagal</button>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; margin-top: 16px;">
+                        <button class="btn-primary" style="flex: 1; padding: 10px;" onclick="saveEditedRecipient('${addrId}', '${recipientName}')">💾 Simpan</button>
+                        <button class="btn-secondary" style="flex: 1; padding: 10px;" onclick="closeModal()">Batal</button>
+                    </div>
+                </div>
+            `;
+            
+            let selectedStatus = currentStatus;
+            window.editRecipientData = { addrId, oldName: displayName, selectedStatus };
+            
+            document.getElementById('modal-content').innerHTML = html;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function setEditRecipientStatus(status) {
+            window.editRecipientData.selectedStatus = status;
+            
+            // Update button colors
+            const buttons = document.querySelectorAll('#modal-content .btn-secondary');
+            buttons.forEach((btn) => {
+                if (btn.textContent.includes(status) || 
+                    (status === 'tidak order' && btn.textContent.includes('Tidak Order')) ||
+                    (status === 'belum selesai' && btn.textContent.includes('Belum Selesai'))) {
+                    btn.style.background = 'var(--primary)';
+                    btn.style.color = 'white';
+                } else {
+                    btn.style.background = 'var(--bg-alt)';
+                    btn.style.color = 'var(--text)';
+                }
+            });
+        }
+
+        async function saveEditedRecipient(addrId, oldName) {
+            const newName = document.getElementById('edit-recipient-name').value.trim();
+            const newStatus = window.editRecipientData.selectedStatus;
+            const displayOldName = oldName.replace(/\\'/g, "'");
+            
+            if (!newName) {
+                showModal('Error', '❌ Nama penerima tidak boleh kosong');
+                return;
+            }
+            
+            const addr = await getAddressById(addrId);
+            
+            if (addr.recipients) {
+                const recipient = addr.recipients.find((r) => r.name === displayOldName);
+                if (recipient) {
+                    recipient.name = newName;
+                    recipient.status = newStatus;
+                    recipient.updated_at = new Date().toISOString();
+                    
+                    // Update delivery_status based on recipients statuses
+                    const statuses = addr.recipients.map((r) => r.status);
+                    
+                    if (statuses.includes('tidak order')) {
+                        addr.delivery_status = 'tidak order';
+                    } else if (statuses.includes('order')) {
+                        addr.delivery_status = 'order';
+                    } else if (statuses.includes('belum selesai')) {
+                        addr.delivery_status = 'belum selesai';
+                    } else {
+                        addr.delivery_status = 'berhasil';
+                    }
+                    
+                    // Add to history
+                    if (!addr.history) addr.history = [];
+                    addr.history.push({
+                        date: new Date().toISOString(),
+                        status: newStatus,
+                        notes: `Edit penerima: ${displayOldName} → ${newName} (${newStatus})`
+                    });
+                    
+                    await saveAddress(addr);
+                    
+                    closeModal();
+                    setTimeout(() => {
+                        showAddressDetail(addrId);
+                        updateMapMarkers();
+                        updateAddressList();
+                    }, 100);
+                    
+                    showModal('Sukses', `✓ Penerima diperbarui!`);
+                }
+            }
+        }
+
+        // ============================================
+        // RECIPIENT CRUD - CREATE
+        // ============================================
+
+        function showAddRecipientModal(addrId) {
+            const html = `
+                <div style="padding: 16px;">
+                    <h2 style="margin-bottom: 16px; font-size: 16px;">Tambah Penerima Baru</h2>
+                    
+                    <div class="form-group">
+                        <label>Nama Penerima</label>
+                        <input type="text" id="new-recipient-name" placeholder="Nama penerima..." style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; box-sizing: border-box;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Status</label>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left; background: var(--primary); color: white;" onclick="setNewRecipientStatus('order')">📦 Order</button>
+                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left;" onclick="setNewRecipientStatus('tidak order')">❌ Tidak Order</button>
+                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left;" onclick="setNewRecipientStatus('belum selesai')">🔔 Belum Selesai</button>
+                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left;" onclick="setNewRecipientStatus('berhasil')">✓ Berhasil</button>
+                            <button class="btn-secondary" style="padding: 8px; font-size: 13px; text-align: left;" onclick="setNewRecipientStatus('gagal')">❌ Gagal</button>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; margin-top: 16px;">
+                        <button class="btn-primary" style="flex: 1; padding: 10px;" onclick="saveAddRecipient('${addrId}')">➕ Tambah</button>
+                        <button class="btn-secondary" style="flex: 1; padding: 10px;" onclick="closeModal()">Batal</button>
+                    </div>
+                </div>
+            `;
+            
+            window.newRecipientData = { addrId, selectedStatus: 'order' };
+            
+            document.getElementById('modal-content').innerHTML = html;
+            document.getElementById('modal').classList.add('active');
+            document.getElementById('new-recipient-name').focus();
+        }
+
+        function setNewRecipientStatus(status) {
+            window.newRecipientData.selectedStatus = status;
+            
+            // Update button colors
+            const buttons = document.querySelectorAll('#modal-content .btn-secondary');
+            buttons.forEach((btn) => {
+                if (btn.textContent.includes(status) || 
+                    (status === 'tidak order' && btn.textContent.includes('Tidak Order')) ||
+                    (status === 'belum selesai' && btn.textContent.includes('Belum Selesai'))) {
+                    btn.style.background = 'var(--primary)';
+                    btn.style.color = 'white';
+                } else {
+                    btn.style.background = 'var(--bg-alt)';
+                    btn.style.color = 'var(--text)';
+                }
+            });
+        }
+
+        async function saveAddRecipient(addrId) {
+            const newName = document.getElementById('new-recipient-name').value.trim();
+            const newStatus = window.newRecipientData.selectedStatus;
+            
+            if (!newName) {
+                showModal('Error', '❌ Nama penerima tidak boleh kosong');
+                return;
+            }
+            
+            const addr = await getAddressById(addrId);
+            
+            if (!addr.recipients) addr.recipients = [];
+            
+            // Check duplicate name
+            if (addr.recipients.some((r) => r.name.toLowerCase() === newName.toLowerCase())) {
+                showModal('Error', '❌ Penerima dengan nama ini sudah ada');
+                return;
+            }
+            
+            // Add new recipient
+            addr.recipients.push({
+                name: newName,
+                status: newStatus,
+                added_at: new Date().toISOString()
+            });
+            
+            // Update delivery_status
+            const statuses = addr.recipients.map((r) => r.status);
+            
+            if (statuses.includes('tidak order')) {
+                addr.delivery_status = 'tidak order';
+            } else if (statuses.includes('order')) {
+                addr.delivery_status = 'order';
+            } else if (statuses.includes('belum selesai')) {
+                addr.delivery_status = 'belum selesai';
+            } else {
+                addr.delivery_status = 'berhasil';
+            }
+            
+            // Add to history
+            if (!addr.history) addr.history = [];
+            addr.history.push({
+                date: new Date().toISOString(),
+                status: 'tambah-penerima',
+                notes: `Tambah penerima: ${newName} (${newStatus})`
+            });
+            
+            await saveAddress(addr);
+            
+            closeModal();
+            setTimeout(() => {
+                showAddressDetail(addrId);
+                updateMapMarkers();
+                updateAddressList();
+            }, 100);
+            
+            showModal('Sukses', `✓ Penerima ${newName} ditambahkan!`);
+        }
+
+        // ============================================
+        // RECIPIENT CRUD - DELETE
+        // ============================================
+
+        function confirmDeleteRecipient(addrId, recipientName) {
+            const displayName = recipientName.replace(/\\'/g, "'");
+            
+            showConfirmModal(
+                'Hapus Penerima',
+                `Yakin hapus penerima "${displayName}"?`,
+                () => deleteRecipient(addrId, displayName)
+            );
+        }
+
+        async function deleteRecipient(addrId, recipientName) {
+            const addr = await getAddressById(addrId);
+            
+            if (addr.recipients) {
+                // Find and remove recipient
+                const index = addr.recipients.findIndex((r) => r.name === recipientName);
+                if (index > -1) {
+                    addr.recipients.splice(index, 1);
+                    
+                    // If no recipients left, mark as "tidak order"
+                    if (addr.recipients.length === 0) {
+                        addr.delivery_status = 'tidak order';
+                    } else {
+                        // Update delivery_status
+                        const statuses = addr.recipients.map((r) => r.status);
+                        
+                        if (statuses.includes('tidak order')) {
+                            addr.delivery_status = 'tidak order';
+                        } else if (statuses.includes('order')) {
+                            addr.delivery_status = 'order';
+                        } else if (statuses.includes('belum selesai')) {
+                            addr.delivery_status = 'belum selesai';
+                        } else {
+                            addr.delivery_status = 'berhasil';
+                        }
+                    }
+                    
+                    // Add to history
+                    if (!addr.history) addr.history = [];
+                    addr.history.push({
+                        date: new Date().toISOString(),
+                        notes: `Hapus penerima: ${recipientName}`
+                    });
+                    
+                    await saveAddress(addr);
+                    
+                    setTimeout(() => {
+                        showAddressDetail(addrId);
+                        updateMapMarkers();
+                        updateAddressList();
+                    }, 100);
+                    
+                    showModal('Sukses', `✓ Penerima dihapus!`);
+                }
             }
         }
 
