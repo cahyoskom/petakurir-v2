@@ -795,29 +795,6 @@
                         </button>
                     </div>
 
-                    <h3 style="margin-bottom: 12px; font-size: 14px;">🤖 OCR Screenshot</h3>
-
-                    <div style="background: var(--bg-alt); padding: 12px; border-radius: 6px; margin-bottom: 24px;">
-                        <p style="font-size: 12px; color: var(--text-light); margin-bottom: 8px;">📸 Upload screenshot dari aplikasi kurir → auto convert ke CSV</p>
-                        
-                        <input type="file" id="ocr-image-input" accept="image/*" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; margin-bottom: 8px; box-sizing: border-box;">
-                        
-                        <button class="btn-secondary" id="ocr-process-btn" style="width: 100%; font-size: 13px; margin-bottom: 8px;">
-                            🔄 Process OCR
-                        </button>
-
-                        <textarea id="ocr-result" placeholder="OCR result akan muncul di sini..." style="width: 100%; height: 100px; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: monospace; box-sizing: border-box; display: none;"></textarea>
-
-                        <div id="ocr-buttons" style="display: none; gap: 8px; margin-top: 8px;">
-                            <button class="btn-secondary" id="ocr-export-csv-btn" style="flex: 1;">
-                                📊 Export CSV
-                            </button>
-                            <button class="btn-secondary" id="ocr-import-btn" style="flex: 1;">
-                                📤 Import Sekarang
-                            </button>
-                        </div>
-                    </div>
-
                     <h3 style="margin-bottom: 12px; font-size: 14px;">Import Data</h3>
 
                     <button class="btn-secondary" id="import-json-btn" style="width: 100%; margin-bottom: 12px;">
@@ -1019,7 +996,7 @@
     <input type="file" id="file-import-csv" accept=".csv" style="display: none;">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
 
     <script>
         // ============================================
@@ -1034,7 +1011,6 @@
         let currentMapFilter = 'semua';
         let currentDetailId = null;
         let bulkSelectedIds = new Set();
-        let ocrCsvData = null;
 
         // OpenRouteService Config - GANTI DENGAN API KEY DARI https://openrouteservice.org
         const ORS_CONFIG = {
@@ -1304,6 +1280,8 @@ self.addEventListener('fetch', (e) => {
 
             // Add address markers with filter
             const addresses = await getAllAddresses();
+            let searchResults = [];
+            let firstSearchResult = null;
             
             addresses.forEach((addr) => {
                 // Apply map filter
@@ -1330,6 +1308,7 @@ self.addEventListener('fetch', (e) => {
                 if (!shouldShow) return;
 
                 // Apply search filter
+                let isSearchResult = false;
                 if (searchText && searchText.length > 0) {
                     // Check basic fields
                     const basicMatch = (
@@ -1349,16 +1328,17 @@ self.addEventListener('fetch', (e) => {
                     if (!basicMatch && !recipientMatch) {
                         return; // Skip this marker
                     }
+                    
+                    isSearchResult = true;
+                    searchResults.push(addr);
+                    if (!firstSearchResult) firstSearchResult = addr;
                 }
 
                 // Determine color based on status
                 let markerColor = '#10b981'; // green (berhasil)
                 let markerIcon = '📍';
 
-                if (addr.delivery_status === 'order') {
-                    markerColor = '#8b5cf6'; // purple (order)
-                    markerIcon = '📦';
-                } else if (addr.delivery_status === 'tidak order') {
+                if (addr.delivery_status === 'tidak order') {
                     markerColor = '#6366f1'; // indigo (tidak order)
                     markerIcon = '❌';
                 } else if (addr.delivery_status === 'belum selesai') {
@@ -1375,7 +1355,11 @@ self.addEventListener('fetch', (e) => {
                     markerIcon = '🔍';
                 }
 
-                // Create custom icon
+                // Create custom icon - HIGHLIGHT jika search result
+                const borderWidth = isSearchResult ? '4px' : '3px';
+                const borderColor = isSearchResult ? '#fbbf24' : 'white';
+                const boxShadow = isSearchResult ? '0 0 0 2px #fbbf24, 0 2px 8px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.2)';
+                
                 const icon = L.divIcon({
                     html: `<div style="
                         background: ${markerColor};
@@ -1387,9 +1371,10 @@ self.addEventListener('fetch', (e) => {
                         align-items: center;
                         justify-content: center;
                         font-size: 18px;
-                        border: 3px solid white;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                        border: ${borderWidth} solid ${borderColor};
+                        box-shadow: ${boxShadow};
                         cursor: pointer;
+                        transition: all 0.3s;
                     ">${markerIcon}</div>`,
                     className: 'custom-marker',
                     iconSize: [36, 36],
@@ -1431,6 +1416,17 @@ self.addEventListener('fetch', (e) => {
                     showAddressDetail(addr.id);
                 });
             });
+            
+            // Auto-zoom ke first search result
+            if (searchText && searchText.length > 0 && firstSearchResult) {
+                setTimeout(() => {
+                    map.flyTo(
+                        [firstSearchResult.latitude, firstSearchResult.longitude],
+                        15,
+                        { duration: 1 }
+                    );
+                }, 200);
+            }
         }
 
         // ============================================
@@ -2757,12 +2753,21 @@ self.addEventListener('fetch', (e) => {
             }
             
             // Show modal dengan peta untuk set start point
+            const orsStatus = ORS_CONFIG.apiKey && ORS_CONFIG.apiKey !== 'YOUR_ORS_API_KEY_HERE' 
+                ? '✓ OpenRouteService: Connected' 
+                : '⚠️ OpenRouteService: Not configured (using Haversine fallback)';
+            
             const html = `
                 <div style="padding: 16px;">
                     <h2 style="margin-bottom: 8px; font-size: 16px;">Optimasi Rute - Pilih Titik Awal</h2>
-                    <small style="color: var(--text-light); display: block; margin-bottom: 12px;">
+                    <small style="color: var(--text-light); display: block; margin-bottom: 8px;">
                         ${pendingAddresses.length} alamat belum selesai akan dioptimasi. Tap di peta untuk set titik awal atau gunakan lokasi sekarang.
                     </small>
+                    
+                    <div style="background: var(--bg-alt); padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 12px; color: ${ORS_CONFIG.apiKey && ORS_CONFIG.apiKey !== 'YOUR_ORS_API_KEY_HERE' ? '#10b981' : '#f59e0b'};">
+                        ${orsStatus}
+                        ${ORS_CONFIG.apiKey === 'YOUR_ORS_API_KEY_HERE' ? '<br><small><a href="https://openrouteservice.org" target="_blank">Ambil API key gratis di openrouteservice.org</a>, edit line ~1040 dalam HTML</small>' : ''}
+                    </div>
                     
                     <div id="route-start-map" style="width: 100%; height: 300px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 12px;"></div>
                     
@@ -2813,8 +2818,8 @@ self.addEventListener('fetch', (e) => {
             window.pendingAddressesForRoute = pendingAddresses;
         }
 
-        function calculateNearestNeighbor(startPoint, addresses) {
-            // Nearest neighbor algorithm untuk TSP
+        async function calculateNearestNeighbor(startPoint, addresses) {
+            // Nearest neighbor algorithm untuk TSP dengan real routing
             const remaining = [...addresses];
             const route = [startPoint];
             let currentPoint = startPoint;
@@ -2825,9 +2830,9 @@ self.addEventListener('fetch', (e) => {
                 let nearestDist = Infinity;
                 let nearestIndex = -1;
                 
-                // Cari yang paling dekat
+                // Cari yang paling dekat (async)
                 for (let i = 0; i < remaining.length; i++) {
-                    const dist = calculateDistance(
+                    const dist = await calculateDistance(
                         currentPoint.latitude, currentPoint.longitude,
                         remaining[i].latitude, remaining[i].longitude
                     );
@@ -2859,24 +2864,45 @@ self.addEventListener('fetch', (e) => {
             const startPoint = window.routeStartPoint;
             const pendingAddresses = window.pendingAddressesForRoute;
             
-            // Calculate optimal route
-            const { route, totalDistance } = calculateNearestNeighbor(startPoint, pendingAddresses);
+            // Show loading modal
+            document.getElementById('modal-content').innerHTML = `
+                <div style="padding: 40px; text-align: center;">
+                    <h2 style="margin-bottom: 20px;">⏳ Optimasi Rute...</h2>
+                    <p style="color: var(--text-light); margin-bottom: 20px;">
+                        Menghitung rute terbaik dengan real routing data...
+                    </p>
+                    <div style="width: 40px; height: 40px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"
+                         style="animation: spin 1s linear infinite;">
+                    </div>
+                    <style>
+                        @keyframes spin { to { transform: rotate(360deg); } }
+                    </style>
+                </div>
+            `;
             
-            closeModal();
-            
-            // Display route in daftar and map
-            displayRouteList(route, totalDistance);
-            displayRouteOnMap(route, totalDistance);
+            try {
+                // Calculate optimal route (with async OpenRouteService calls)
+                const { route, totalDistance } = await calculateNearestNeighbor(startPoint, pendingAddresses);
+                
+                closeModal();
+                
+                // Display route in daftar and map
+                await displayRouteList(route, totalDistance);
+                displayRouteOnMap(route, totalDistance);
+            } catch (err) {
+                console.error('Route optimization error:', err);
+                showModal('Error', `❌ Gagal optimasi rute: ${err.message}`);
+            }
         }
 
-        function displayRouteList(route, totalDistance) {
-            // Create route list modal
+        async function displayRouteList(route, totalDistance) {
+            // Create route list modal with real routing distances
             let html = `
                 <div style="padding: 16px;">
                     <h2 style="margin-bottom: 8px; font-size: 16px;">Rute Optimal - ${route.length} Lokasi</h2>
                     <div style="background: var(--bg-alt); padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 13px;">
                         <strong>Total Jarak:</strong> ${totalDistance.toFixed(2)} km | 
-                        <strong>Est. Waktu:</strong> ${Math.ceil(totalDistance * 2)} menit
+                        <strong>Est. Waktu:</strong> ${Math.ceil(totalDistance * 3)} menit
                     </div>
                     
                     <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
@@ -2896,7 +2922,7 @@ self.addEventListener('fetch', (e) => {
                         </div>
                     `;
                 } else {
-                    distFromPrev = calculateDistance(
+                    distFromPrev = await calculateDistance(
                         route[i - 1].latitude, route[i - 1].longitude,
                         addr.latitude, addr.longitude
                     );
@@ -3333,7 +3359,8 @@ self.addEventListener('fetch', (e) => {
         async function exportCSV() {
             const addresses = await getAllAddresses();
 
-            const headers = ['id', 'nama', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan'];
+            // Full headers dengan recipients array
+            const headers = ['id', 'nama', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan', 'delivery_status', 'penerima_lain'];
 
             const rows = addresses.map((addr) => [
                 addr.id,
@@ -3349,271 +3376,37 @@ self.addEventListener('fetch', (e) => {
                 addr.location_type,
                 addr.visit_count || 1,
                 formatDate(addr.last_visit_at || addr.created_at),
-                addr.description
+                addr.description,
+                addr.delivery_status,
+                // Recipients array: semua penerima lain dipisah ";"
+                (addr.recipients || [])
+                    .filter((r) => r.name !== addr.recipient_name) // Exclude main recipient (sudah di kolom nama)
+                    .map((r) => `${r.name}:${r.status}`)
+                    .join('; ')
             ]);
 
             let csv = headers.join(',') + '\n';
             rows.forEach((row) => {
                 csv += row.map((cell) => {
-                    if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"'))) {
+                    if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"') || cell.includes('\n'))) {
                         return '"' + cell.replace(/"/g, '""') + '"';
                     }
                     return cell || '';
                 }).join(',') + '\n';
             });
 
-            const blob = new Blob([csv], { type: 'text/csv' });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `peta-kurir-export-${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `peta-kurir-backup-${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
             URL.revokeObjectURL(url);
-        }
-
-        // ============================================
-        // OCR FUNCTIONS
-        // ============================================
-
-        async function processOCR() {
-            const fileInput = document.getElementById('ocr-image-input');
-            const file = fileInput.files[0];
-
-            if (!file) {
-                showModal('Error', '❌ Pilih file gambar terlebih dahulu');
-                return;
-            }
-
-            const btn = document.getElementById('ocr-process-btn');
-            btn.disabled = true;
-            btn.textContent = '⏳ Processing OCR...';
-
-            try {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    try {
-                        // Process with Tesseract
-                        const { data: { text } } = await Tesseract.recognize(
-                            e.target.result,
-                            ['ind', 'eng'],
-                            { logger: (m) => console.log('OCR:', m.status, m.progress) }
-                        );
-
-                        // Parse OCR text to CSV
-                        ocrCsvData = parseOCRtoCSV(text);
-                        
-                        // Count entries
-                        const entryCount = (ocrCsvData.match(/\n/g) || []).length - 1; // -1 for header
-
-                        // Show result
-                        const resultArea = document.getElementById('ocr-result');
-                        resultArea.value = ocrCsvData;
-                        resultArea.style.display = 'block';
-
-                        const buttonsDiv = document.getElementById('ocr-buttons');
-                        buttonsDiv.style.display = 'flex';
-
-                        btn.disabled = false;
-                        btn.textContent = '🔄 Process OCR';
-
-                        showModal('Sukses', `✓ OCR berhasil!\n\n📊 Total ${entryCount} entries\n\nData siap diexport atau import.`);
-                    } catch (err) {
-                        console.error('Tesseract error:', err);
-                        showModal('Error', `❌ OCR gagal: ${err.message}`);
-                        btn.disabled = false;
-                        btn.textContent = '🔄 Process OCR';
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-            } catch (err) {
-                console.error('Error:', err);
-                showModal('Error', `❌ Error: ${err.message}`);
-                btn.disabled = false;
-                btn.textContent = '🔄 Process OCR';
-            }
-        }
-
-        function parseOCRtoCSV(ocrText) {
-            // Parse OCR output ke CSV format
-            // Gunakan logic yang sama seperti Python script (berhasil extract 38)
             
-            const lines = ocrText.split('\n');
-            const entries = [];
-
-            let i = 0;
-            while (i < lines.length) {
-                const line = lines[i].trim();
-                
-                // Find GTL tracking ID
-                const gtlMatch = line.match(/^(GTL\d+)/);
-                if (gtlMatch) {
-                    const entry = {
-                        id: gtlMatch[1],
-                        nama: '',
-                        gang: '',
-                        nomor: '',
-                        alamat: '',
-                        patokan: '',
-                        catatan: ''
-                    };
-                    
-                    // Next line often has name
-                    if (i + 1 < lines.length) {
-                        const nextLine = lines[i + 1].trim();
-                        if (nextLine && /^[A-Za-z\s]+$/.test(nextLine) && nextLine.length < 30) {
-                            entry.nama = nextLine.charAt(0).toUpperCase() + nextLine.slice(1).toLowerCase();
-                            i += 1;
-                        }
-                    }
-                    
-                    // Collect address lines (up to next GTL)
-                    const addrLines = [];
-                    let j = i + 1;
-                    while (j < lines.length) {
-                        const l = lines[j].trim();
-                        if (/^GTL\d+/.test(l)) {
-                            break;
-                        }
-                        // Skip noise lines (phone, status, OCR artifacts)
-                        if (l && !/sedang|proses|\(\+62\)|\[A0|\[\d+\]/.test(l)) {
-                            addrLines.push(l);
-                        }
-                        j++;
-                    }
-                    
-                    // Parse address lines
-                    for (const al of addrLines) {
-                        // Extract number (no., nomor, etc)
-                        const numMatch = al.match(/\bno\.?\s*(\d+[a-z]*)/i);
-                        if (numMatch) {
-                            entry.nomor = numMatch[1];
-                        }
-                        
-                        // Extract jalan/gang
-                        if (/^(jl|jalan|gang|gg)\b/i.test(al)) {
-                            entry.gang = al.substring(0, 50);
-                        }
-                        
-                        // Extract address (RT/RW/lokasi)
-                        if (/rt|rw|jakarta|cipedak|jagakarsa/i.test(al)) {
-                            entry.alamat = al.substring(0, 80);
-                        }
-                        
-                        // Extract patokan/landmark
-                        if (/depan|sebelah|dekat|rumah|toko|warung|mushola|blok|pagar|gang/i.test(al)) {
-                            entry.patokan = al.substring(0, 60);
-                        }
-                    }
-                    
-                    if (entry.nama || entry.alamat) {
-                        entries.push(entry);
-                    }
-                    
-                    i += 1;
-                } else {
-                    i += 1;
-                }
-            }
-
-            // Build CSV
-            let csv = 'id,nama,gang,nomor,alamat,latitude,longitude,patokan,status_pembayaran,masalah,tipe_lokasi,visit_count,kunjungan_terakhir,catatan\n';
-
-            for (const e of entries) {
-                csv += `${e.id || ''},${e.nama || ''},${e.gang || ''},${e.nomor || ''},${e.alamat || ''},,,,belum,,,1,,${e.catatan || 'Dari OCR'}\n`;
-            }
-
-            console.log(`✓ OCR parsed: ${entries.length} entries`);
-            return csv;
+            showModal('Sukses', `✓ Export ${addresses.length} alamat ke CSV`);
         }
 
-        function exportOCRtoCSV() {
-            if (!ocrCsvData) {
-                showModal('Error', '❌ Tidak ada data OCR');
-                return;
-            }
-
-            const blob = new Blob([ocrCsvData], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `ocr-extract-${new Date().toISOString().split('T')[0]}.csv`;
-            link.click();
-            URL.revokeObjectURL(url);
-        }
-
-        async function importOCRdata() {
-            if (!ocrCsvData) {
-                showModal('Error', '❌ Tidak ada data OCR');
-                return;
-            }
-
-            // Parse CSV
-            const lines = ocrCsvData.split('\n').filter((l) => l.trim() && !l.startsWith('id,'));
-            const addresses = [];
-
-            console.log(`Parsing ${lines.length} CSV lines`);
-
-            for (const line of lines) {
-                if (!line.trim()) continue;
-
-                const values = parseCSVLine(line);
-                if (values.length >= 5 && values[0]) {
-                    const recipients = (values[1] || '')
-                        .split(';')
-                        .map((n) => n.trim())
-                        .filter((n) => n);
-
-                    const addr = {
-                        id: values[0],
-                        recipient_name: values[1] || '',
-                        gang: values[2] || '',
-                        house_number: values[3] || '',
-                        address: values[4] || '',
-                        latitude: values[5] ? parseFloat(values[5]) : 0,
-                        longitude: values[6] ? parseFloat(values[6]) : 0,
-                        landmark: values[7] || '',
-                        payment_status: values[8] || 'belum',
-                        problem_tags: (values[9] || '')
-                            .split(';')
-                            .map((t) => t.trim())
-                            .filter((t) => t),
-                        location_type: values[10] || 'jelas',
-                        visit_count: parseInt(values[11]) || 1,
-                        description: values[13] || '',
-                        delivery_status: 'belum selesai',
-                        recipients: recipients.map((name) => ({
-                            name: name,
-                            status: 'belum selesai',
-                            added_at: new Date().toISOString()
-                        })),
-                        history: [{
-                            date: new Date().toISOString(),
-                            status: 'belum selesai',
-                            payment_status: values[8] || 'belum',
-                            landmark: values[7] || '',
-                            notes: `Import dari OCR: ${recipients.join(', ')}`
-                        }],
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    };
-
-                    if (addr.recipient_name && addr.address) {
-                        addresses.push(addr);
-                    }
-                }
-            }
-
-            console.log(`✓ Created ${addresses.length} address objects`);
-
-            if (addresses.length === 0) {
-                showModal('Error', '❌ Tidak ada data valid untuk diimport');
-                return;
-            }
-
-            window.importNewAddresses = addresses;
-            showImportModal('csv', addresses.length);
-        }
-
+        // ============================================
         async function exportShortCSV() {
             const nameFilter = document.getElementById('short-export-name').value.toLowerCase().trim();
             const dateStart = document.getElementById('short-export-date-start').value;
@@ -3785,18 +3578,30 @@ self.addEventListener('fetch', (e) => {
         }
 
         function exportCSVTemplate() {
-            const template = `id,nama,gang,nomor,alamat,latitude,longitude,patokan,status_pembayaran,masalah,tipe_lokasi,visit_count,kunjungan_terakhir,catatan
-addr_001,Pak Budi,Gang 4,27,Jl. Raya No. 10,-6.2088,106.8650,Pagar hitam; sebelah warung biru,cod-transfer,Sulit dihubungi,-,1,Hari ini,COD minta transfer
-addr_002,Bu Siti,Gang 2,15,Jl. Makmur No. 5,-6.2100,106.8700,Sebelah toko roti,cod,,jelas,1,Kemarin,
-addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jalan buntu,transfer,Sulit ditemukan,sulit,1,Hari ini,Alamat sulit dicari`;
+            const template = `nama,gang,nomor,alamat,latitude,longitude,patokan,status_pembayaran,masalah,tipe_lokasi,catatan
+Pak Budi,Gang 4,27,Jl. Raya No. 10,-6.2088,106.8650,Pagar hitam; sebelah warung biru,cod-transfer,Sulit dihubungi,-,COD minta transfer
+Bu Siti,Gang 2,15,Jl. Makmur No. 5,-6.2100,106.8700,Sebelah toko roti,cod,,jelas,
+Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jalan buntu,transfer,Sulit ditemukan,sulit,Alamat sulit dicari
+Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
 
-            const blob = new Blob([template], { type: 'text/csv' });
+            const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.download = `peta-kurir-template.csv`;
             link.click();
             URL.revokeObjectURL(url);
+            
+            showModal('Template CSV', `📝 Template dengan field yang bisa diisi:
+- nama (WAJIB)
+- gang, nomor, alamat, patokan (opsional)
+- latitude, longitude (opsional, bisa diset di map nanti)
+- status_pembayaran: cod, transfer, belum (default: belum)
+- tipe_lokasi: jelas, sulit, patokan, nitip (default: jelas)
+- masalah: dipisah ";" 
+- catatan: description/notes
+
+Import akan berhasil minimal ada kolom "nama". Field lain bisa kosong.`);
         }
 
         function importJSON() {
@@ -3834,7 +3639,7 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
                 try {
                     const csv = event.target.result;
                     const lines = csv.split('\n');
-                    const headers = lines[0].split(',').map((h) => h.trim());
+                    const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
 
                     const addresses = [];
                     for (let i = 1; i < lines.length; i++) {
@@ -3842,51 +3647,98 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
 
                         const values = parseCSVLine(lines[i]);
                         
-                        // Parse recipients (bisa single atau multiple dipisah ";")
-                        const recipientNames = (values[1] || '')
+                        // Find index untuk setiap field (flexible untuk kolom order berbeda)
+                        const getField = (headerName, defaultIdx) => {
+                            const idx = headers.findIndex((h) => h.includes(headerName));
+                            return values[idx >= 0 ? idx : defaultIdx] || '';
+                        };
+
+                        // Parse nama/penerima - minimal harus ada nama
+                        const namaPenerima = getField('nama', 1) || getField('recipient', 1) || getField('penerima', 1);
+                        if (!namaPenerima.trim()) continue; // Skip jika nama kosong
+
+                        // Parse recipients dari kolom penerima_lain jika ada
+                        const recipientOtherField = getField('penerima_lain', 15) || getField('recipients', 15) || '';
+                        const additionalRecipients = recipientOtherField
                             .split(';')
-                            .map((n) => n.trim())
-                            .filter((n) => n);
+                            .map((r) => r.trim())
+                            .filter((r) => r)
+                            .map((r) => {
+                                // Format: "nama:status" atau hanya "nama"
+                                const parts = r.split(':');
+                                return {
+                                    name: parts[0].trim(),
+                                    status: (parts[1] || 'belum selesai').trim(),
+                                    added_at: new Date().toISOString()
+                                };
+                            });
                         
-                        const recipients = recipientNames.map((name) => ({
-                            name: name,
-                            status: 'belum selesai',
-                            added_at: new Date().toISOString()
-                        }));
+                        const recipients = [
+                            {
+                                name: namaPenerima,
+                                status: 'belum selesai',
+                                added_at: new Date().toISOString()
+                            },
+                            ...additionalRecipients
+                        ];
+                        
+                        // Remove duplicates by name
+                        const uniqueRecipients = [];
+                        const seen = new Set();
+                        recipients.forEach((r) => {
+                            if (!seen.has(r.name.toLowerCase())) {
+                                seen.add(r.name.toLowerCase());
+                                uniqueRecipients.push(r);
+                            }
+                        });
+
+                        // Parse other fields with defaults
+                        const gang = getField('gang', 2);
+                        const nomor = getField('nomor', 3) || getField('house', 3);
+                        const alamat = getField('alamat', 4) || getField('address', 4);
+                        const lat = parseFloat(getField('latitude', 5)) || 0;
+                        const lon = parseFloat(getField('longitude', 6)) || 0;
                         
                         const addr = {
-                            id: values[0] || 'addr_' + Date.now(),
-                            recipient_name: values[1] || '', // Keep for compatibility
-                            gang: values[2] || '',
-                            house_number: values[3] || '',
-                            address: values[4] || '',
-                            latitude: parseFloat(values[5]) || 0,
-                            longitude: parseFloat(values[6]) || 0,
-                            landmark: values[7] || '',
-                            payment_status: values[8] || 'belum',
-                            problem_tags: (values[9] || '').split(';').map((t) => t.trim()).filter((t) => t),
-                            location_type: values[10] || 'jelas',
-                            visit_count: parseInt(values[11]) || 1,
-                            description: values[13] || '',
+                            id: getField('id', 0) || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                            recipient_name: namaPenerima,
+                            gang: gang,
+                            house_number: nomor,
+                            address: alamat,
+                            latitude: lat,
+                            longitude: lon,
+                            landmark: getField('patokan', 7) || getField('landmark', 7),
+                            payment_status: getField('status_pembayaran', 8) || getField('payment', 8) || 'belum',
+                            problem_tags: (getField('masalah', 9) || '')
+                                .split(';')
+                                .map((t) => t.trim())
+                                .filter((t) => t),
+                            location_type: getField('tipe_lokasi', 10) || getField('type', 10) || 'jelas',
+                            visit_count: parseInt(getField('visit_count', 11)) || 1,
+                            description: getField('catatan', 13) || getField('description', 13) || '',
                             delivery_status: 'belum selesai',
-                            recipients: recipients,
+                            recipients: uniqueRecipients,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
                             history: [{
                                 date: new Date().toISOString(),
                                 status: 'belum selesai',
-                                payment_status: values[8] || 'belum',
-                                landmark: values[7] || '',
-                                notes: `Import dari OCR: ${recipientNames.join(', ')}`
-                            }]
+                                notes: `Import dari CSV: ${uniqueRecipients.map((r) => r.name).join(', ')}`
+                            }],
+                            raw_voice_note: ''
                         };
 
-                        if (addr.recipient_name && addr.latitude && addr.longitude) {
-                            addresses.push(addr);
-                        }
+                        addresses.push(addr);
+                    }
+
+                    if (addresses.length === 0) {
+                        showModal('Error', '❌ Tidak ada data valid di CSV (minimal perlu kolom "nama")');
+                        return;
                     }
 
                     showImportModal(addresses, 'csv');
                 } catch (err) {
-                    showModal('Error', '❌ File CSV tidak valid.');
+                    showModal('Error', `❌ File CSV tidak valid: ${err.message}`);
                 }
             };
             reader.readAsText(file);
@@ -4046,13 +3898,15 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
                     let hasMatchingRecipient = false;
                     if (newAddr.recipients) {
                         newAddr.recipients.forEach((newRecipient) => {
-                            const nameMatches = dup.recipients.some((r) => 
+                            const matchingRecipient = dup.recipients.find((r) => 
                                 r.name.toLowerCase() === newRecipient.name.toLowerCase()
                             );
                             
-                            if (nameMatches) {
+                            if (matchingRecipient) {
+                                // Recipient sudah ada → update status jadi "belum selesai" only
+                                matchingRecipient.status = 'belum selesai';
+                                matchingRecipient.updated_at = new Date().toISOString();
                                 hasMatchingRecipient = true;
-                                // Mark matching recipient as "belum selesai" (belum diproses)
                             } else {
                                 // Add new recipient
                                 dup.recipients.push({
@@ -4072,11 +3926,10 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
                     
                     dup.visit_count = (dup.visit_count || 0) + (newAddr.visit_count || 1);
                     
-                    // Set delivery_status to "order" jika:
-                    // 1. Ada recipient yang sama (order lagi)
-                    // 2. Ada recipient baru
+                    // Update delivery_status: jika ada matching recipient or new recipient
+                    // → status jadi "belum selesai" (tidak "order")
                     if (hasMatchingRecipient || (newAddr.recipients && newAddr.recipients.length > 0)) {
-                        dup.delivery_status = 'order';
+                        dup.delivery_status = 'belum selesai';
                     }
                     
                     // Update info jika ada perubahan
@@ -4089,15 +3942,15 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
 
                     await saveAddress(dup);
                 } else {
-                    // No duplicate OR user selected "skip" → save as new with "order" status
-                    newAddr.delivery_status = 'order';
+                    // No duplicate OR user selected "skip" → save as new with "belum selesai" status
+                    newAddr.delivery_status = 'belum selesai';
                     await saveAddress(newAddr);
                 }
             }
 
             updateMapMarkers();
             updateAddressList();
-            showModal('Sukses', `✓ ${count} alamat diimport!\n\n${detectDuplicate ? '🔍 Duplikat terdeteksi & digabung' : '✓ Semua disimpan terpisah (tidak ada merge)'}\n\n📦 Status: Order`);
+            showModal('Sukses', `✓ ${count} alamat diimport!\n\n${detectDuplicate ? '🔍 Duplikat terdeteksi & digabung dengan update status' : '✓ Semua disimpan terpisah (tidak ada merge)'}\n\n🔔 Status: Belum Selesai`);
         }
 
         async function clearDemoData() {
@@ -4305,6 +4158,9 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
 
                 document.getElementById('list-search-input').value = transcript;
                 updateAddressList();
+                if (transcript.trim()) {
+                    updateMapMarkers(transcript.trim());
+                }
 
                 const btn = document.getElementById('voice-search-btn');
                 btn.textContent = '🎤';
@@ -4396,11 +4252,35 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
             }
         });
 
-        document.getElementById('list-search-btn').addEventListener('click', updateAddressList);
-        document.getElementById('list-search-input').addEventListener('input', updateAddressList);
+        document.getElementById('list-search-btn').addEventListener('click', () => {
+            const searchText = document.getElementById('list-search-input').value.toLowerCase().trim();
+            updateAddressList();
+            if (searchText) {
+                updateMapMarkers(searchText);
+            } else {
+                updateMapMarkers();
+            }
+        });
+        
+        document.getElementById('list-search-input').addEventListener('input', () => {
+            const searchText = document.getElementById('list-search-input').value.toLowerCase().trim();
+            updateAddressList();
+            if (searchText) {
+                updateMapMarkers(searchText);
+            } else {
+                updateMapMarkers();
+            }
+        });
+        
         document.getElementById('list-search-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
+                const searchText = document.getElementById('list-search-input').value.toLowerCase().trim();
                 updateAddressList();
+                if (searchText) {
+                    updateMapMarkers(searchText);
+                } else {
+                    updateMapMarkers();
+                }
             }
         });
         document.getElementById('voice-search-btn').addEventListener('click', startVoiceSearch);
@@ -4525,17 +4405,7 @@ addr_003,Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jala
         window.addEventListener('load', () => {
             // Longer delay for Tesseract + all CDN to load
             setTimeout(init, 2000);
-            
-            // Add OCR event listeners after DOM ready
-            setTimeout(() => {
-                const processBtn = document.getElementById('ocr-process-btn');
-                const exportBtn = document.getElementById('ocr-export-csv-btn');
-                const importBtn = document.getElementById('ocr-import-btn');
 
-                if (processBtn) processBtn.addEventListener('click', processOCR);
-                if (exportBtn) exportBtn.addEventListener('click', exportOCRtoCSV);
-                if (importBtn) importBtn.addEventListener('click', importOCRdata);
-            }, 1000);
         });
     </script>
 </body>
