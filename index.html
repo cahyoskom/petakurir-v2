@@ -100,9 +100,6 @@
         .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
         .loading { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .tab-buttons { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
-        .tab-btn { flex: 1; padding: 12px; border: none; background: none; color: var(--text-light); cursor: pointer; font-size: 14px; font-weight: 600; border-bottom: 3px solid transparent; }
-        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
         .info-box { background: var(--bg-alt); padding: 12px; border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 16px; }
         .tag { display: inline-block; padding: 2px 6px; background: var(--bg-alt); color: var(--text); border-radius: 3px; font-size: 11px; margin-right: 4px; }
     </style>
@@ -183,7 +180,7 @@
                     <div class="info-box">💾 Data Anda disimpan di perangkat ini. Lakukan backup secara berkala agar tidak hilang.</div>
                     <h3 style="margin-bottom: 12px; font-size: 14px;">Export Data</h3>
                     <button class="btn-primary" id="export-json-btn" style="width: 100%; margin-bottom: 12px;">📥 Export JSON (Backup Lengkap)</button>
-                    <button class="btn-secondary" id="export-csv-btn" style="width: 100%; margin-bottom: 24px;">📊 Export CSV (Untuk Excel)</button>
+                    <button class="btn-secondary" id="export-csv-btn" style="width: 100%; margin-bottom: 24px;">📊 Export CSV (Semua Data)</button>
                     <button class="btn-secondary" id="export-csv-template-btn" style="width: 100%; margin-bottom: 24px;">📋 Export Template CSV (Contoh Import)</button>
                     <h3 style="margin-bottom: 12px; font-size: 14px;">📄 Export Singkat</h3>
                     <div style="background: var(--bg-alt); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
@@ -195,8 +192,8 @@
                         <button class="btn-secondary" id="export-short-csv-btn" style="width: 100%; font-size: 13px;">🔽 Export</button>
                     </div>
                     <h3 style="margin-bottom: 12px; font-size: 14px;">Import Data</h3>
-                    <button class="btn-secondary" id="import-json-btn" style="width: 100%; margin-bottom: 12px;">📤 Import JSON</button>
-                    <button class="btn-secondary" id="import-csv-btn" style="width: 100%; margin-bottom: 24px;">📤 Import CSV</button>
+                    <button class="btn-secondary" id="import-json-btn" style="width: 100%; margin-bottom: 12px;">🔄 Import JSON (Full Restore)</button>
+                    <button class="btn-secondary" id="import-csv-btn" style="width: 100%; margin-bottom: 24px;">📤 Import CSV (Order Baru)</button>
                     <h3 style="margin-bottom: 12px; font-size: 14px; color: var(--danger);">Zona Bahaya</h3>
                     <button class="btn-danger" id="clear-demo-btn" style="width: 100%; margin-bottom: 12px;">🗑️ Hapus Data Demo</button>
                     <button class="btn-danger" id="clear-all-btn" style="width: 100%;">⚠️ Hapus Semua Data</button>
@@ -655,7 +652,6 @@ self.addEventListener('fetch', (e) => {
             });
         }
 
-        // ✅ FIX: saveAddress dengan deduplikasi otomatis
         async function saveAddress(address) {
             return new Promise((resolve, reject) => {
                 if (!address.id) address.id = 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
@@ -673,7 +669,7 @@ self.addEventListener('fetch', (e) => {
                 }
                 if (!address.recipients) address.recipients = [];
 
-                // ✅ FIX: Deduplikasi recipients berdasarkan nama (case-insensitive)
+                // Deduplikasi recipients berdasarkan nama (case-insensitive)
                 if (address.recipients.length > 1) {
                     const seen = new Set();
                     address.recipients = address.recipients.filter((r) => {
@@ -684,7 +680,6 @@ self.addEventListener('fetch', (e) => {
                     });
                 }
 
-                // Sinkronkan recipient_name dengan daftar recipients
                 if (address.recipients.length > 0) {
                     address.recipient_name = address.recipients.map((r) => r.name).join(', ');
                 }
@@ -921,7 +916,6 @@ self.addEventListener('fetch', (e) => {
                 photoPreview.src = '';
             }
 
-            // ✅ FIX: Pastikan tombol save kembali ke handler saveRecord
             const saveBtn = document.getElementById('save-record-btn');
             saveBtn.textContent = 'Simpan';
             saveBtn.onclick = () => saveRecord();
@@ -2037,10 +2031,14 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
-        // BACKUP
+        // BACKUP: EXPORT
         // ============================================
         async function exportJSON() {
             const addresses = await getAllAddresses();
+            if (addresses.length === 0) {
+                showModal('Info', '⚠️ Tidak ada data untuk di-backup.');
+                return;
+            }
             const data = { version: '1.0', exported_at: new Date().toISOString(), addresses };
             const json = JSON.stringify(data, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
@@ -2050,19 +2048,40 @@ self.addEventListener('fetch', (e) => {
             link.download = `peta-kurir-backup-${new Date().toISOString().split('T')[0]}.json`;
             link.click();
             URL.revokeObjectURL(url);
+            showModal('Sukses', `✓ Backup JSON berisi ${addresses.length} alamat.\n\nSimpan file ini untuk restore di device lain.`);
         }
 
         async function exportCSV() {
             const addresses = await getAllAddresses();
+            if (addresses.length === 0) {
+                showModal('Info', '⚠️ Tidak ada data untuk di-export.');
+                return;
+            }
+
             const headers = ['id', 'nama', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan', 'delivery_status', 'penerima_lain'];
+
             const rows = addresses.map((addr) => [
-                addr.id, addr.recipient_name, addr.gang, addr.house_number, addr.address,
-                addr.latitude, addr.longitude, addr.landmark, addr.payment_status,
-                (addr.problem_tags || []).join('; '), addr.location_type,
-                addr.visit_count || 1, formatDate(addr.last_visit_at || addr.created_at),
-                addr.description, addr.delivery_status,
-                (addr.recipients || []).filter((r) => r.name !== addr.recipient_name).map((r) => `${r.name}:${r.status}`).join('; ')
+                addr.id,
+                addr.recipient_name,
+                addr.gang,
+                addr.house_number,
+                addr.address,
+                addr.latitude,
+                addr.longitude,
+                addr.landmark,
+                addr.payment_status,
+                (addr.problem_tags || []).join('; '),
+                addr.location_type,
+                addr.visit_count || 1,
+                formatDate(addr.last_visit_at || addr.created_at),
+                addr.description,
+                addr.delivery_status,
+                (addr.recipients || [])
+                    .filter((r) => r.name !== addr.recipient_name)
+                    .map((r) => `${r.name}:${r.status}`)
+                    .join('; ')
             ]);
+
             let csv = headers.join(',') + '\n';
             rows.forEach((row) => {
                 csv += row.map((cell) => {
@@ -2072,6 +2091,7 @@ self.addEventListener('fetch', (e) => {
                     return cell || '';
                 }).join(',') + '\n';
             });
+
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -2079,7 +2099,8 @@ self.addEventListener('fetch', (e) => {
             link.download = `peta-kurir-backup-${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
             URL.revokeObjectURL(url);
-            showModal('Sukses', `✓ Export ${addresses.length} alamat ke CSV`);
+
+            showModal('Sukses', `✓ Export SEMUA ${addresses.length} alamat ke CSV\n\nFile berisi seluruh data (nama, alamat, koordinat, status, penerima lain, dll).`);
         }
 
         async function exportShortCSV() {
@@ -2132,6 +2153,25 @@ self.addEventListener('fetch', (e) => {
             showModal('Sukses', `✓ ${filtered.length} data diexport`);
         }
 
+        function exportCSVTemplate() {
+            const template = `nama,gang,nomor,alamat,latitude,longitude,patokan,status_pembayaran,masalah,tipe_lokasi,catatan
+Pak Budi,Gang 4,27,Jl. Raya No. 10,-6.2088,106.8650,Pagar hitam; sebelah warung biru,cod-transfer,Sulit dihubungi,-,COD minta transfer
+Bu Siti,Gang 2,15,Jl. Makmur No. 5,-6.2100,106.8700,Sebelah toko roti,cod,,jelas,
+Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jalan buntu,transfer,Sulit ditemukan,sulit,Alamat sulit dicari
+Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
+            const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `peta-kurir-template.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showModal('Template CSV', `📝 Minimal cukup kolom "nama".\n\nField opsional:\n- gang, nomor, alamat, patokan\n- latitude, longitude\n- status_pembayaran: cod, transfer, belum\n- tipe_lokasi: jelas, sulit, patokan, nitip\n- masalah: dipisah ";"\n- catatan\n\n💡 Data dengan nama yang sudah ada akan otomatis diubah statusnya jadi "Belum Selesai".`);
+        }
+
+        // ============================================
+        // BULK SELECT
+        // ============================================
         function toggleBulkSelect(addrId) {
             if (bulkSelectedIds.has(addrId)) bulkSelectedIds.delete(addrId);
             else bulkSelectedIds.add(addrId);
@@ -2192,7 +2232,6 @@ self.addEventListener('fetch', (e) => {
             showModal('Sukses', `✓ ${countToUpdate} alamat diupdate`);
         }
 
-        // ✅ FITUR BARU: Hapus data terpilih (bulk delete)
         async function bulkDeleteSelected() {
             if (bulkSelectedIds.size === 0) return;
             const count = bulkSelectedIds.size;
@@ -2214,21 +2253,9 @@ self.addEventListener('fetch', (e) => {
             );
         }
 
-        function exportCSVTemplate() {
-            const template = `nama,gang,nomor,alamat,latitude,longitude,patokan,status_pembayaran,masalah,tipe_lokasi,catatan
-Pak Budi,Gang 4,27,Jl. Raya No. 10,-6.2088,106.8650,Pagar hitam; sebelah warung biru,cod-transfer,Sulit dihubungi,-,COD minta transfer
-Bu Siti,Gang 2,15,Jl. Makmur No. 5,-6.2100,106.8700,Sebelah toko roti,cod,,jelas,
-Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jalan buntu,transfer,Sulit ditemukan,sulit,Alamat sulit dicari
-Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
-            const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `peta-kurir-template.csv`;
-            link.click();
-            URL.revokeObjectURL(url);
-            showModal('Template CSV', `📝 Template dengan field yang bisa diisi:\n- nama (WAJIB)\n- gang, nomor, alamat, patokan (opsional)\n- latitude, longitude (opsional)\n- status_pembayaran: cod, transfer, belum\n- tipe_lokasi: jelas, sulit, patokan, nitip\n- masalah: dipisah ";"\n- catatan: description/notes`);
-        }
+        // ============================================
+        // IMPORT: JSON (Full Restore) & CSV (Order Baru)
+        // ============================================
 
         function importJSON() {
             document.getElementById('file-import-json').click();
@@ -2241,9 +2268,13 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
             reader.onload = async (event) => {
                 try {
                     const data = JSON.parse(event.target.result);
+                    if (!data.addresses || !Array.isArray(data.addresses)) {
+                        showModal('Error', '❌ File JSON tidak valid (tidak ada field "addresses").');
+                        return;
+                    }
                     showImportModal(data.addresses, 'json');
                 } catch (err) {
-                    showModal('Error', '❌ File JSON tidak valid.');
+                    showModal('Error', '❌ File JSON tidak valid: ' + err.message);
                 }
             };
             reader.readAsText(file);
@@ -2307,17 +2338,17 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                             payment_status: getField('status_pembayaran', 8) || getField('payment', 8) || 'belum',
                             problem_tags: (getField('masalah', 9) || '').split(';').map((t) => t.trim()).filter((t) => t),
                             location_type: getField('tipe_lokasi', 10) || getField('type', 10) || 'jelas',
-                            visit_count: parseInt(getField('visit_count', 11)) || 1,
+                            visit_count: 1,
                             description: getField('catatan', 13) || getField('description', 13) || '',
                             delivery_status: 'belum selesai',
                             recipients: uniqueRecipients,
                             created_at: new Date().toISOString(),
                             updated_at: new Date().toISOString(),
-                            history: [{ date: new Date().toISOString(), status: 'belum selesai', notes: `Import dari CSV: ${uniqueRecipients.map((r) => r.name).join(', ')}` }],
+                            history: [],
                             raw_voice_note: ''
                         });
                     }
-                    if (addresses.length === 0) { showModal('Error', '❌ Tidak ada data valid'); return; }
+                    if (addresses.length === 0) { showModal('Error', '❌ Tidak ada data valid (minimal perlu kolom "nama")'); return; }
                     showImportModal(addresses, 'csv');
                 } catch (err) {
                     showModal('Error', `❌ File CSV tidak valid: ${err.message}`);
@@ -2347,122 +2378,244 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
             return result;
         }
 
+        // ============================================
+        // MODAL IMPORT: BEDA UNTUK JSON vs CSV
+        // ============================================
         async function showImportModal(newAddresses, type) {
-            const html = `
-                <h2>Import ${type === 'json' ? 'JSON' : 'CSV'}</h2>
-                <p>Ditemukan <strong>${newAddresses.length}</strong> alamat.</p>
-                <div style="margin: 16px 0;">
-                    <label style="display: flex; gap: 8px; margin-bottom: 8px;">
-                        <input type="radio" name="import-action" value="merge" checked>
-                        <span><strong>Gabungkan (Default)</strong><br><small>Cek duplikat dan gabungkan</small></span>
-                    </label>
-                    <label style="display: flex; gap: 8px;">
-                        <input type="radio" name="import-action" value="replace">
-                        <span><strong>Ganti Semua</strong><br><small>Hapus data sekarang</small></span>
-                    </label>
-                </div>
-            `;
-            const modal = document.getElementById('modal-content');
-            modal.innerHTML = html;
-            const buttons = document.createElement('div');
-            buttons.className = 'modal-buttons';
-            buttons.innerHTML = `
-                <button class="btn-secondary" onclick="document.getElementById('modal').classList.remove('active')">Batal</button>
-                <button class="btn-primary" onclick="confirmImport('${type}', ${newAddresses.length})">Import</button>
-            `;
-            modal.appendChild(buttons);
-            window.importNewAddresses = newAddresses;
-            document.getElementById('modal').classList.add('active');
-        }
+            const isJSON = type === 'json';
 
-        async function confirmImport(type, count) {
-            const action = document.querySelector('input[name="import-action"]:checked').value;
-            document.getElementById('modal').classList.remove('active');
-            if (action === 'replace') {
-                showConfirmModal('Ganti Semua Data', 'Semua data lokal saat ini akan dihapus. Lanjutkan?', async () => {
-                    const existing = await getAllAddresses();
-                    for (const addr of existing) await deleteAddress(addr.id);
-                    for (const addr of window.importNewAddresses) await saveAddress(addr);
-                    updateMapMarkers();
-                    updateAddressList();
-                    showModal('Sukses', `✓ ${count} alamat diimport!`);
-                });
+            if (isJSON) {
+                // ===== JSON: HANYA FULL RESTORE =====
+                const html = `
+                    <h2>🔄 Full Restore dari Backup</h2>
+                    <div class="info-box" style="background: #fef3c7; color: #92400e; margin: 16px 0;">
+                        ⚠️ <strong>Peringatan:</strong> Semua data yang ada sekarang akan <strong>DIHAPUS</strong> dan diganti dengan data dari backup.
+                    </div>
+                    <p style="margin-bottom: 12px;">Ditemukan <strong>${newAddresses.length}</strong> alamat di file backup.</p>
+                    <div style="background: var(--bg-alt); padding: 12px; border-radius: 6px; font-size: 12px; color: var(--text-light); margin-bottom: 16px; line-height: 1.6;">
+                        ✓ Status (berhasil / belum selesai / tidak order) dipertahankan<br>
+                        ✓ Foto alamat & penerima ikut direstore<br>
+                        ✓ Riwayat kunjungan tetap sama<br>
+                        ✓ Tanggal & statistik tidak berubah
+                    </div>
+                `;
+                const modal = document.getElementById('modal-content');
+                modal.innerHTML = html;
+                const buttons = document.createElement('div');
+                buttons.className = 'modal-buttons';
+                buttons.innerHTML = `
+                    <button class="btn-secondary" onclick="document.getElementById('modal').classList.remove('active')">Batal</button>
+                    <button class="btn-danger" onclick="confirmImport('json', ${newAddresses.length})">🔄 Restore Sekarang</button>
+                `;
+                modal.appendChild(buttons);
+                window.importNewAddresses = newAddresses;
+                document.getElementById('modal').classList.add('active');
             } else {
-                showDuplicateDetectionModal(type, count);
+                // ===== CSV: IMPORT ORDER BARU =====
+                const html = `
+                    <h2>📤 Import CSV</h2>
+                    <p style="margin-bottom: 12px;">Ditemukan <strong>${newAddresses.length}</strong> baris data.</p>
+                    <div class="info-box" style="background: #dbeafe; color: #1e40af; font-size: 13px; line-height: 1.6;">
+                        💡 <strong>Cara kerja import CSV:</strong><br>
+                        • Data yang <strong>sudah ada</strong> (nama sama) → statusnya diubah jadi <strong>🔔 Belum Selesai</strong><br>
+                        • Data <strong>baru</strong> → ditambahkan dengan status <strong>🔔 Belum Selesai</strong><br>
+                        • Tidak ada penggabungan penerima<br>
+                        • Minimal kolom <strong>"nama"</strong> harus ada
+                    </div>
+                `;
+                const modal = document.getElementById('modal-content');
+                modal.innerHTML = html;
+                const buttons = document.createElement('div');
+                buttons.className = 'modal-buttons';
+                buttons.innerHTML = `
+                    <button class="btn-secondary" onclick="document.getElementById('modal').classList.remove('active')">Batal</button>
+                    <button class="btn-primary" onclick="confirmImport('csv', ${newAddresses.length})">📤 Import</button>
+                `;
+                modal.appendChild(buttons);
+                window.importNewAddresses = newAddresses;
+                document.getElementById('modal').classList.add('active');
             }
         }
 
-        function showDuplicateDetectionModal(type, count) {
-            const html = `
-                <h2>Deteksi Duplikat</h2>
-                <p>Lokasi yang berdekatan (dalam 5 meter) akan dijadikan 1 record.</p>
-                <div style="margin: 16px 0;">
-                    <label style="display: flex; gap: 8px; margin-bottom: 12px; padding: 12px; background: var(--bg-alt); border-radius: 6px; cursor: pointer;">
-                        <input type="radio" name="duplicate-action" value="detect" checked>
-                        <span><strong>Ya, Deteksi Duplikat</strong><br><small>Lokasi berdekatan digabung</small></span>
-                    </label>
-                    <label style="display: flex; gap: 8px; padding: 12px; background: var(--bg-alt); border-radius: 6px; cursor: pointer;">
-                        <input type="radio" name="duplicate-action" value="skip">
-                        <span><strong>Tidak, Simpan Terpisah</strong><br><small>Semua lokasi disimpan terpisah</small></span>
-                    </label>
-                </div>
-            `;
-            const modal = document.getElementById('modal-content');
-            modal.innerHTML = html;
-            const buttons = document.createElement('div');
-            buttons.className = 'modal-buttons';
-            buttons.innerHTML = `
-                <button class="btn-secondary" onclick="document.getElementById('modal').classList.remove('active')">Batal</button>
-                <button class="btn-primary" onclick="proceedMergeImport('${type}', ${count})">Lanjut Import</button>
-            `;
-            modal.appendChild(buttons);
-            document.getElementById('modal').classList.add('active');
+        // ============================================
+        // CONFIRM IMPORT: JSON=Restore, CSV=Process
+        // ============================================
+        async function confirmImport(type, count) {
+            document.getElementById('modal').classList.remove('active');
+
+            if (type === 'json') {
+                // ===== JSON: FULL RESTORE =====
+                showConfirmModal(
+                    '🔄 Full Restore',
+                    `Semua ${count} alamat dari backup akan MENGGANTIKAN data sekarang. Yakin lanjutkan?`,
+                    async () => {
+                        // Hapus semua data existing
+                        const existing = await getAllAddresses();
+                        for (const addr of existing) {
+                            await deleteAddress(addr.id);
+                        }
+
+                        // Restore apa adanya — JANGAN ubah status/riwayat/foto apapun
+                        for (const addr of window.importNewAddresses) {
+                            if (!addr.id) addr.id = 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                            if (!addr.created_at) addr.created_at = new Date().toISOString();
+
+                            if (!addr.recipients) {
+                                addr.recipients = addr.recipient_name
+                                    ? [{
+                                        name: addr.recipient_name,
+                                        status: addr.delivery_status || 'berhasil',
+                                        added_at: addr.created_at
+                                    }]
+                                    : [];
+                            }
+                            await saveAddress(addr);
+                        }
+
+                        updateMapMarkers();
+                        updateAddressList();
+                        showModal('Sukses', `✓ ${count} alamat berhasil direstore!\n\nStatus, riwayat, dan foto dipertahankan apa adanya.`);
+                    }
+                );
+            } else {
+                // ===== CSV: PROCESS IMPORT =====
+                await processCSVImport(count);
+            }
         }
 
-        async function proceedMergeImport(type, count) {
-            const detectDuplicate = document.querySelector('input[name="duplicate-action"]:checked').value === 'detect';
-            document.getElementById('modal').classList.remove('active');
-            window.importDetectDuplicate = detectDuplicate;
+        // ============================================
+        // PROSES IMPORT CSV
+        // ============================================
+        async function processCSVImport(count) {
+            document.getElementById('modal-content').innerHTML = `
+                <div style="padding: 40px; text-align: center;">
+                    <h2 style="margin-bottom: 20px;">⏳ Memproses ${count} data...</h2>
+                    <div style="width: 40px; height: 40px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                </div>
+            `;
+            document.getElementById('modal').classList.add('active');
+
+            const allExisting = await getAllAddresses();
+            let updatedCount = 0;
+            let addedCount = 0;
+
             for (const newAddr of window.importNewAddresses) {
-                const dup = detectDuplicate ? await checkDuplicate(newAddr.latitude, newAddr.longitude, newAddr) : null;
-                if (dup && detectDuplicate) {
-                    if (!dup.recipients) {
-                        dup.recipients = dup.recipient_name ? [{ name: dup.recipient_name, status: dup.delivery_status === 'belum selesai' ? 'belum selesai' : 'berhasil', added_at: dup.created_at }] : [];
-                    }
-                    let hasMatchingRecipient = false;
-                    if (newAddr.recipients) {
-                        newAddr.recipients.forEach((newRecipient) => {
-                            const matchingRecipient = dup.recipients.find((r) => r.name.toLowerCase() === newRecipient.name.toLowerCase());
-                            if (matchingRecipient) {
-                                matchingRecipient.status = 'belum selesai';
-                                matchingRecipient.updated_at = new Date().toISOString();
-                                hasMatchingRecipient = true;
-                            } else {
-                                dup.recipients.push({ name: newRecipient.name, status: 'belum selesai', added_at: new Date().toISOString() });
-                            }
+                const nama = (newAddr.recipient_name || '').trim();
+                if (!nama) continue;
+
+                // Cari existing: 1) by koordinat, 2) by nama
+                let existing = null;
+
+                if (newAddr.latitude && newAddr.longitude &&
+                    (newAddr.latitude !== 0 || newAddr.longitude !== 0)) {
+                    existing = allExisting.find((a) => {
+                        const latDiff = Math.abs(a.latitude - newAddr.latitude);
+                        const lonDiff = Math.abs(a.longitude - newAddr.longitude);
+                        return latDiff < 0.00005 && lonDiff < 0.00005;
+                    });
+                }
+
+                if (!existing) {
+                    const namaLower = nama.toLowerCase();
+                    existing = allExisting.find((a) => {
+                        if ((a.recipient_name || '').toLowerCase().trim() === namaLower) return true;
+                        if (a.recipients && a.recipients.some((r) =>
+                            (r.name || '').toLowerCase().trim() === namaLower)) return true;
+                        return false;
+                    });
+                }
+
+                if (existing) {
+                    // ===== DATA SUDAH ADA → ubah status jadi 'belum selesai' =====
+                    existing.delivery_status = 'belum selesai';
+
+                    if (existing.recipients && existing.recipients.length > 0) {
+                        existing.recipients.forEach((r) => {
+                            r.status = 'belum selesai';
+                            r.updated_at = new Date().toISOString();
                         });
+                    } else {
+                        existing.recipients = [{
+                            name: existing.recipient_name,
+                            status: 'belum selesai',
+                            added_at: existing.created_at || new Date().toISOString()
+                        }];
                     }
-                    if (!dup.history) dup.history = [];
-                    if (newAddr.history) dup.history.push(...newAddr.history);
-                    dup.visit_count = (dup.visit_count || 0) + (newAddr.visit_count || 1);
-                    if (hasMatchingRecipient || (newAddr.recipients && newAddr.recipients.length > 0)) dup.delivery_status = 'belum selesai';
-                    if (newAddr.problem_tags && newAddr.problem_tags.length > 0) {
-                        dup.problem_tags = [...(dup.problem_tags || []), ...newAddr.problem_tags];
-                        dup.problem_tags = [...new Set(dup.problem_tags)];
+
+                    // Update field tambahan kalau CSV punya nilai
+                    if (newAddr.gang) existing.gang = newAddr.gang;
+                    if (newAddr.house_number) existing.house_number = newAddr.house_number;
+                    if (newAddr.address) existing.address = newAddr.address;
+                    if (newAddr.landmark) existing.landmark = newAddr.landmark;
+                    if (newAddr.payment_status && newAddr.payment_status !== 'belum') existing.payment_status = newAddr.payment_status;
+                    if (newAddr.location_type && newAddr.location_type !== 'jelas') existing.location_type = newAddr.location_type;
+                    if (newAddr.description) existing.description = newAddr.description;
+                    if (newAddr.latitude && newAddr.longitude &&
+                        (newAddr.latitude !== 0 || newAddr.longitude !== 0)) {
+                        existing.latitude = newAddr.latitude;
+                        existing.longitude = newAddr.longitude;
                     }
-                    if (newAddr.landmark) dup.landmark = newAddr.landmark;
-                    if (newAddr.payment_status) dup.payment_status = newAddr.payment_status;
-                    await saveAddress(dup);
+
+                    if (!existing.history) existing.history = [];
+                    existing.history.push({
+                        date: new Date().toISOString(),
+                        status: 'belum selesai',
+                        notes: `CSV import: status diubah ke belum selesai`
+                    });
+
+                    await saveAddress(existing);
+                    updatedCount++;
                 } else {
-                    newAddr.delivery_status = 'belum selesai';
-                    await saveAddress(newAddr);
+                    // ===== DATA BARU → buat dengan status 'belum selesai' =====
+                    const createdAddr = {
+                        ...newAddr,
+                        id: newAddr.id || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                        delivery_status: 'belum selesai',
+                        recipients: (newAddr.recipients || []).map((r) => ({
+                            name: r.name,
+                            status: 'belum selesai',
+                            added_at: r.added_at || new Date().toISOString()
+                        })),
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        visit_count: 0,
+                        last_visit_at: null,
+                        history: [{
+                            date: new Date().toISOString(),
+                            status: 'belum selesai',
+                            notes: `Import dari CSV`
+                        }]
+                    };
+
+                    if (createdAddr.recipients.length === 0) {
+                        createdAddr.recipients = [{
+                            name: nama,
+                            status: 'belum selesai',
+                            added_at: new Date().toISOString()
+                        }];
+                    }
+                    createdAddr.recipient_name = nama;
+
+                    await saveAddress(createdAddr);
+                    allExisting.push(createdAddr);
+                    addedCount++;
                 }
             }
+
             updateMapMarkers();
             updateAddressList();
-            showModal('Sukses', `✓ ${count} alamat diimport!\n\n${detectDuplicate ? '🔍 Duplikat terdeteksi & digabung' : '✓ Semua disimpan terpisah'}\n\n🔔 Status: Belum Selesai`);
+            closeModal();
+            showModal('Sukses', `✓ Import CSV selesai!
+
+🔔 Status diubah: ${updatedCount}
+➕ Data baru: ${addedCount}
+
+Semua berstatus "Belum Selesai"`);
         }
 
+        // ============================================
+        // CLEAR DATA
+        // ============================================
         async function clearDemoData() {
             const addresses = await getAllAddresses();
             const demoAddresses = addresses.filter((addr) => addr.recipient_name && ['Pak Budi', 'Bu Siti', 'Pak Ahmad'].includes(addr.recipient_name));
@@ -2519,7 +2672,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
             const modal = document.getElementById('modal-content');
             modal.innerHTML = `
                 <h2>${title}</h2>
-                <p>${message}</p>
+                <p style="white-space: pre-line;">${message}</p>
                 <div class="modal-buttons">
                     <button class="btn-primary" onclick="document.getElementById('modal').classList.remove('active')" style="flex: 1;">OK</button>
                 </div>
@@ -2527,7 +2680,6 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
             document.getElementById('modal').classList.add('active');
         }
 
-        // ✅ FIX: showConfirmModal pakai closure (bukan toString)
         function showConfirmModal(title, message, onConfirm) {
             const modal = document.getElementById('modal-content');
             modal.innerHTML = `
@@ -2547,7 +2699,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
 
             const confirmBtn = document.createElement('button');
             confirmBtn.className = 'btn-danger';
-            confirmBtn.textContent = 'Hapus';
+            confirmBtn.textContent = 'Lanjutkan';
             confirmBtn.onclick = async () => {
                 try {
                     await onConfirm();
@@ -2674,7 +2826,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
         document.getElementById('close-record-sheet').addEventListener('click', () => closeRecordSheet());
         document.getElementById('cancel-record-btn').addEventListener('click', () => closeRecordSheet());
 
-        // ✅ FIX: Pakai onclick (bukan addEventListener) untuk mencegah double handler
+        // FIX: pakai onclick (bukan addEventListener) supaya tidak double handler
         document.getElementById('save-record-btn').onclick = () => saveRecord();
 
         document.getElementById('voice-start-btn').addEventListener('click', startVoiceInput);
@@ -2756,10 +2908,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
         document.getElementById('bulk-status-gagal').addEventListener('click', () => bulkUpdateStatus('gagal'));
         document.getElementById('bulk-merge-btn').addEventListener('click', showMergeRecipientsModal);
         document.getElementById('optimize-route-btn').addEventListener('click', showOptimizeRouteModal);
-
-        // ✅ FITUR BARU: event listener tombol hapus terpilih
         document.getElementById('bulk-delete-btn').addEventListener('click', bulkDeleteSelected);
-
         document.getElementById('import-json-btn').addEventListener('click', importJSON);
         document.getElementById('import-csv-btn').addEventListener('click', importCSV);
         document.getElementById('clear-demo-btn').addEventListener('click', clearDemoData);
