@@ -960,6 +960,19 @@
                     <label>Catatan Tambahan</label>
                     <textarea id="form-description" placeholder="Catatan lainnya..."></textarea>
                 </div>
+
+                <div class="form-group">
+                    <label>📸 Foto Alamat</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <input type="file" id="form-address-photo-camera" accept="image/*" capture="environment" style="display: none;">
+                        <input type="file" id="form-address-photo-gallery" accept="image/*" style="display: none;">
+                        <button type="button" class="btn-primary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('form-address-photo-camera').click();">📷 Ambil Foto</button>
+                        <button type="button" class="btn-secondary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('form-address-photo-gallery').click();">📁 Pilih File</button>
+                    </div>
+                    <div id="address-photo-preview-container" style="margin-top: 8px; text-align: center;">
+                        <img id="address-photo-preview" style="max-width: 150px; max-height: 150px; border-radius: 6px; border: 1px solid var(--border); display: none;">
+                    </div>
+                </div>
             </div>
 
             <div class="action-buttons" style="margin-top: 20px;">
@@ -1826,6 +1839,16 @@ self.addEventListener('fetch', (e) => {
                 item.classList.remove('checked');
                 item.querySelector('input').checked = false;
             });
+
+            // Clear photo
+            window.addressPhotoData = null;
+            const photoInput = document.getElementById('form-address-photo');
+            if (photoInput) photoInput.value = '';
+            const photoPreview = document.getElementById('address-photo-preview');
+            if (photoPreview) {
+                photoPreview.style.display = 'none';
+                photoPreview.src = '';
+            }
             
             // Default to voice mode
             switchToVoiceMode();
@@ -1902,6 +1925,12 @@ self.addEventListener('fetch', (e) => {
                     notes: document.getElementById('form-description').value
                 }]
             };
+            
+            // Add photo if available
+            if (window.addressPhotoData) {
+                newAddress.photo = window.addressPhotoData;
+                newAddress.photo_ref = 'addr-' + Date.now() + '.jpg';
+            }
 
             // Check for duplicate
             const duplicate = await checkDuplicate(currentLocation.latitude, currentLocation.longitude);
@@ -2062,14 +2091,16 @@ self.addEventListener('fetch', (e) => {
                     const statusColor = recipient.status === 'berhasil' ? '#10b981' : recipient.status === 'belum selesai' ? '#f59e0b' : '#ef4444';
                     const statusLabel = recipient.status === 'berhasil' ? 'Selesai' : recipient.status === 'belum selesai' ? 'Belum Selesai' : 'Gagal';
                     const escapedName = recipient.name.replace(/'/g, "\\'");
+                    const hasPhoto = recipient.photo ? 'block' : 'none';
                     html += `
-                        <div style="padding: 8px; background: var(--bg-alt); border-radius: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="padding: 8px; background: var(--bg-alt); border-radius: 4px; margin-bottom: 6px; display: flex; gap: 8px; align-items: flex-start;">
+                            ${recipient.photo ? `<img src="${recipient.photo}" style="width: 50px; height: 50px; border-radius: 4px; object-fit: cover; flex-shrink: 0;">` : ''}
                             <div style="flex: 1;">
-                                <strong>${recipient.name}</strong><br>
+                                <strong>${recipient.name}</strong>${recipient.photo_ref ? `<small style="color: #999; font-size: 10px; margin-left: 4px;">(${recipient.photo_ref})</small>` : ''}<br>
                                 <span style="color: ${statusColor}; font-weight: 600; font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 3px; display: inline-block; background: rgba(0,0,0,0.05);" onclick="showRecipientStatusMenu('${address.id}', '${escapedName}', '${recipient.status}')">● ${statusLabel}</span><br>
                                 <small style="color: var(--text-light);">Ditambah: ${formatDate(recipient.added_at)}</small>
                             </div>
-                            <div style="display: flex; gap: 4px;">
+                            <div style="display: flex; gap: 4px; flex-shrink: 0;">
                                 <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px; white-space: nowrap;" onclick="showEditRecipientModal('${address.id}', '${escapedName}', '${recipient.status}')">✏️</button>
                                 <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px; white-space: nowrap; background: #ef4444; color: white;" onclick="confirmDeleteRecipient('${address.id}', '${escapedName}')">🗑️</button>
                             </div>
@@ -2110,25 +2141,67 @@ self.addEventListener('fetch', (e) => {
 
             if (address.history && address.history.length > 0) {
                 html += '<div class="form-group"><label>Riwayat Kunjungan</label>';
-                address.history.forEach((h) => {
-                    html += `
-                        <div class="history-item">
-                            <div class="history-date">${formatDate(h.date)}</div>
-                            <div class="history-details">
-                                <span class="record-status success">${h.status || 'berhasil'}</span>
-                                ${h.landmark ? `<br>Patokan: ${h.landmark}` : ''}
-                                ${h.payment_status ? `<br>Bayar: ${formatPaymentStatus(h.payment_status)}` : ''}
-                                ${h.notes ? `<br>Catatan: ${h.notes}` : ''}
-                            </div>
+                
+                // Show latest (first) entry
+                const latest = address.history[0];
+                html += `
+                    <div class="history-item">
+                        <div class="history-date">📌 ${formatDate(latest.date)}</div>
+                        <div class="history-details">
+                            <span class="record-status success">${latest.status || 'berhasil'}</span>
+                            ${latest.landmark ? `<br>Patokan: ${latest.landmark}` : ''}
+                            ${latest.payment_status ? `<br>Bayar: ${formatPaymentStatus(latest.payment_status)}` : ''}
+                            ${latest.notes ? `<br>Catatan: ${latest.notes}` : ''}
                         </div>
+                    </div>
+                `;
+                
+                // Show older entries in dropdown (if more than 1)
+                if (address.history.length > 1) {
+                    const historyId = 'history-' + address.id;
+                    html += `
+                        <button class="btn-secondary" style="width: 100%; padding: 8px; margin-top: 8px; font-size: 12px; cursor: pointer; text-align: left;" onclick="toggleHistoryDropdown('${historyId}')">
+                            📂 Riwayat Lama (${address.history.length - 1})
+                        </button>
+                        <div id="${historyId}" style="display: none; margin-top: 8px; padding: 8px; background: var(--bg-alt); border-radius: 4px; max-height: 200px; overflow-y: auto;">
                     `;
-                });
+                    
+                    // Show older entries (skip first/latest)
+                    for (let i = 1; i < address.history.length; i++) {
+                        const h = address.history[i];
+                        html += `
+                            <div style="padding: 8px; border-bottom: 1px solid var(--border); font-size: 12px;">
+                                <div style="font-weight: 500; color: var(--text-light);">${formatDate(h.date)}</div>
+                                <span class="record-status" style="font-size: 11px;">${h.status || 'berhasil'}</span>
+                                ${h.landmark ? `<div style="font-size: 11px; color: var(--text-light);">Patokan: ${h.landmark}</div>` : ''}
+                                ${h.payment_status ? `<div style="font-size: 11px; color: var(--text-light);">Bayar: ${formatPaymentStatus(h.payment_status)}</div>` : ''}
+                                ${h.notes ? `<div style="font-size: 11px; color: var(--text-light); margin-top: 2px;">💬 ${h.notes}</div>` : ''}
+                            </div>
+                        `;
+                    }
+                    
+                    html += '</div>';
+                }
+                
                 html += '</div>';
             }
 
             detailContent.innerHTML = html;
             document.getElementById('detail-name').textContent = address.recipient_name;
             document.getElementById('detail-sheet').classList.add('active');
+        }
+
+        function toggleHistoryDropdown(historyId) {
+            const historyDiv = document.getElementById(historyId);
+            if (historyDiv) {
+                const isHidden = historyDiv.style.display === 'none';
+                historyDiv.style.display = isHidden ? 'block' : 'none';
+                
+                // Update button text
+                const btn = event.target;
+                const historyCount = historyDiv.querySelectorAll('[style*="border-bottom"]').length;
+                btn.textContent = isHidden ? `📂 Tutup Riwayat` : `📂 Riwayat Lama (${historyCount})`;
+            }
         }
 
         function closeModal() {
@@ -2138,8 +2211,11 @@ self.addEventListener('fetch', (e) => {
             }
         }
 
-        function showEditRecipientModal(addrId, recipientName, currentStatus) {
+        async function showEditRecipientModal(addrId, recipientName, currentStatus) {
             const displayName = recipientName.replace(/\\'/g, "'");
+            const addr = await getAddressById(addrId);
+            const recipient = addr.recipients.find((r) => r.name === displayName);
+            const currentPhoto = recipient && recipient.photo ? recipient.photo : null;
             
             const html = `
                 <div style="padding: 16px;">
@@ -2148,6 +2224,19 @@ self.addEventListener('fetch', (e) => {
                     <div class="form-group">
                         <label>Nama Penerima</label>
                         <input type="text" id="edit-recipient-name" value="${displayName}" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; box-sizing: border-box;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Foto Penerima 📸</label>
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <input type="file" id="edit-recipient-photo-camera" accept="image/*" capture="environment" style="display: none;">
+                            <input type="file" id="edit-recipient-photo-gallery" accept="image/*" style="display: none;">
+                            <button type="button" class="btn-primary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('edit-recipient-photo-camera').click();">📷 Ambil Foto</button>
+                            <button type="button" class="btn-secondary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('edit-recipient-photo-gallery').click();">📁 Pilih File</button>
+                        </div>
+                        <div id="photo-preview-container" style="margin-top: 8px; text-align: center;">
+                            ${currentPhoto ? `<img id="photo-preview" src="${currentPhoto}" style="max-width: 150px; max-height: 150px; border-radius: 6px; border: 1px solid var(--border);">` : `<img id="photo-preview" style="max-width: 150px; max-height: 150px; border-radius: 6px; border: 1px solid var(--border); display: none;">`}
+                        </div>
                     </div>
                     
                     <div class="form-group">
@@ -2168,10 +2257,37 @@ self.addEventListener('fetch', (e) => {
             `;
             
             let selectedStatus = currentStatus;
-            window.editRecipientData = { addrId, oldName: displayName, selectedStatus };
+            window.editRecipientData = { addrId, oldName: displayName, selectedStatus, photoData: null };
             
             document.getElementById('modal-content').innerHTML = html;
             document.getElementById('modal').classList.add('active');
+            
+            // Add photo preview handler (camera + gallery)
+            setTimeout(() => {
+                const handlePhotoChange = function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        compressImage(file).then((compressed) => {
+                            window.editRecipientData.photoData = compressed;
+                            const preview = document.getElementById('photo-preview');
+                            if (preview) {
+                                preview.src = compressed;
+                                preview.style.display = 'block';
+                            }
+                        }).catch(err => console.log('Photo compress error:', err));
+                    }
+                };
+                
+                const cameraInput = document.getElementById('edit-recipient-photo-camera');
+                const galleryInput = document.getElementById('edit-recipient-photo-gallery');
+                
+                if (cameraInput) {
+                    cameraInput.addEventListener('change', handlePhotoChange);
+                }
+                if (galleryInput) {
+                    galleryInput.addEventListener('change', handlePhotoChange);
+                }
+            }, 50);
         }
 
         function setEditRecipientStatus(status) {
@@ -2209,6 +2325,10 @@ self.addEventListener('fetch', (e) => {
                 if (recipient) {
                     recipient.name = newName;
                     recipient.status = newStatus;
+                    if (window.editRecipientData.photoData) {
+                        recipient.photo = window.editRecipientData.photoData;
+                        recipient.photo_ref = generatePhotoFileName(newName); // Update filename ref jika foto baru
+                    }
                     recipient.updated_at = new Date().toISOString();
                     
                     // Update delivery_status based on recipients statuses
@@ -2250,6 +2370,48 @@ self.addEventListener('fetch', (e) => {
         // RECIPIENT CRUD - CREATE
         // ============================================
 
+        // Image Compression - Aggressive (250px, 55% quality → 20-30KB per foto)
+        function compressImage(file, maxWidth = 250, quality = 0.55) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        let { width, height } = img;
+                        if (width > maxWidth) {
+                            height = (height * maxWidth) / width;
+                            width = maxWidth;
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        canvas.toBlob((blob) => {
+                            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                            resolve(dataUrl);
+                        }, 'image/jpeg', quality);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Generate photo filename from recipient name
+        function generatePhotoFileName(recipientName) {
+            const sanitized = recipientName
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-');
+            const timestamp = Date.now();
+            return `${sanitized}-${timestamp}.jpg`;
+        }
+
         function showAddRecipientModal(addrId) {
             const html = `
                 <div style="padding: 16px;">
@@ -2258,6 +2420,19 @@ self.addEventListener('fetch', (e) => {
                     <div class="form-group">
                         <label>Nama Penerima</label>
                         <input type="text" id="new-recipient-name" placeholder="Nama penerima..." style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; box-sizing: border-box;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Foto Penerima 📸</label>
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <input type="file" id="new-recipient-photo-camera" accept="image/*" capture="environment" style="display: none;">
+                            <input type="file" id="new-recipient-photo-gallery" accept="image/*" style="display: none;">
+                            <button type="button" class="btn-primary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('new-recipient-photo-camera').click();">📷 Ambil Foto</button>
+                            <button type="button" class="btn-secondary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('new-recipient-photo-gallery').click();">📁 Pilih File</button>
+                        </div>
+                        <div id="photo-preview-container" style="margin-top: 8px; text-align: center;">
+                            <img id="photo-preview" style="max-width: 150px; max-height: 150px; border-radius: 6px; border: 1px solid var(--border); display: none;">
+                        </div>
                     </div>
                     
                     <div class="form-group">
@@ -2277,11 +2452,40 @@ self.addEventListener('fetch', (e) => {
                 </div>
             `;
             
-            window.newRecipientData = { addrId, selectedStatus: 'belum selesai' };
+            window.newRecipientData = { addrId, selectedStatus: 'belum selesai', photoData: null };
             
             document.getElementById('modal-content').innerHTML = html;
             document.getElementById('modal').classList.add('active');
-            document.getElementById('new-recipient-name').focus();
+            
+            // Add photo preview handler (camera + gallery)
+            setTimeout(() => {
+                const handlePhotoChange = function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        compressImage(file).then((compressed) => {
+                            window.newRecipientData.photoData = compressed;
+                            const preview = document.getElementById('photo-preview');
+                            if (preview) {
+                                preview.src = compressed;
+                                preview.style.display = 'block';
+                            }
+                        }).catch(err => console.log('Photo compress error:', err));
+                    }
+                };
+                
+                const cameraInput = document.getElementById('new-recipient-photo-camera');
+                const galleryInput = document.getElementById('new-recipient-photo-gallery');
+                
+                if (cameraInput) {
+                    cameraInput.addEventListener('change', handlePhotoChange);
+                }
+                if (galleryInput) {
+                    galleryInput.addEventListener('change', handlePhotoChange);
+                }
+                
+                const nameInput = document.getElementById('new-recipient-name');
+                if (nameInput) nameInput.focus();
+            }, 50);
         }
 
         function setNewRecipientStatus(status) {
@@ -2321,12 +2525,19 @@ self.addEventListener('fetch', (e) => {
                 return;
             }
             
-            // Add new recipient
-            addr.recipients.push({
+            // Add new recipient with optional photo
+            const newRecipient = {
                 name: newName,
                 status: newStatus,
                 added_at: new Date().toISOString()
-            });
+            };
+            
+            if (window.newRecipientData.photoData) {
+                newRecipient.photo = window.newRecipientData.photoData;
+                newRecipient.photo_ref = generatePhotoFileName(newName); // e.g., "pak-budi-1728000000.jpg"
+            }
+            
+            addr.recipients.push(newRecipient);
             
             // Update delivery_status
             const statuses = addr.recipients.map((r) => r.status);
@@ -3133,6 +3344,16 @@ self.addEventListener('fetch', (e) => {
             document.getElementById('form-location-type').value = address.location_type || 'jelas';
             document.getElementById('form-description').value = address.description || '';
 
+            // Set photo if exists
+            if (address.photo) {
+                window.addressPhotoData = address.photo;
+                const preview = document.getElementById('address-photo-preview');
+                if (preview) {
+                    preview.src = address.photo;
+                    preview.style.display = 'block';
+                }
+            }
+
             // Set problem tags
             document.querySelectorAll('#problems-group .checkbox-item').forEach((item) => {
                 const label = item.textContent.trim();
@@ -3181,6 +3402,12 @@ self.addEventListener('fetch', (e) => {
                 problems.push(item.textContent.trim());
             });
             address.problem_tags = problems;
+
+            // Update photo if new one provided
+            if (window.addressPhotoData) {
+                address.photo = window.addressPhotoData;
+                address.photo_ref = address.photo_ref || ('addr-' + Date.now() + '.jpg');
+            }
 
             // Update timestamp
             address.updated_at = new Date().toISOString();
@@ -3313,11 +3540,12 @@ self.addEventListener('fetch', (e) => {
                 return `
                     <div class="address-item" data-addr-id="${addr.id}" onclick="showAddressDetail('${addr.id}')">
                         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 4px;">
-                            <div style="display: flex; align-items: center; flex: 1;">
+                            <div style="display: flex; align-items: center; flex: 1; gap: 8px;">
                                 <input type="checkbox" class="address-item-checkbox" data-addr-id="${addr.id}" 
                                     ${isChecked ? 'checked' : ''} 
-                                    style="cursor: pointer; margin-right: 8px;" 
+                                    style="cursor: pointer;" 
                                     onclick="event.stopPropagation(); toggleBulkSelect('${addr.id}');">
+                                ${addr.photo ? `<img src="${addr.photo}" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover;">` : ''}
                                 <div class="address-item-name">${addr.recipient_name}</div>
                             </div>
                             <span style="color: ${statusColor}; font-weight: 600; font-size: 12px;">${statusLabel}</span>
@@ -4400,6 +4628,39 @@ Import akan berhasil minimal ada kolom "nama". Field lain bisa kosong.`);
                 showModal('Error', 'Gagal inisialisasi aplikasi: ' + err.message);
             }
         }
+
+        // Photo input handler for address photo (camera + gallery)
+        function attachAddressPhotoHandlers() {
+            const handlePhotoChange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    compressImage(file).then((compressed) => {
+                        window.addressPhotoData = compressed;
+                        const preview = document.getElementById('address-photo-preview');
+                        if (preview) {
+                            preview.src = compressed;
+                            preview.style.display = 'block';
+                        }
+                    }).catch(err => console.log('Photo compress error:', err));
+                }
+            };
+            
+            const cameraInput = document.getElementById('form-address-photo-camera');
+            const galleryInput = document.getElementById('form-address-photo-gallery');
+            
+            if (cameraInput) {
+                cameraInput.removeEventListener('change', handlePhotoChange);
+                cameraInput.addEventListener('change', handlePhotoChange);
+            }
+            if (galleryInput) {
+                galleryInput.removeEventListener('change', handlePhotoChange);
+                galleryInput.addEventListener('change', handlePhotoChange);
+            }
+        }
+        
+        setTimeout(() => {
+            attachAddressPhotoHandlers();
+        }, 100);
 
         // Start app with delay untuk memastikan CDN loaded
         window.addEventListener('load', () => {
