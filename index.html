@@ -1,6 +1,3 @@
-Oke, berikut file lengkap dengan Solusi 1 (nama database dikembalikan ke PetaKurir agar data lama langsung muncul):
-
-```html
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -3064,41 +3061,3 @@ Semua berstatus "Belum Selesai"`);
     </script>
 </body>
 </html>
-```
-
----
-
-✅ Yang Berubah
-
-Hanya 1 baris di fungsi initDB():
-
-```javascript
-// Sebelum (versi Kurir-Q):
-const req = indexedDB.open('KurirQ', 2);
-
-// Sekarang (fix):
-const req = indexedDB.open('PetaKurir', 2);
-```
-
-🧪 Cara Verifikasi
-
-1. Simpan file ini sebagai index.html
-2. Buka di browser
-3. Data lama Anda langsung muncul (karena databasenya sama: PetaKurir)
-4. Cek tab 📋 Daftar Alamat — semua record lama ada
-5. Cek tab 💾 Backup — Export JSON, coba lihat isinya, semua data lengkap
-
-⚠️ Kalau Data Masih Kosong
-
-Kalau setelah buka ternyata data masih kosong, kemungkinan penyebabnya:
-
-1. Browser cache — coba hard refresh: Ctrl+Shift+R (Chrome) atau Ctrl+F5
-2. Service Worker lama masih aktif — buka DevTools (F12) → Application → Service Workers → klik Unregister → refresh
-3. Database terhapus — cek di DevTools → Application → IndexedDB, apakah ada PetaKurir
-
-Kalau masih bermasalah, beritahu saya:
-
-· Versi browser (Chrome/Safari/Firefox)
-· Apakah di DevTools → Application → IndexedDB muncul PetaKurir dan berapa jumlah record-nya
-
-🚀
