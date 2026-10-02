@@ -1,16 +1,19 @@
+Oke, berikut file lengkap dengan Solusi 1 (nama database dikembalikan ke PetaKurir agar data lama langsung muncul):
+
+```html
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#2563eb">
-    <meta name="description" content="Peta Kurir - Buku alamat pribadi kurir berbasis GPS">
+    <meta name="description" content="Kurir-Q - Buku alamat pribadi kurir berbasis GPS">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Peta Kurir">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%232563eb' width='180' height='180'/><text x='90' y='110' font-size='100' fill='white' text-anchor='middle' dominant-baseline='middle'>🗺️</text></svg>">
-    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Peta%20Kurir%22,%22short_name%22:%22KurirMap%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fff%22,%22theme_color%22:%22%232563eb%22,%22orientation%22:%22portrait%22}">
-    <title>Peta Kurir</title>
+    <meta name="apple-mobile-web-app-title" content="Kurir-Q">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%232563eb' width='180' height='180'/><text x='90' y='110' font-size='100' fill='white' text-anchor='middle' dominant-baseline='middle'>📦</text></svg>">
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Kurir-Q%20v1.0%22,%22short_name%22:%22Kurir-Q%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fff%22,%22theme_color%22:%22%232563eb%22,%22orientation%22:%22portrait%22}">
+    <title>Kurir-Q v1.0</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -82,7 +85,7 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 300; align-items: center; justify-content: center; padding: 16px; }
         .modal-overlay.active { display: flex; }
-        .modal { background: var(--bg); border-radius: 12px; padding: 20px; max-width: 400px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal { background: var(--bg); border-radius: 12px; padding: 20px; max-width: 400px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
         .modal h2 { margin-bottom: 16px; font-size: 18px; }
         .modal p { margin-bottom: 16px; font-size: 14px; line-height: 1.5; color: var(--text-light); }
         .modal-buttons { display: flex; gap: 12px; }
@@ -107,7 +110,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🗺️ Peta Kurir</h1>
+            <h1>📦 Kurir-Q</h1>
             <button class="menu-btn" id="menu-btn">☰</button>
         </header>
 
@@ -151,6 +154,18 @@
                     <button class="filter-btn" data-filter="cod">COD</button>
                     <button class="filter-btn" data-filter="nitip">Nitip</button>
                     <button class="filter-btn" data-filter="sulit">Sulit</button>
+                </div>
+
+                <div style="padding: 8px 12px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 12px; color: var(--text-light); font-weight: 600; white-space: nowrap;">🔤 Urutkan:</span>
+                    <select id="sort-select" style="flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 13px; cursor: pointer;">
+                        <option value="default">Default (Terbaru dulu)</option>
+                        <option value="nama-asc">Nama A → Z</option>
+                        <option value="nama-desc">Nama Z → A</option>
+                        <option value="tanggal-baru">Tanggal Dibuat (Terbaru)</option>
+                        <option value="tanggal-lama">Tanggal Dibuat (Terlama)</option>
+                        <option value="kunjungan">Paling Sering Dikunjungi</option>
+                    </select>
                 </div>
 
                 <div id="bulk-section" style="display: none; background: var(--bg-alt); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
@@ -204,7 +219,7 @@
                 <div class="sheet-content">
                     <h3 style="margin-bottom: 16px;">Tentang Aplikasi</h3>
                     <div class="info-box">
-                        <strong>Peta Kurir v1.0</strong><br>
+                        <strong>Kurir-Q v1.0</strong><br>
                         Buku alamat pribadi kurir berbasis GPS + peta.<br><br>
                         <strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.
                     </div>
@@ -217,7 +232,7 @@
                     </div>
                     <h3 style="margin-bottom: 12px; margin-top: 20px;">Fitur</h3>
                     <div style="font-size: 13px; color: var(--text-light); line-height: 1.8;">
-                        ✓ GPS otomatis<br>✓ Voice input<br>✓ Peta interaktif<br>✓ Anti duplikat<br>✓ History kunjungan<br>✓ Search & filter<br>✓ Backup/restore<br>✓ Offline first<br>✓ PWA Android
+                        ✓ GPS otomatis<br>✓ Voice input<br>✓ Peta interaktif<br>✓ Anti duplikat<br>✓ History kunjungan<br>✓ Search & filter<br>✓ Sort abjad & tanggal<br>✓ Backup/restore<br>✓ Offline first<br>✓ PWA Android
                     </div>
                 </div>
             </div>
@@ -372,6 +387,7 @@
         let currentAddresses = [];
         let currentFilter = 'semua';
         let currentMapFilter = 'semua';
+        let currentSort = 'default';
         let currentDetailId = null;
         let bulkSelectedIds = new Set();
 
@@ -387,6 +403,7 @@
 
         // ============================================
         // DATABASE
+        // ✅ FIX: Nama database dibalikin ke 'PetaKurir' agar data lama muncul
         // ============================================
         function initDB() {
             return new Promise((resolve, reject) => {
@@ -413,7 +430,7 @@
         function registerServiceWorker() {
             if ('serviceWorker' in navigator) {
                 const swCode = `
-const CACHE_NAME = 'peta-kurir-v1';
+const CACHE_NAME = 'kurir-q-v1';
 self.addEventListener('install', (e) => { self.skipWaiting(); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((names) => Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))));
@@ -669,7 +686,6 @@ self.addEventListener('fetch', (e) => {
                 }
                 if (!address.recipients) address.recipients = [];
 
-                // Deduplikasi recipients berdasarkan nama (case-insensitive)
                 if (address.recipients.length > 1) {
                     const seen = new Set();
                     address.recipients = address.recipients.filter((r) => {
@@ -1968,6 +1984,57 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
+        // SORT FUNCTIONS
+        // ============================================
+        function sortAddresses(addresses, sortType) {
+            const sorted = [...addresses];
+
+            const getMainName = (addr) => {
+                if (addr.recipient_name && addr.recipient_name.trim()) {
+                    return addr.recipient_name.trim();
+                }
+                if (addr.recipients && addr.recipients.length > 0) {
+                    return addr.recipients[0].name || '';
+                }
+                return '';
+            };
+
+            switch (sortType) {
+                case 'nama-asc':
+                    sorted.sort((a, b) =>
+                        getMainName(a).toLowerCase().localeCompare(getMainName(b).toLowerCase(), 'id')
+                    );
+                    break;
+                case 'nama-desc':
+                    sorted.sort((a, b) =>
+                        getMainName(b).toLowerCase().localeCompare(getMainName(a).toLowerCase(), 'id')
+                    );
+                    break;
+                case 'tanggal-baru':
+                    sorted.sort((a, b) =>
+                        new Date(b.created_at || 0) - new Date(a.created_at || 0)
+                    );
+                    break;
+                case 'tanggal-lama':
+                    sorted.sort((a, b) =>
+                        new Date(a.created_at || 0) - new Date(b.created_at || 0)
+                    );
+                    break;
+                case 'kunjungan':
+                    sorted.sort((a, b) => (b.visit_count || 0) - (a.visit_count || 0));
+                    break;
+                case 'default':
+                default:
+                    sorted.sort((a, b) =>
+                        new Date(b.created_at || 0) - new Date(a.created_at || 0)
+                    );
+                    break;
+            }
+
+            return sorted;
+        }
+
+        // ============================================
         // LIST & SEARCH
         // ============================================
         async function updateAddressList() {
@@ -2001,6 +2068,9 @@ self.addEventListener('fetch', (e) => {
                     return basicMatch || recipientMatch;
                 });
             }
+
+            filtered = sortAddresses(filtered, currentSort);
+
             currentAddresses = filtered;
             const list = document.getElementById('address-list');
             if (filtered.length === 0) {
@@ -2045,7 +2115,7 @@ self.addEventListener('fetch', (e) => {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `peta-kurir-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.download = `kurir-q-backup-${new Date().toISOString().split('T')[0]}.json`;
             link.click();
             URL.revokeObjectURL(url);
             showModal('Sukses', `✓ Backup JSON berisi ${addresses.length} alamat.\n\nSimpan file ini untuk restore di device lain.`);
@@ -2096,11 +2166,11 @@ self.addEventListener('fetch', (e) => {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `peta-kurir-backup-${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `kurir-q-backup-${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
             URL.revokeObjectURL(url);
 
-            showModal('Sukses', `✓ Export SEMUA ${addresses.length} alamat ke CSV\n\nFile berisi seluruh data (nama, alamat, koordinat, status, penerima lain, dll).`);
+            showModal('Sukses', `✓ Export SEMUA ${addresses.length} alamat ke CSV\n\nFile berisi seluruh data.`);
         }
 
         async function exportShortCSV() {
@@ -2142,7 +2212,7 @@ self.addEventListener('fetch', (e) => {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            let filename = 'peta-kurir-export';
+            let filename = 'kurir-q-export';
             if (nameFilter) filename += `-${nameFilter}`;
             if (dateStart) filename += `-from-${dateStart}`;
             if (dateEnd) filename += `-to-${dateEnd}`;
@@ -2163,7 +2233,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `peta-kurir-template.csv`;
+            link.download = `kurir-q-template.csv`;
             link.click();
             URL.revokeObjectURL(url);
             showModal('Template CSV', `📝 Minimal cukup kolom "nama".\n\nField opsional:\n- gang, nomor, alamat, patokan\n- latitude, longitude\n- status_pembayaran: cod, transfer, belum\n- tipe_lokasi: jelas, sulit, patokan, nitip\n- masalah: dipisah ";"\n- catatan\n\n💡 Data dengan nama yang sudah ada akan otomatis diubah statusnya jadi "Belum Selesai".`);
@@ -2256,7 +2326,6 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
         // ============================================
         // IMPORT: JSON (Full Restore) & CSV (Order Baru)
         // ============================================
-
         function importJSON() {
             document.getElementById('file-import-json').click();
         }
@@ -2379,13 +2448,12 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
         }
 
         // ============================================
-        // MODAL IMPORT: BEDA UNTUK JSON vs CSV
+        // MODAL IMPORT
         // ============================================
         async function showImportModal(newAddresses, type) {
             const isJSON = type === 'json';
 
             if (isJSON) {
-                // ===== JSON: HANYA FULL RESTORE =====
                 const html = `
                     <h2>🔄 Full Restore dari Backup</h2>
                     <div class="info-box" style="background: #fef3c7; color: #92400e; margin: 16px 0;">
@@ -2411,7 +2479,6 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                 window.importNewAddresses = newAddresses;
                 document.getElementById('modal').classList.add('active');
             } else {
-                // ===== CSV: IMPORT ORDER BARU =====
                 const html = `
                     <h2>📤 Import CSV</h2>
                     <p style="margin-bottom: 12px;">Ditemukan <strong>${newAddresses.length}</strong> baris data.</p>
@@ -2438,24 +2505,21 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
         }
 
         // ============================================
-        // CONFIRM IMPORT: JSON=Restore, CSV=Process
+        // CONFIRM IMPORT
         // ============================================
         async function confirmImport(type, count) {
             document.getElementById('modal').classList.remove('active');
 
             if (type === 'json') {
-                // ===== JSON: FULL RESTORE =====
                 showConfirmModal(
                     '🔄 Full Restore',
                     `Semua ${count} alamat dari backup akan MENGGANTIKAN data sekarang. Yakin lanjutkan?`,
                     async () => {
-                        // Hapus semua data existing
                         const existing = await getAllAddresses();
                         for (const addr of existing) {
                             await deleteAddress(addr.id);
                         }
 
-                        // Restore apa adanya — JANGAN ubah status/riwayat/foto apapun
                         for (const addr of window.importNewAddresses) {
                             if (!addr.id) addr.id = 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
                             if (!addr.created_at) addr.created_at = new Date().toISOString();
@@ -2478,7 +2542,6 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                     }
                 );
             } else {
-                // ===== CSV: PROCESS IMPORT =====
                 await processCSVImport(count);
             }
         }
@@ -2503,7 +2566,6 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                 const nama = (newAddr.recipient_name || '').trim();
                 if (!nama) continue;
 
-                // Cari existing: 1) by koordinat, 2) by nama
                 let existing = null;
 
                 if (newAddr.latitude && newAddr.longitude &&
@@ -2526,7 +2588,6 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                 }
 
                 if (existing) {
-                    // ===== DATA SUDAH ADA → ubah status jadi 'belum selesai' =====
                     existing.delivery_status = 'belum selesai';
 
                     if (existing.recipients && existing.recipients.length > 0) {
@@ -2542,7 +2603,6 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                         }];
                     }
 
-                    // Update field tambahan kalau CSV punya nilai
                     if (newAddr.gang) existing.gang = newAddr.gang;
                     if (newAddr.house_number) existing.house_number = newAddr.house_number;
                     if (newAddr.address) existing.address = newAddr.address;
@@ -2566,7 +2626,6 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                     await saveAddress(existing);
                     updatedCount++;
                 } else {
-                    // ===== DATA BARU → buat dengan status 'belum selesai' =====
                     const createdAddr = {
                         ...newAddr,
                         id: newAddr.id || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
@@ -2826,7 +2885,6 @@ Semua berstatus "Belum Selesai"`);
         document.getElementById('close-record-sheet').addEventListener('click', () => closeRecordSheet());
         document.getElementById('cancel-record-btn').addEventListener('click', () => closeRecordSheet());
 
-        // FIX: pakai onclick (bukan addEventListener) supaya tidak double handler
         document.getElementById('save-record-btn').onclick = () => saveRecord();
 
         document.getElementById('voice-start-btn').addEventListener('click', startVoiceInput);
@@ -2873,6 +2931,11 @@ Semua berstatus "Belum Selesai"`);
             }
         });
         document.getElementById('voice-search-btn').addEventListener('click', startVoiceSearch);
+
+        document.getElementById('sort-select').addEventListener('change', (e) => {
+            currentSort = e.target.value;
+            updateAddressList();
+        });
 
         document.querySelectorAll('[data-filter]').forEach((btn) => {
             btn.addEventListener('click', () => {
@@ -2986,7 +3049,7 @@ Semua berstatus "Belum Selesai"`);
                 }
 
                 updateMapMarkers();
-                showModal('Selamat Datang', '👋 Peta Kurir siap digunakan!\n\nCara pakai:\n1. Tap tombol ✓ besar\n2. Sesuaikan pin di peta\n3. Bicara atau isi manual\n4. Simpan\n\nGunakan export JSON untuk backup! 💾');
+                showModal('Selamat Datang', '👋 Kurir-Q siap digunakan!\n\nCara pakai:\n1. Tap tombol ✓ besar\n2. Sesuaikan pin di peta\n3. Bicara atau isi manual\n4. Simpan\n\nGunakan export JSON untuk backup! 💾');
             } catch (err) {
                 console.error('Init error:', err);
                 showModal('Error', 'Gagal inisialisasi: ' + err.message);
@@ -3001,3 +3064,41 @@ Semua berstatus "Belum Selesai"`);
     </script>
 </body>
 </html>
+```
+
+---
+
+✅ Yang Berubah
+
+Hanya 1 baris di fungsi initDB():
+
+```javascript
+// Sebelum (versi Kurir-Q):
+const req = indexedDB.open('KurirQ', 2);
+
+// Sekarang (fix):
+const req = indexedDB.open('PetaKurir', 2);
+```
+
+🧪 Cara Verifikasi
+
+1. Simpan file ini sebagai index.html
+2. Buka di browser
+3. Data lama Anda langsung muncul (karena databasenya sama: PetaKurir)
+4. Cek tab 📋 Daftar Alamat — semua record lama ada
+5. Cek tab 💾 Backup — Export JSON, coba lihat isinya, semua data lengkap
+
+⚠️ Kalau Data Masih Kosong
+
+Kalau setelah buka ternyata data masih kosong, kemungkinan penyebabnya:
+
+1. Browser cache — coba hard refresh: Ctrl+Shift+R (Chrome) atau Ctrl+F5
+2. Service Worker lama masih aktif — buka DevTools (F12) → Application → Service Workers → klik Unregister → refresh
+3. Database terhapus — cek di DevTools → Application → IndexedDB, apakah ada PetaKurir
+
+Kalau masih bermasalah, beritahu saya:
+
+· Versi browser (Chrome/Safari/Firefox)
+· Apakah di DevTools → Application → IndexedDB muncul PetaKurir dan berapa jumlah record-nya
+
+🚀
