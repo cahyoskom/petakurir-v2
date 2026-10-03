@@ -102,6 +102,33 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .info-box { background: var(--bg-alt); padding: 12px; border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 16px; }
         .tag { display: inline-block; padding: 2px 6px; background: var(--bg-alt); color: var(--text); border-radius: 3px; font-size: 11px; margin-right: 4px; }
+
+        /* Draggable zoom button */
+        #zoom-to-location-btn {
+            position: absolute;
+            top: 110px;
+            right: 12px;
+            z-index: 999;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #2563eb;
+            color: #2563eb;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            font-weight: bold;
+            cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+        #zoom-to-location-btn:active { cursor: grabbing; }
     </style>
 </head>
 <body>
@@ -129,7 +156,7 @@
                     <button class="filter-btn" data-map-filter="sulit">Sulit</button>
                 </div>
                 <div id="map"></div>
-                <button id="zoom-to-location-btn" title="Ke Lokasi Saya" style="position: absolute; top: 110px; right: 12px; z-index: 999; width: 44px; height: 44px; border-radius: 50%; background: white; border: 2px solid #2563eb; color: #2563eb; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: all 0.2s ease; font-weight: bold;" onmouseover="this.style.background='#2563eb'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#2563eb';">🎯</button>
+                <button id="zoom-to-location-btn" title="Geser untuk pindah · Tap untuk refresh lokasi">🎯</button>
                 <div class="fab-container">
                     <button class="fab" id="record-btn" title="Catat Selesai">✓</button>
                 </div>
@@ -229,7 +256,8 @@
                     </div>
                     <h3 style="margin-bottom: 12px; margin-top: 20px;">Fitur</h3>
                     <div style="font-size: 13px; color: var(--text-light); line-height: 1.8;">
-                        ✓ GPS otomatis<br>✓ Voice input<br>✓ Peta interaktif<br>✓ Anti duplikat<br>✓ History kunjungan<br>✓ Search & filter<br>✓ Sort abjad & tanggal<br>✓ Backup/restore<br>✓ Offline first<br>✓ PWA Android
+                        ✓ GPS manual (tombol 🎯 bisa digeser)<br>
+                        ✓ Voice input<br>✓ Peta interaktif<br>✓ Anti duplikat<br>✓ History kunjungan<br>✓ Search & filter<br>✓ Sort abjad & tanggal<br>✓ Backup/restore<br>✓ Offline first<br>✓ PWA Android
                     </div>
                 </div>
             </div>
@@ -399,8 +427,7 @@
         let distanceCache = {};
 
         // ============================================
-        // DATABASE
-        // ✅ FIX: Nama database dibalikin ke 'PetaKurir' agar data lama muncul
+        // DATABASE — pakai nama 'PetaKurir' agar data lama tetap terlihat
         // ============================================
         function initDB() {
             return new Promise((resolve, reject) => {
@@ -454,6 +481,8 @@ self.addEventListener('fetch', (e) => {
 
         // ============================================
         // MAP INIT
+        // ✅ Tidak pakai watchPosition → tidak ada blinking
+        // ✅ Ambil lokasi 1x saat buka, selanjutnya manual via tombol 🎯
         // ============================================
         function initMap() {
             try {
@@ -484,15 +513,21 @@ self.addEventListener('fetch', (e) => {
 
                 map.invalidateSize(true);
 
+                // Ambil lokasi awal SEKALI saja
                 if (navigator.geolocation) {
-                    navigator.geolocation.watchPosition(
+                    navigator.geolocation.getCurrentPosition(
                         (pos) => {
-                            currentLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+                            currentLocation = {
+                                latitude: pos.coords.latitude,
+                                longitude: pos.coords.longitude
+                            };
                             updateMapMarkers();
                         },
-                        () => {}
+                        () => {},  // gagal = abaikan, user klik tombol 🎯 nanti
+                        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
                     );
                 }
+
                 updateMapMarkers();
             } catch (err) {
                 console.error('Map init error:', err);
@@ -511,7 +546,6 @@ self.addEventListener('fetch', (e) => {
             const btn = document.getElementById('zoom-to-location-btn');
             if (!btn) return;
             btn.style.opacity = '0.6';
-            btn.disabled = true;
 
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
@@ -521,8 +555,7 @@ self.addEventListener('fetch', (e) => {
                         currentLocation = { latitude: lat, longitude: lon };
                         if (map && map.flyTo) map.flyTo([lat, lon], 16, { duration: 1.5 });
                         updateMapMarkers();
-                        btn.style.opacity = '1';
-                        btn.disabled = false;
+                        btn.style.opacity = '0.9';
                     },
                     (error) => {
                         let errorMsg = '❌ GPS tidak tersedia';
@@ -530,15 +563,13 @@ self.addEventListener('fetch', (e) => {
                         else if (error.code === 2) errorMsg = '❌ Sinyal GPS lemah.';
                         else if (error.code === 3) errorMsg = '❌ Timeout.';
                         showModal('Error', errorMsg);
-                        btn.style.opacity = '1';
-                        btn.disabled = false;
+                        btn.style.opacity = '0.9';
                     },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             } else {
                 showModal('Error', '❌ Browser tidak support Geolocation');
-                btn.style.opacity = '1';
-                btn.disabled = false;
+                btn.style.opacity = '0.9';
             }
         }
 
@@ -683,6 +714,7 @@ self.addEventListener('fetch', (e) => {
                 }
                 if (!address.recipients) address.recipients = [];
 
+                // Deduplikasi recipients berdasarkan nama
                 if (address.recipients.length > 1) {
                     const seen = new Set();
                     address.recipients = address.recipients.filter((r) => {
@@ -2867,6 +2899,113 @@ Semua berstatus "Belum Selesai"`);
         }
 
         // ============================================
+        // DRAGGABLE ZOOM BUTTON
+        // ============================================
+        (function makeDraggableButton() {
+            const btn = document.getElementById('zoom-to-location-btn');
+            if (!btn) return;
+
+            // Restore posisi terakhir
+            const savedPos = localStorage.getItem('kurirq_zoomBtnPos');
+            if (savedPos) {
+                try {
+                    const pos = JSON.parse(savedPos);
+                    const maxX = window.innerWidth - btn.offsetWidth - 8;
+                    const maxY = window.innerHeight - btn.offsetHeight - 8;
+                    const x = Math.max(8, Math.min(pos.x, maxX));
+                    const y = Math.max(8, Math.min(pos.y, maxY));
+                    btn.style.left = x + 'px';
+                    btn.style.top = y + 'px';
+                    btn.style.right = 'auto';
+                    btn.style.bottom = 'auto';
+                } catch (e) {}
+            }
+
+            let isDragging = false;
+            let dragStarted = false;
+            let startX = 0, startY = 0;
+            let startLeft = 0, startTop = 0;
+            const moveThresh = 8;
+
+            function getPos(el) {
+                const rect = el.getBoundingClientRect();
+                return { x: rect.left, y: rect.top };
+            }
+
+            btn.addEventListener('pointerdown', (e) => {
+                isDragging = true;
+                dragStarted = false;
+                const pos = getPos(btn);
+                startX = e.clientX;
+                startY = e.clientY;
+                startLeft = pos.x;
+                startTop = pos.y;
+                btn.style.cursor = 'grabbing';
+                btn.style.opacity = '1';
+                try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+            });
+
+            btn.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+
+                if (!dragStarted && Math.hypot(dx, dy) < moveThresh) return;
+                dragStarted = true;
+
+                let newLeft = startLeft + dx;
+                let newTop = startTop + dy;
+
+                const maxX = window.innerWidth - btn.offsetWidth - 8;
+                const maxY = window.innerHeight - btn.offsetHeight - 8;
+                newLeft = Math.max(8, Math.min(newLeft, maxX));
+                newTop = Math.max(8, Math.min(newTop, maxY));
+
+                btn.style.left = newLeft + 'px';
+                btn.style.top = newTop + 'px';
+                btn.style.right = 'auto';
+                btn.style.bottom = 'auto';
+            });
+
+            btn.addEventListener('pointerup', (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                btn.style.cursor = 'grab';
+
+                if (dragStarted) {
+                    // Simpan posisi
+                    const pos = getPos(btn);
+                    try {
+                        localStorage.setItem('kurirq_zoomBtnPos', JSON.stringify({ x: pos.x, y: pos.y }));
+                    } catch (err) {}
+                } else {
+                    // Tap → jalankan zoom
+                    zoomToCurrentLocation();
+                }
+
+                // Kembalikan opacity
+                setTimeout(() => { btn.style.opacity = '0.9'; }, 300);
+            });
+
+            btn.addEventListener('pointercancel', () => {
+                isDragging = false;
+                btn.style.cursor = 'grab';
+                btn.style.opacity = '0.9';
+            });
+
+            btn.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                const pos = getPos(btn);
+                const maxX = window.innerWidth - btn.offsetWidth - 8;
+                const maxY = window.innerHeight - btn.offsetHeight - 8;
+                if (pos.x > maxX) btn.style.left = maxX + 'px';
+                if (pos.y > maxY) btn.style.top = maxY + 'px';
+            });
+        })();
+
+        // ============================================
         // EVENT LISTENERS
         // ============================================
         document.getElementById('menu-btn').addEventListener('click', showSidebar);
@@ -2877,7 +3016,9 @@ Semua berstatus "Belum Selesai"`);
             btn.addEventListener('click', () => showPage(btn.dataset.page));
         });
 
-        document.getElementById('zoom-to-location-btn').addEventListener('click', zoomToCurrentLocation);
+        // ⚠️ Tidak ada addEventListener click di zoom-to-location-btn
+        // — sudah digantikan oleh drag handler di atas
+
         document.getElementById('record-btn').addEventListener('click', showRecordSheet);
         document.getElementById('close-record-sheet').addEventListener('click', () => closeRecordSheet());
         document.getElementById('cancel-record-btn').addEventListener('click', () => closeRecordSheet());
@@ -3046,7 +3187,7 @@ Semua berstatus "Belum Selesai"`);
                 }
 
                 updateMapMarkers();
-                showModal('Selamat Datang', '👋 Kurir-Q siap digunakan!\n\nCara pakai:\n1. Tap tombol ✓ besar\n2. Sesuaikan pin di peta\n3. Bicara atau isi manual\n4. Simpan\n\nGunakan export JSON untuk backup! 💾');
+                showModal('Selamat Datang', '👋 Kurir-Q siap digunakan!\n\nCara pakai:\n1. Tap tombol ✓ besar untuk catat alamat\n2. Sesuaikan pin di peta\n3. Bicara atau isi manual\n4. Simpan\n\n💡 Tips:\n• Tap tombol 🎯 di peta untuk refresh lokasi\n• Tekan & geser tombol 🎯 untuk pindah posisi\n• Gunakan export JSON untuk backup');
             } catch (err) {
                 console.error('Init error:', err);
                 showModal('Error', 'Gagal inisialisasi: ' + err.message);
