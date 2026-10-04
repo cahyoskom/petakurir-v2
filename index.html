@@ -103,7 +103,6 @@
         .info-box { background: var(--bg-alt); padding: 12px; border-radius: 6px; font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 16px; }
         .tag { display: inline-block; padding: 2px 6px; background: var(--bg-alt); color: var(--text); border-radius: 3px; font-size: 11px; margin-right: 4px; }
 
-        /* Draggable zoom button */
         #zoom-to-location-btn {
             position: absolute;
             top: 110px;
@@ -129,6 +128,51 @@
             transition: opacity 0.3s;
         }
         #zoom-to-location-btn:active { cursor: grabbing; }
+
+        /* Photo slots — kecil */
+        .photo-slot-box {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            max-height: 110px;
+            background: var(--bg-alt);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px dashed var(--border);
+            transition: border-color 0.2s;
+        }
+        .photo-slot-box.filled { border: 2px solid var(--primary); }
+        .photo-slot-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            image-rendering: -webkit-optimize-contrast;
+        }
+        .photo-slot-delete {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(239,68,68,0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            line-height: 1;
+            z-index: 2;
+        }
+        .photo-slot-delete:active { background: rgba(220,38,38,1); transform: scale(0.9); }
+
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
     </style>
 </head>
 <body>
@@ -206,7 +250,7 @@
                         <button id="bulk-status-berhasil" style="flex: 1; min-width: 60px; padding: 8px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">✓ Berhasil</button>
                         <button id="bulk-status-gagal" style="flex: 1; min-width: 60px; padding: 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">❌ Gagal</button>
                     </div>
-                    <button id="bulk-merge-btn" style="width: 100%; padding: 8px; margin-top: 6px; background: #a78bfa; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">📌 Gabung Penerima dari Alamat Sama</button>
+                    <button id="bulk-merge-btn" style="width: 100%; padding: 8px; margin-top: 6px; background: #a78bfa; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">📌 Gabung Record Alamat Sama</button>
                     <button id="optimize-route-btn" style="width: 100%; padding: 8px; margin-top: 6px; background: #06b6d4; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">🗺️ Optimasi Rute Belum Selesai</button>
                     <button id="bulk-delete-btn" style="width: 100%; padding: 8px; margin-top: 6px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">🗑️ Hapus Terpilih</button>
                 </div>
@@ -253,11 +297,23 @@
                         <p><strong>Penyimpanan:</strong> IndexedDB (lokal)</p>
                         <p><strong>Offline:</strong> Service Worker (PWA)</p>
                         <p><strong>Voice:</strong> Web Speech API</p>
+                        <p><strong>Foto:</strong> WebP 150px (thumbnail hemat)</p>
                     </div>
                     <h3 style="margin-bottom: 12px; margin-top: 20px;">Fitur</h3>
                     <div style="font-size: 13px; color: var(--text-light); line-height: 1.8;">
-                        ✓ GPS manual (tombol 🎯 bisa digeser)<br>
-                        ✓ Voice input<br>✓ Peta interaktif<br>✓ Anti duplikat<br>✓ History kunjungan<br>✓ Search & filter<br>✓ Sort abjad & tanggal<br>✓ Backup/restore<br>✓ Offline first<br>✓ PWA Android
+                        ✓ GPS manual + input lat/lng<br>
+                        ✓ Tombol 🎯 bisa digeser<br>
+                        ✓ Voice input<br>
+                        ✓ Peta interaktif<br>
+                        ✓ 2 foto alamat (thumbnail kecil)<br>
+                        ✓ Anti duplikat<br>
+                        ✓ History kunjungan<br>
+                        ✓ Split & Merge penerima<br>
+                        ✓ Search & filter<br>
+                        ✓ Sort abjad & tanggal<br>
+                        ✓ Backup/restore<br>
+                        ✓ Offline first<br>
+                        ✓ PWA Android
                     </div>
                 </div>
             </div>
@@ -285,10 +341,8 @@
         </div>
         <div class="sheet-content">
             <div class="form-group">
-                <label>Status GPS</label>
-                <div style="font-size: 14px; color: var(--text-light);">
-                    <div id="gps-status">Mengambil lokasi...</div>
-                </div>
+                <label>📍 Titik Lokasi</label>
+                <div id="gps-status" style="font-size: 14px; color: var(--text-light);">Mengambil lokasi...</div>
             </div>
 
             <div style="display: flex; gap: 8px; margin-bottom: 16px;">
@@ -356,17 +410,42 @@
                     <label>Catatan Tambahan</label>
                     <textarea id="form-description" placeholder="Catatan lainnya..."></textarea>
                 </div>
+
                 <div class="form-group">
-                    <label>📸 Foto Alamat</label>
-                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                        <input type="file" id="form-address-photo-camera" accept="image/*" capture="environment" style="display: none;">
-                        <input type="file" id="form-address-photo-gallery" accept="image/*" style="display: none;">
-                        <button type="button" class="btn-primary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('form-address-photo-camera').click();">📷 Ambil Foto</button>
-                        <button type="button" class="btn-secondary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('form-address-photo-gallery').click();">📁 Pilih File</button>
+                    <label>📸 Foto Alamat (Max 2 · Thumbnail)</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 240px;">
+                        <div>
+                            <div id="photo-slot-box-1" class="photo-slot-box">
+                                <img id="address-photo-preview-1" style="display: none;">
+                                <div id="address-photo-placeholder-1" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-light); font-size: 18px;">
+                                    📷<br><span style="font-size: 9px; margin-top: 2px;">Foto 1</span>
+                                </div>
+                                <button type="button" id="address-photo-delete-1" class="photo-slot-delete">×</button>
+                            </div>
+                            <div style="display: flex; gap: 3px; margin-top: 4px;">
+                                <input type="file" id="address-photo-camera-1" accept="image/*" capture="environment" style="display: none;">
+                                <input type="file" id="address-photo-gallery-1" accept="image/*" style="display: none;">
+                                <button type="button" class="btn-primary" style="flex: 1; padding: 5px; font-size: 10px;" onclick="document.getElementById('address-photo-camera-1').click();">📷 Cam</button>
+                                <button type="button" class="btn-secondary" style="flex: 1; padding: 5px; font-size: 10px;" onclick="document.getElementById('address-photo-gallery-1').click();">📁 File</button>
+                            </div>
+                        </div>
+                        <div>
+                            <div id="photo-slot-box-2" class="photo-slot-box">
+                                <img id="address-photo-preview-2" style="display: none;">
+                                <div id="address-photo-placeholder-2" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-light); font-size: 18px;">
+                                    📷<br><span style="font-size: 9px; margin-top: 2px;">Foto 2</span>
+                                </div>
+                                <button type="button" id="address-photo-delete-2" class="photo-slot-delete">×</button>
+                            </div>
+                            <div style="display: flex; gap: 3px; margin-top: 4px;">
+                                <input type="file" id="address-photo-camera-2" accept="image/*" capture="environment" style="display: none;">
+                                <input type="file" id="address-photo-gallery-2" accept="image/*" style="display: none;">
+                                <button type="button" class="btn-primary" style="flex: 1; padding: 5px; font-size: 10px;" onclick="document.getElementById('address-photo-camera-2').click();">📷 Cam</button>
+                                <button type="button" class="btn-secondary" style="flex: 1; padding: 5px; font-size: 10px;" onclick="document.getElementById('address-photo-gallery-2').click();">📁 File</button>
+                            </div>
+                        </div>
                     </div>
-                    <div id="address-photo-preview-container" style="margin-top: 8px; text-align: center;">
-                        <img id="address-photo-preview" style="max-width: 150px; max-height: 150px; border-radius: 6px; border: 1px solid var(--border); display: none;">
-                    </div>
+                    <small style="color: var(--text-light); font-size: 10px; margin-top: 6px;">📌 Kompresi otomatis (~5-8KB). Thumbnail hemat penyimpanan.</small>
                 </div>
             </div>
 
@@ -419,6 +498,8 @@
         let addressMarkersLayer = null;
         let currentLocationLayer = null;
 
+        window.addressPhotos = [null, null];
+
         const ORS_CONFIG = {
             apiKey: 'YOUR_ORS_API_KEY_HERE',
             apiUrl: 'https://api.openrouteservice.org/v2/directions/driving-car'
@@ -427,7 +508,7 @@
         let distanceCache = {};
 
         // ============================================
-        // DATABASE — pakai nama 'PetaKurir' agar data lama tetap terlihat
+        // DATABASE
         // ============================================
         function initDB() {
             return new Promise((resolve, reject) => {
@@ -481,8 +562,6 @@ self.addEventListener('fetch', (e) => {
 
         // ============================================
         // MAP INIT
-        // ✅ Tidak pakai watchPosition → tidak ada blinking
-        // ✅ Ambil lokasi 1x saat buka, selanjutnya manual via tombol 🎯
         // ============================================
         function initMap() {
             try {
@@ -513,7 +592,6 @@ self.addEventListener('fetch', (e) => {
 
                 map.invalidateSize(true);
 
-                // Ambil lokasi awal SEKALI saja
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                         (pos) => {
@@ -523,7 +601,7 @@ self.addEventListener('fetch', (e) => {
                             };
                             updateMapMarkers();
                         },
-                        () => {},  // gagal = abaikan, user klik tombol 🎯 nanti
+                        () => {},
                         { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
                     );
                 }
@@ -544,8 +622,7 @@ self.addEventListener('fetch', (e) => {
         function zoomToCurrentLocation() {
             if (!map) { showModal('Error', '❌ Peta belum siap'); return; }
             const btn = document.getElementById('zoom-to-location-btn');
-            if (!btn) return;
-            btn.style.opacity = '0.6';
+            if (btn) btn.style.opacity = '0.6';
 
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
@@ -555,7 +632,7 @@ self.addEventListener('fetch', (e) => {
                         currentLocation = { latitude: lat, longitude: lon };
                         if (map && map.flyTo) map.flyTo([lat, lon], 16, { duration: 1.5 });
                         updateMapMarkers();
-                        btn.style.opacity = '0.9';
+                        if (btn) btn.style.opacity = '0.9';
                     },
                     (error) => {
                         let errorMsg = '❌ GPS tidak tersedia';
@@ -563,13 +640,13 @@ self.addEventListener('fetch', (e) => {
                         else if (error.code === 2) errorMsg = '❌ Sinyal GPS lemah.';
                         else if (error.code === 3) errorMsg = '❌ Timeout.';
                         showModal('Error', errorMsg);
-                        btn.style.opacity = '0.9';
+                        if (btn) btn.style.opacity = '0.9';
                     },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             } else {
                 showModal('Error', '❌ Browser tidak support Geolocation');
-                btn.style.opacity = '0.9';
+                if (btn) btn.style.opacity = '0.9';
             }
         }
 
@@ -714,7 +791,6 @@ self.addEventListener('fetch', (e) => {
                 }
                 if (!address.recipients) address.recipients = [];
 
-                // Deduplikasi recipients berdasarkan nama
                 if (address.recipients.length > 1) {
                     const seen = new Set();
                     address.recipients = address.recipients.filter((r) => {
@@ -761,6 +837,117 @@ self.addEventListener('fetch', (e) => {
                 }
             }
             return null;
+        }
+
+        // ============================================
+        // ✅ KOMPRESI MAKSIMAL — WebP 150px, Q0.35
+        // ============================================
+        function compressImage(file, maxWidth = 150, quality = 0.35) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+
+                        let { width, height } = img;
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, width, height);
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        try {
+                            const webpData = canvas.toDataURL('image/webp', quality);
+                            if (webpData && webpData.startsWith('data:image/webp') && webpData.length < 50000) {
+                                resolve(webpData);
+                                return;
+                            }
+                        } catch (err) {}
+
+                        const jpegData = canvas.toDataURL('image/jpeg', quality);
+                        resolve(jpegData);
+                    };
+                    img.onerror = () => resolve(null);
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // ============================================
+        // PHOTO HANDLING — 2 slots
+        // ============================================
+        function updatePhotoSlotUI(slot) {
+            const i = slot - 1;
+            const preview = document.getElementById(`address-photo-preview-${slot}`);
+            const placeholder = document.getElementById(`address-photo-placeholder-${slot}`);
+            const deleteBtn = document.getElementById(`address-photo-delete-${slot}`);
+            const box = document.getElementById(`photo-slot-box-${slot}`);
+            const photo = window.addressPhotos[i];
+
+            if (!preview || !placeholder) return;
+
+            if (photo) {
+                preview.src = photo;
+                preview.style.display = 'block';
+                placeholder.style.display = 'none';
+                if (deleteBtn) deleteBtn.style.display = 'flex';
+                if (box) box.classList.add('filled');
+            } else {
+                preview.src = '';
+                preview.style.display = 'none';
+                placeholder.style.display = 'flex';
+                if (deleteBtn) deleteBtn.style.display = 'none';
+                if (box) box.classList.remove('filled');
+            }
+        }
+
+        function setAddressPhoto(slot, dataUrl) {
+            window.addressPhotos[slot - 1] = dataUrl;
+            updatePhotoSlotUI(slot);
+        }
+
+        function removeAddressPhoto(slot) {
+            window.addressPhotos[slot - 1] = null;
+            updatePhotoSlotUI(slot);
+        }
+
+        function resetAddressPhotos() {
+            window.addressPhotos = [null, null];
+            updatePhotoSlotUI(1);
+            updatePhotoSlotUI(2);
+        }
+
+        function loadAddressPhotos(photos) {
+            window.addressPhotos = [null, null];
+            if (Array.isArray(photos)) {
+                if (photos[0]) window.addressPhotos[0] = photos[0];
+                if (photos[1]) window.addressPhotos[1] = photos[1];
+            }
+            updatePhotoSlotUI(1);
+            updatePhotoSlotUI(2);
+        }
+
+        function getValidAddressPhotos() {
+            return window.addressPhotos.filter((p) => p && p.length > 0);
+        }
+
+        function extractAddressPhotos(address) {
+            if (address.photos && Array.isArray(address.photos)) {
+                return address.photos.filter((p) => p);
+            }
+            if (address.photo) {
+                return [address.photo];
+            }
+            return [];
         }
 
         // ============================================
@@ -869,65 +1056,240 @@ self.addEventListener('fetch', (e) => {
         function initLocationAdjustment() {
             const container = document.getElementById('gps-status');
             if (!adjustmentMap) {
+                if (!currentLocation) {
+                    currentLocation = { latitude: -6.2088, longitude: 106.8650 };
+                }
+
+                const latVal = currentLocation.latitude.toFixed(6);
+                const lonVal = currentLocation.longitude.toFixed(6);
+
                 container.innerHTML = `
-                    <div style="margin: -16px -16px 16px -16px; height: 200px; background: #f3f4f6;" id="adjustment-map"></div>
-                    <div style="text-align: center; font-size: 13px; color: var(--text-light); margin-top: 12px;">
-                        ✓ GPS berhasil. <strong>Geser pin</strong> atau <strong>tap peta</strong> untuk sesuaikan.<br>
-                        <strong>${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}</strong>
+                    <div style="margin: -16px -16px 10px -16px; height: 200px; background: #f3f4f6;" id="adjustment-map"></div>
+                    <div style="text-align: center; font-size: 12px; color: var(--text-light); margin-bottom: 10px;">
+                        Geser pin, tap peta, atau ketik manual di bawah
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 10px; color: var(--text-light); font-weight: 700;">LATITUDE</label>
+                            <input type="number" id="edit-lat" step="0.000001" inputmode="decimal"
+                                value="${latVal}"
+                                style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 10px; color: var(--text-light); font-weight: 700;">LONGITUDE</label>
+                            <input type="number" id="edit-lon" step="0.000001" inputmode="decimal"
+                                value="${lonVal}"
+                                style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+                        <button type="button" class="btn-primary" style="flex: 1; padding: 9px; font-size: 12px;" onclick="useCurrentLocationInForm()">🎯 Lokasi Sekarang</button>
+                        <button type="button" class="btn-secondary" style="flex: 1; padding: 9px; font-size: 12px;" onclick="applyManualCoordsInForm()">✓ Terapkan</button>
                     </div>
                 `;
+
                 try {
                     adjustmentMap = L.map('adjustment-map', { dragging: true, touchZoom: true, tap: true, zoomControl: true }).setView([currentLocation.latitude, currentLocation.longitude], 16);
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM', maxZoom: 19 }).addTo(adjustmentMap);
                     adjustmentMarker = L.marker([currentLocation.latitude, currentLocation.longitude], { draggable: true }).addTo(adjustmentMap);
+
                     adjustmentMarker.on('dragend', () => {
                         const pos = adjustmentMarker.getLatLng();
                         currentLocation = { latitude: pos.lat, longitude: pos.lng };
-                        container.querySelector('strong').textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+                        syncInputsFromLocation();
                     });
+
                     adjustmentMap.on('click', (e) => {
                         const pos = e.latlng;
                         adjustmentMarker.setLatLng(pos);
                         currentLocation = { latitude: pos.lat, longitude: pos.lng };
-                        container.querySelector('strong').textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+                        syncInputsFromLocation();
                     });
-                    setTimeout(() => { adjustmentMap.invalidateSize(true); adjustmentMap.setView([currentLocation.latitude, currentLocation.longitude], 16); }, 50);
+
+                    adjustmentMarker.on('drag', () => {
+                        const pos = adjustmentMarker.getLatLng();
+                        currentLocation = { latitude: pos.lat, longitude: pos.lng };
+                        syncInputsFromLocation();
+                    });
+
+                    setTimeout(() => {
+                        adjustmentMap.invalidateSize(true);
+                        adjustmentMap.setView([currentLocation.latitude, currentLocation.longitude], 16);
+                    }, 50);
                 } catch (err) {
                     console.error('Map init error:', err);
-                    document.getElementById('gps-status').innerHTML = '❌ Map gagal dimuat.';
-                    initManualLocationInput();
+                    const mapEl = container.querySelector('#adjustment-map');
+                    if (mapEl) mapEl.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color: var(--text-light); font-size: 13px;">⚠️ Peta gagal dimuat. Ketik manual di bawah.</div>';
                 }
+            } else {
+                syncInputsFromLocation();
             }
             initVoiceRecognition();
         }
 
-        function initManualLocationInput() {
-            const container = document.getElementById('gps-status');
-            container.innerHTML = `
-                <div style="padding: 12px 0;">
-                    <div style="font-size: 13px; color: var(--danger); margin-bottom: 12px;">⚠️ Lokasi GPS tidak tersedia. Input manual:</div>
-                    <div class="form-group" style="margin-bottom: 8px;">
-                        <label style="font-size: 11px;">Latitude</label>
-                        <input type="number" id="manual-lat" placeholder="-6.2088" step="0.00001" style="padding: 8px; width: 100%;">
-                    </div>
-                    <div class="form-group">
-                        <label style="font-size: 11px;">Longitude</label>
-                        <input type="number" id="manual-lon" placeholder="106.8650" step="0.00001" style="padding: 8px; width: 100%;">
-                    </div>
-                    <button class="btn-secondary" onclick="useManualCoordinates()" style="width: 100%; margin-top: 8px; padding: 8px; font-size: 13px;">✓ Gunakan Koordinat</button>
-                </div>
-            `;
-            document.getElementById('manual-form').style.display = 'block';
-            initVoiceRecognition();
+        function syncInputsFromLocation() {
+            if (!currentLocation) return;
+            const latInput = document.getElementById('edit-lat');
+            const lonInput = document.getElementById('edit-lon');
+            if (latInput && document.activeElement !== latInput) latInput.value = currentLocation.latitude.toFixed(6);
+            if (lonInput && document.activeElement !== lonInput) lonInput.value = currentLocation.longitude.toFixed(6);
         }
 
-        function useManualCoordinates() {
-            const lat = parseFloat(document.getElementById('manual-lat').value);
-            const lon = parseFloat(document.getElementById('manual-lon').value);
-            if (isNaN(lat) || isNaN(lon)) { showModal('Error', '❌ Latitude dan Longitude harus angka valid.'); return; }
-            if (lat < -90 || lat > 90 || lon < -180 || lon > 180) { showModal('Error', '❌ Koordinat di luar jangkauan.'); return; }
+        function applyManualCoordsInForm() {
+            const latInput = document.getElementById('edit-lat');
+            const lonInput = document.getElementById('edit-lon');
+            if (!latInput || !lonInput) return;
+
+            const lat = parseFloat(latInput.value);
+            const lon = parseFloat(lonInput.value);
+
+            if (isNaN(lat) || isNaN(lon)) {
+                showModal('Error', '❌ Latitude dan Longitude harus angka valid');
+                return;
+            }
+            if (lat < -90 || lat > 90) {
+                showModal('Error', '❌ Latitude harus antara -90 dan 90');
+                return;
+            }
+            if (lon < -180 || lon > 180) {
+                showModal('Error', '❌ Longitude harus antara -180 dan 180');
+                return;
+            }
+
             currentLocation = { latitude: lat, longitude: lon };
-            document.getElementById('gps-status').innerHTML = `✓ Lokasi manual<br><small>${lat.toFixed(5)}, ${lon.toFixed(5)}</small>`;
+            if (adjustmentMarker) adjustmentMarker.setLatLng([lat, lon]);
+            if (adjustmentMap) adjustmentMap.setView([lat, lon], 16);
+
+            if (latInput) latInput.style.borderColor = '#10b981';
+            if (lonInput) lonInput.style.borderColor = '#10b981';
+            setTimeout(() => {
+                if (latInput) latInput.style.borderColor = '';
+                if (lonInput) lonInput.style.borderColor = '';
+            }, 1500);
+        }
+
+        function useCurrentLocationInForm() {
+            if (!navigator.geolocation) {
+                showModal('Error', '❌ Browser tidak support Geolocation');
+                return;
+            }
+
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '⏳ Mencari...';
+            btn.disabled = true;
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+
+                    currentLocation = { latitude: lat, longitude: lon };
+                    if (adjustmentMarker) adjustmentMarker.setLatLng([lat, lon]);
+                    if (adjustmentMap) adjustmentMap.setView([lat, lon], 17);
+
+                    syncInputsFromLocation();
+
+                    const latInput = document.getElementById('edit-lat');
+                    const lonInput = document.getElementById('edit-lon');
+                    if (latInput) latInput.style.borderColor = '#10b981';
+                    if (lonInput) lonInput.style.borderColor = '#10b981';
+                    setTimeout(() => {
+                        if (latInput) latInput.style.borderColor = '';
+                        if (lonInput) lonInput.style.borderColor = '';
+                    }, 1500);
+
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                },
+                (error) => {
+                    let msg = '❌ GPS tidak tersedia';
+                    if (error.code === 1) msg = '❌ Izin GPS ditolak';
+                    else if (error.code === 2) msg = '❌ Sinyal GPS lemah, coba di area terbuka';
+                    else if (error.code === 3) msg = '❌ GPS timeout, coba lagi';
+                    showModal('Error', msg);
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        function initManualLocationInput() {
+            const container = document.getElementById('gps-status');
+
+            if (!currentLocation) {
+                currentLocation = { latitude: -6.2088, longitude: 106.8650 };
+            }
+
+            container.innerHTML = `
+                <div style="padding: 8px 0;">
+                    <div style="background: #fef3c7; color: #92400e; padding: 10px; border-radius: 6px; font-size: 12px; margin-bottom: 12px; line-height: 1.5;">
+                        ⚠️ <strong>GPS tidak tersedia.</strong><br>
+                        Ketik manual koordinat, atau tap tombol di bawah untuk coba ambil lokasi.
+                    </div>
+                    <button type="button" class="btn-primary" id="retry-gps-btn" style="width: 100%; padding: 10px; font-size: 13px; margin-bottom: 12px;">
+                        🎯 Coba Ambil Lokasi GPS
+                    </button>
+                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 10px; color: var(--text-light); font-weight: 700;">LATITUDE</label>
+                            <input type="number" id="edit-lat" step="0.000001" inputmode="decimal"
+                                value="${currentLocation.latitude.toFixed(6)}"
+                                style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 10px; color: var(--text-light); font-weight: 700;">LONGITUDE</label>
+                            <input type="number" id="edit-lon" step="0.000001" inputmode="decimal"
+                                value="${currentLocation.longitude.toFixed(6)}"
+                                style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    <button type="button" class="btn-secondary" style="width: 100%; padding: 9px; font-size: 13px;" onclick="applyManualCoordsInForm()">
+                        ✓ Terapkan Koordinat
+                    </button>
+                </div>
+            `;
+
+            const retryBtn = document.getElementById('retry-gps-btn');
+            if (retryBtn) {
+                retryBtn.onclick = () => {
+                    if (!navigator.geolocation) {
+                        showModal('Error', '❌ Browser tidak support Geolocation');
+                        return;
+                    }
+                    retryBtn.textContent = '⏳ Mencari GPS...';
+                    retryBtn.disabled = true;
+
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            currentLocation = {
+                                latitude: pos.coords.latitude,
+                                longitude: pos.coords.longitude
+                            };
+                            if (adjustmentMap) {
+                                try { adjustmentMap.off(); adjustmentMap.remove(); } catch (e) {}
+                                adjustmentMap = null;
+                                adjustmentMarker = null;
+                            }
+                            initLocationAdjustment();
+                        },
+                        (error) => {
+                            let msg = '❌ GPS tidak tersedia';
+                            if (error.code === 1) msg = '❌ Izin GPS ditolak. Aktifkan di setting browser';
+                            else if (error.code === 2) msg = '❌ Sinyal GPS lemah';
+                            else if (error.code === 3) msg = '❌ Timeout, coba lagi';
+                            showModal('Error', msg);
+                            retryBtn.textContent = '🎯 Coba Ambil Lokasi GPS';
+                            retryBtn.disabled = false;
+                        },
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                };
+            }
+
+            document.getElementById('manual-form').style.display = 'block';
+            initVoiceRecognition();
         }
 
         function resetRecordForm() {
@@ -949,17 +1311,7 @@ self.addEventListener('fetch', (e) => {
                 item.querySelector('input').checked = false;
             });
 
-            window.addressPhotoData = null;
-            const photoInputCamera = document.getElementById('form-address-photo-camera');
-            const photoInputGallery = document.getElementById('form-address-photo-gallery');
-            if (photoInputCamera) photoInputCamera.value = '';
-            if (photoInputGallery) photoInputGallery.value = '';
-
-            const photoPreview = document.getElementById('address-photo-preview');
-            if (photoPreview) {
-                photoPreview.style.display = 'none';
-                photoPreview.src = '';
-            }
+            resetAddressPhotos();
 
             const saveBtn = document.getElementById('save-record-btn');
             saveBtn.textContent = 'Simpan';
@@ -1025,8 +1377,10 @@ self.addEventListener('fetch', (e) => {
                 }]
             };
 
-            if (window.addressPhotoData) {
-                newAddress.photo = window.addressPhotoData;
+            const validPhotos = getValidAddressPhotos();
+            if (validPhotos.length > 0) {
+                newAddress.photos = validPhotos;
+                newAddress.photo = validPhotos[0];
                 newAddress.photo_ref = generatePhotoFileName(name);
             }
 
@@ -1097,6 +1451,18 @@ self.addEventListener('fetch', (e) => {
             if (newData.description) existing.description = newData.description;
             existing.delivery_status = 'belum selesai';
 
+            if (newData.photos && newData.photos.length > 0) {
+                const currentPhotos = extractAddressPhotos(existing);
+                const merged = [...currentPhotos];
+                newData.photos.forEach((p) => {
+                    if (merged.length < 2 && !merged.includes(p)) merged.push(p);
+                });
+                if (merged.length > 0) {
+                    existing.photos = merged;
+                    existing.photo = merged[0];
+                }
+            }
+
             await saveAddress(existing);
             closeRecordSheet();
             updateMapMarkers();
@@ -1117,7 +1483,7 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
-        // ADDRESS DETAIL
+        // ADDRESS DETAIL — foto thumbnail kecil, no klik
         // ============================================
         async function showAddressDetail(id) {
             const address = await getAddressById(id);
@@ -1132,8 +1498,26 @@ self.addEventListener('fetch', (e) => {
                 <div class="form-group"><label>Tipe Lokasi</label><div><span class="tag">${formatLocationType(address.location_type)}</span></div></div>
             `;
 
-            if (address.photo) {
-                html += `<div class="form-group"><label>📸 Foto Alamat</label><img src="${address.photo}" style="max-width: 200px; max-height: 200px; border-radius: 6px; border: 1px solid var(--border);"></div>`;
+            const detailPhotos = extractAddressPhotos(address);
+            if (detailPhotos.length > 0) {
+                html += `<div class="form-group"><label>📸 Foto Alamat (${detailPhotos.length})</label>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        ${detailPhotos.map((p) => `
+                            <div style="
+                                width: 60px;
+                                height: 60px;
+                                border-radius: 6px;
+                                overflow: hidden;
+                                border: 1px solid var(--border);
+                                background: var(--bg-alt);
+                                flex-shrink: 0;
+                            ">
+                                <img src="${p}" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none;">
+                            </div>
+                        `).join('')}
+                    </div>
+                    <small style="color: var(--text-light); font-size: 10px; margin-top: 6px;">Thumbnail saja (hemat penyimpanan)</small>
+                </div>`;
             }
 
             if (address.recipients && address.recipients.length > 0) {
@@ -1144,7 +1528,7 @@ self.addEventListener('fetch', (e) => {
                     const escapedName = recipient.name.replace(/'/g, "\\'");
                     html += `
                         <div style="padding: 8px; background: var(--bg-alt); border-radius: 4px; margin-bottom: 6px; display: flex; gap: 8px; align-items: flex-start;">
-                            ${recipient.photo ? `<img src="${recipient.photo}" style="width: 50px; height: 50px; border-radius: 4px; object-fit: cover; flex-shrink: 0;">` : ''}
+                            ${recipient.photo ? `<img src="${recipient.photo}" style="width: 36px; height: 36px; border-radius: 4px; object-fit: cover; flex-shrink: 0; pointer-events: none;">` : ''}
                             <div style="flex: 1;">
                                 <strong>${recipient.name}</strong><br>
                                 <span style="color: ${statusColor}; font-weight: 600; font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 3px; display: inline-block; background: rgba(0,0,0,0.05);" onclick="showRecipientStatusMenu('${address.id}', '${escapedName}', '${recipient.status}')">● ${statusLabel}</span><br>
@@ -1251,7 +1635,7 @@ self.addEventListener('fetch', (e) => {
                             <button type="button" class="btn-secondary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('edit-recipient-photo-gallery').click();">📁 Pilih File</button>
                         </div>
                         <div id="photo-preview-container" style="margin-top: 8px; text-align: center;">
-                            ${currentPhoto ? `<img id="photo-preview" src="${currentPhoto}" style="max-width: 150px; max-height: 150px; border-radius: 6px; border: 1px solid var(--border);">` : `<img id="photo-preview" style="max-width: 150px; max-height: 150px; border-radius: 6px; border: 1px solid var(--border); display: none;">`}
+                            ${currentPhoto ? `<img id="photo-preview" src="${currentPhoto}" style="max-width: 100px; max-height: 100px; border-radius: 6px; border: 1px solid var(--border);">` : `<img id="photo-preview" style="max-width: 100px; max-height: 100px; border-radius: 6px; border: 1px solid var(--border); display: none;">`}
                         </div>
                     </div>
                     <div class="form-group">
@@ -1277,7 +1661,7 @@ self.addEventListener('fetch', (e) => {
                 const handlePhotoChange = function(e) {
                     const file = e.target.files[0];
                     if (file) {
-                        compressImage(file).then((compressed) => {
+                        compressImage(file, 100, 0.3).then((compressed) => {
                             window.editRecipientData.photoData = compressed;
                             const preview = document.getElementById('photo-preview');
                             if (preview) { preview.src = compressed; preview.style.display = 'block'; }
@@ -1339,32 +1723,6 @@ self.addEventListener('fetch', (e) => {
             }
         }
 
-        // ============================================
-        // IMAGE COMPRESSION
-        // ============================================
-        function compressImage(file, maxWidth = 250, quality = 0.55) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        let { width, height } = img;
-                        if (width > maxWidth) { height = (height * maxWidth) / width; width = maxWidth; }
-                        canvas.width = width; canvas.height = height;
-                        ctx.drawImage(img, 0, 0, width, height);
-                        canvas.toBlob(() => {
-                            const dataUrl = canvas.toDataURL('image/jpeg', quality);
-                            resolve(dataUrl);
-                        }, 'image/jpeg', quality);
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
         function generatePhotoFileName(recipientName) {
             const sanitized = recipientName.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
             return `${sanitized}-${Date.now()}.jpg`;
@@ -1387,7 +1745,7 @@ self.addEventListener('fetch', (e) => {
                             <button type="button" class="btn-secondary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('new-recipient-photo-gallery').click();">📁 Pilih File</button>
                         </div>
                         <div id="photo-preview-container" style="margin-top: 8px; text-align: center;">
-                            <img id="photo-preview" style="max-width: 150px; max-height: 150px; border-radius: 6px; border: 1px solid var(--border); display: none;">
+                            <img id="photo-preview" style="max-width: 100px; max-height: 100px; border-radius: 6px; border: 1px solid var(--border); display: none;">
                         </div>
                     </div>
                     <div class="form-group">
@@ -1413,7 +1771,7 @@ self.addEventListener('fetch', (e) => {
                 const handlePhotoChange = function(e) {
                     const file = e.target.files[0];
                     if (file) {
-                        compressImage(file).then((compressed) => {
+                        compressImage(file, 100, 0.3).then((compressed) => {
                             window.newRecipientData.photoData = compressed;
                             const preview = document.getElementById('photo-preview');
                             if (preview) { preview.src = compressed; preview.style.display = 'block'; }
@@ -1475,9 +1833,6 @@ self.addEventListener('fetch', (e) => {
             showModal('Sukses', `✓ Penerima ${newName} ditambahkan!`);
         }
 
-        // ============================================
-        // DELETE RECIPIENT
-        // ============================================
         function confirmDeleteRecipient(addrId, recipientName) {
             const displayName = recipientName.replace(/\\'/g, "'");
             showConfirmModal(
@@ -1512,7 +1867,7 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
-        // RECIPIENT SPLIT & MERGE
+        // SPLIT RECIPIENT
         // ============================================
         function showSplitRecipientModal(addrId) {
             const loadAsync = async () => {
@@ -1523,15 +1878,25 @@ self.addEventListener('fetch', (e) => {
                 }
                 let html = `
                     <div style="padding: 16px;">
-                        <h2 style="margin-bottom: 16px; font-size: 16px;">Pilih Penerima untuk Dipisahkan</h2>
-                        <small style="color: var(--text-light);">Setiap penerima akan menjadi record terpisah dengan alamat sama</small>
-                        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                        <h2 style="margin-bottom: 8px; font-size: 16px;">✂️ Pisahkan Penerima</h2>
+                        <small style="color: var(--text-light); display: block; margin-bottom: 12px;">
+                            Setiap penerima yang dipilih akan jadi <strong>record baru</strong> dengan titik & alamat yang sama persis.
+                        </small>
+                        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;">
                 `;
                 addr.recipients.forEach((r) => {
-                    html += `<label style="display: flex; align-items: center; padding: 8px; background: var(--bg-alt); border-radius: 4px; cursor: pointer;">
-                        <input type="checkbox" class="split-checkbox" data-name="${r.name}" style="margin-right: 8px; cursor: pointer;">
-                        <span><strong>${r.name}</strong> - ${r.status}</span>
-                    </label>`;
+                    const statusColor = r.status === 'berhasil' ? '#10b981' : r.status === 'belum selesai' ? '#f59e0b' : '#ef4444';
+                    const safeName = r.name.replace(/"/g, '&quot;');
+                    html += `
+                        <label style="display: flex; align-items: center; padding: 10px; background: var(--bg-alt); border-radius: 6px; cursor: pointer; gap: 10px;">
+                            <input type="checkbox" class="split-checkbox" data-name="${safeName}" style="cursor: pointer; width: 18px; height: 18px; flex-shrink: 0;">
+                            <div style="flex: 1;">
+                                <strong>${r.name}</strong><br>
+                                <small style="color: ${statusColor}; font-weight: 600;">● ${r.status || 'berhasil'}</small>
+                            </div>
+                            ${r.photo ? `<img src="${r.photo}" style="width: 30px; height: 30px; border-radius: 4px; object-fit: cover; flex-shrink: 0; pointer-events: none;">` : ''}
+                        </label>
+                    `;
                 });
                 html += `
                         </div>
@@ -1549,82 +1914,174 @@ self.addEventListener('fetch', (e) => {
 
         async function executeSplitRecipient(addrId) {
             const checkboxes = document.querySelectorAll('.split-checkbox:checked');
-            if (checkboxes.length === 0) { showModal('Error', '❌ Pilih minimal 1 penerima'); return; }
+            if (checkboxes.length === 0) {
+                showModal('Error', '❌ Pilih minimal 1 penerima');
+                return;
+            }
+
             const addr = await getAddressById(addrId);
             const namesToSplit = Array.from(checkboxes).map((cb) => cb.dataset.name);
-            let splitCount = 0;
-            for (const name of namesToSplit) {
-                const recipient = addr.recipients.find((r) => r.name === name);
-                if (recipient) {
+            const willRemain = addr.recipients.filter((r) => !namesToSplit.includes(r.name));
+
+            let confirmMsg = '';
+            if (willRemain.length === 0) {
+                confirmMsg = `Semua ${namesToSplit.length} penerima akan dipisahkan jadi record terpisah.\n\n` +
+                    `⚠️ Record asal akan dihapus karena tidak ada penerima sisa.\n\n` +
+                    `Setiap penerima baru akan punya titik & alamat yang sama persis.\n\nLanjutkan?`;
+            } else {
+                confirmMsg = `${namesToSplit.length} penerima akan dipisahkan jadi record baru.\n\n` +
+                    `📍 Titik & alamat: ${addr.gang || 'Gang'} No.${addr.house_number || '?'}\n` +
+                    `👤 Sisa di record ini: ${willRemain.length} penerima (${willRemain.map(r => r.name).join(', ')})\n\n` +
+                    `Setiap penerima baru akan punya titik & alamat yang sama persis.\n\nLanjutkan?`;
+            }
+
+            showConfirmModal('✂️ Pisahkan Penerima', confirmMsg, async () => {
+                let splitCount = 0;
+                const addressPhotos = extractAddressPhotos(addr);
+
+                for (const name of namesToSplit) {
+                    const recipient = addr.recipients.find((r) => r.name === name);
+                    if (!recipient) continue;
+
+                    const now = Date.now() + Math.floor(Math.random() * 1000);
                     const newAddr = {
-                        id: 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-                        latitude: addr.latitude, longitude: addr.longitude,
+                        id: 'addr_' + now + '_' + Math.random().toString(36).substr(2, 9),
+                        latitude: addr.latitude,
+                        longitude: addr.longitude,
+                        address: addr.address || '',
+                        gang: addr.gang || '',
+                        house_number: addr.house_number || '',
+                        landmark: addr.landmark || '',
+                        description: addr.description || '',
+                        payment_status: addr.payment_status || 'belum',
+                        location_type: addr.location_type || 'jelas',
+                        problem_tags: [...(addr.problem_tags || [])],
                         recipient_name: recipient.name,
-                        recipients: [{ name: recipient.name, status: recipient.status, added_at: new Date().toISOString() }],
-                        delivery_status: recipient.status,
-                        address: addr.address, gang: addr.gang, house_number: addr.house_number,
-                        landmark: addr.landmark, description: addr.description,
-                        payment_status: addr.payment_status, location_type: addr.location_type,
-                        problem_tags: addr.problem_tags || [],
-                        visit_count: 0, last_visit_at: null,
-                        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-                        history: [{ date: new Date().toISOString(), notes: `Split dari: ${addr.recipient_name}` }],
+                        recipients: [{
+                            name: recipient.name,
+                            status: recipient.status || 'berhasil',
+                            photo: recipient.photo || null,
+                            photo_ref: recipient.photo_ref || null,
+                            added_at: recipient.added_at || new Date().toISOString()
+                        }],
+                        delivery_status: recipient.status || 'berhasil',
+                        photos: [...addressPhotos],
+                        photo: addressPhotos[0] || null,
+                        photo_ref: addressPhotos.length > 0 ? `addr-${now}.jpg` : null,
+                        visit_count: 0,
+                        last_visit_at: null,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        history: [{
+                            date: new Date().toISOString(),
+                            status: 'split',
+                            notes: `✂️ Dipisahkan dari: ${addr.recipient_name || '?'}`
+                        }],
                         raw_voice_note: ''
                     };
+
                     await saveAddress(newAddr);
                     splitCount++;
                 }
-            }
-            addr.recipients = addr.recipients.filter((r) => !namesToSplit.includes(r.name));
-            if (addr.recipients.length === 0) addr.delivery_status = 'tidak order';
-            else {
-                const statuses = addr.recipients.map((r) => r.status);
-                if (statuses.includes('tidak order')) addr.delivery_status = 'tidak order';
-                else if (statuses.includes('gagal')) addr.delivery_status = 'gagal';
-                else if (statuses.includes('belum selesai')) addr.delivery_status = 'belum selesai';
-                else addr.delivery_status = 'berhasil';
-            }
-            if (!addr.history) addr.history = [];
-            addr.history.push({ date: new Date().toISOString(), notes: `Pisahkan ${splitCount} penerima` });
-            await saveAddress(addr);
-            closeModal();
-            setTimeout(() => {
-                updateMapMarkers(); updateAddressList(); showAddressDetail(addrId);
-                showModal('Sukses', `✓ ${splitCount} penerima dipisahkan!`);
-            }, 100);
+
+                if (willRemain.length === 0) {
+                    await deleteAddress(addr.id);
+                } else {
+                    addr.recipients = willRemain;
+                    addr.recipient_name = willRemain.map((r) => r.name).join(', ');
+
+                    const statuses = willRemain.map((r) => r.status);
+                    if (statuses.includes('tidak order')) addr.delivery_status = 'tidak order';
+                    else if (statuses.includes('gagal')) addr.delivery_status = 'gagal';
+                    else if (statuses.includes('belum selesai')) addr.delivery_status = 'belum selesai';
+                    else addr.delivery_status = 'berhasil';
+
+                    if (!addr.history) addr.history = [];
+                    addr.history.push({
+                        date: new Date().toISOString(),
+                        status: 'split',
+                        notes: `✂️ Pisahkan ${splitCount} penerima: ${namesToSplit.join(', ')}`
+                    });
+
+                    addr.updated_at = new Date().toISOString();
+                    await saveAddress(addr);
+                }
+
+                closeModal();
+                document.getElementById('detail-sheet').classList.remove('active');
+                setTimeout(() => {
+                    updateMapMarkers();
+                    updateAddressList();
+                }, 100);
+
+                showModal('Sukses',
+                    `✅ ${splitCount} penerima berhasil dipisahkan!\n\n` +
+                    `📍 Titik & alamat sama persis\n` +
+                    `📸 Foto alamat ikut tersalin\n` +
+                    `👤 Foto penerima ikut tersalin`
+                );
+            });
         }
 
+        // ============================================
+        // MERGE RECIPIENTS
+        // ============================================
         function showMergeRecipientsModal() {
             const loadAsync = async () => {
                 const allAddresses = await getAllAddresses();
                 const addressGroups = {};
+
                 allAddresses.forEach((addr) => {
-                    const key = `${addr.gang || ''}-${addr.house_number || ''}`;
+                    const key = `${addr.gang || ''}|||${addr.house_number || ''}`;
                     if (!addressGroups[key]) addressGroups[key] = [];
                     addressGroups[key].push(addr);
                 });
+
                 const mergeableGroups = Object.entries(addressGroups)
                     .filter(([key, addrs]) => addrs.length > 1)
-                    .map(([key, addrs]) => ({
-                        key, addresses: addrs,
-                        label: `${addrs[0].gang || 'Gang'} No.${addrs[0].house_number || '?'} (${addrs.length} record)`
-                    }));
+                    .map(([key, addrs]) => {
+                        const totalRecipients = addrs.reduce((sum, a) => sum + (a.recipients?.length || 1), 0);
+                        return {
+                            key,
+                            addresses: addrs,
+                            label: `${addrs[0].gang || 'Gang'} No.${addrs[0].house_number || '?'}`,
+                            recordCount: addrs.length,
+                            recipientCount: totalRecipients
+                        };
+                    });
+
                 if (mergeableGroups.length === 0) {
-                    showModal('Info', 'Tidak ada alamat yang bisa digabung');
+                    showModal('Info', 'Tidak ada alamat yang bisa digabung.\n\n(Memerlukan minimal 2 record dengan gang + nomor rumah yang sama)');
                     return;
                 }
+
                 let html = `
                     <div style="padding: 16px;">
-                        <h2 style="margin-bottom: 16px; font-size: 16px;">Pilih Alamat untuk Digabung</h2>
-                        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;">
+                        <h2 style="margin-bottom: 8px; font-size: 16px;">📌 Gabung Record</h2>
+                        <small style="color: var(--text-light); display: block; margin-bottom: 12px;">
+                            Semua penerima dari record-record dengan titik & alamat sama akan digabung jadi 1 record.
+                        </small>
+                        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 350px; overflow-y: auto;">
                 `;
+
                 mergeableGroups.forEach((group) => {
-                    html += `<button class="btn-secondary" style="padding: 10px; text-align: left; cursor: pointer;" onclick="executeMergeRecipients('${group.key}')">
-                        <strong>${group.label}</strong><br>
-                        <small style="color: var(--text-light);">${group.addresses.map((a) => `${a.recipient_name} (${a.recipients?.length || 1} penerima)`).join(', ')}</small>
-                    </button>`;
+                    html += `
+                        <button class="btn-secondary" style="padding: 12px; text-align: left; cursor: pointer; line-height: 1.5;" onclick="executeMergeRecipients('${group.key}')">
+                            <strong style="font-size: 14px;">📍 ${group.label}</strong><br>
+                            <small style="color: var(--text-light);">
+                                ${group.recordCount} record → 1 record<br>
+                                ${group.recipientCount} total penerima
+                            </small>
+                        </button>
+                    `;
                 });
-                html += `<button class="btn-secondary" style="width: 100%; padding: 10px; margin-top: 12px;" onclick="closeModal()">Batal</button></div>`;
+
+                html += `
+                        </div>
+                        <button class="btn-secondary" style="width: 100%; padding: 10px; margin-top: 12px;" onclick="closeModal()">Batal</button>
+                    </div>
+                `;
+
                 document.getElementById('modal-content').innerHTML = html;
                 document.getElementById('modal').classList.add('active');
             };
@@ -1633,35 +2090,117 @@ self.addEventListener('fetch', (e) => {
 
         async function executeMergeRecipients(groupKey) {
             const allAddresses = await getAllAddresses();
-            const [gang, houseNum] = groupKey.split('-');
+            const parts = groupKey.split('|||');
+            const gang = parts[0];
+            const houseNum = parts[1];
+
             const addressesToMerge = allAddresses.filter((addr) =>
                 (addr.gang || '') === gang && (addr.house_number || '') === houseNum
             );
-            if (addressesToMerge.length < 2) { showModal('Error', 'Minimal 2 record untuk merge'); return; }
-            const mainAddr = addressesToMerge[0];
-            const allRecipients = [];
-            addressesToMerge.forEach((addr) => {
-                if (addr.recipients && Array.isArray(addr.recipients)) allRecipients.push(...addr.recipients);
-                else if (addr.recipient_name) allRecipients.push({ name: addr.recipient_name, status: addr.delivery_status || 'order', added_at: addr.created_at || new Date().toISOString() });
-            });
-            mainAddr.recipients = allRecipients;
-            const statuses = mainAddr.recipients.map((r) => r.status);
-            if (statuses.includes('tidak order')) mainAddr.delivery_status = 'tidak order';
-            else if (statuses.includes('gagal')) mainAddr.delivery_status = 'order';
-            else if (statuses.includes('belum selesai')) mainAddr.delivery_status = 'belum selesai';
-            else mainAddr.delivery_status = 'berhasil';
 
-            if (!mainAddr.history) mainAddr.history = [];
-            mainAddr.history.push({ date: new Date().toISOString(), notes: `Gabung ${addressesToMerge.length} record` });
-            await saveAddress(mainAddr);
-            for (let i = 1; i < addressesToMerge.length; i++) {
-                await deleteAddress(addressesToMerge[i].id);
+            if (addressesToMerge.length < 2) {
+                showModal('Error', 'Minimal 2 record untuk merge');
+                return;
             }
-            closeModal();
-            setTimeout(() => {
-                updateMapMarkers(); updateAddressList();
-                showModal('Sukses', `✓ ${addressesToMerge.length} record digabung!`);
-            }, 100);
+
+            const allRecipients = [];
+            const seenNames = new Set();
+            const mergedAddressPhotos = [];
+            const mainAddr = addressesToMerge[0];
+
+            addressesToMerge.forEach((addr) => {
+                const addrRecipients = (addr.recipients && Array.isArray(addr.recipients) && addr.recipients.length > 0)
+                    ? addr.recipients
+                    : (addr.recipient_name ? [{
+                        name: addr.recipient_name,
+                        status: addr.delivery_status || 'berhasil',
+                        added_at: addr.created_at || new Date().toISOString()
+                    }] : []);
+
+                addrRecipients.forEach((r) => {
+                    const key = (r.name || '').toLowerCase().trim();
+                    if (!key || seenNames.has(key)) return;
+                    seenNames.add(key);
+                    allRecipients.push({
+                        name: r.name,
+                        status: r.status || 'berhasil',
+                        photo: r.photo || null,
+                        photo_ref: r.photo_ref || null,
+                        added_at: r.added_at || new Date().toISOString()
+                    });
+                });
+
+                const addrPhotos = extractAddressPhotos(addr);
+                addrPhotos.forEach((p) => {
+                    if (mergedAddressPhotos.length < 2 && !mergedAddressPhotos.includes(p)) {
+                        mergedAddressPhotos.push(p);
+                    }
+                });
+            });
+
+            const totalVisits = addressesToMerge.reduce((sum, a) => sum + (a.visit_count || 0), 0);
+            const lastVisits = addressesToMerge
+                .map((a) => a.last_visit_at || a.created_at)
+                .filter(Boolean)
+                .sort((a, b) => new Date(b) - new Date(a));
+
+            const confirmMsg =
+                `${addressesToMerge.length} record akan digabung jadi 1.\n\n` +
+                `📍 Titik: ${mainAddr.gang || 'Gang'} No.${mainAddr.house_number || '?'}\n` +
+                `👥 Total penerima: ${allRecipients.length}\n` +
+                `📸 Foto alamat: ${mergedAddressPhotos.length}\n` +
+                `🔢 Total kunjungan: ${totalVisits}\n\n` +
+                `⚠️ ${addressesToMerge.length - 1} record asal lainnya akan dihapus.\n\n` +
+                `Lanjutkan?`;
+
+            showConfirmModal('📌 Gabung Record', confirmMsg, async () => {
+                mainAddr.recipients = allRecipients;
+                mainAddr.recipient_name = allRecipients.map((r) => r.name).join(', ');
+
+                const statuses = allRecipients.map((r) => r.status);
+                if (statuses.includes('tidak order')) mainAddr.delivery_status = 'tidak order';
+                else if (statuses.includes('gagal')) mainAddr.delivery_status = 'gagal';
+                else if (statuses.includes('belum selesai')) mainAddr.delivery_status = 'belum selesai';
+                else mainAddr.delivery_status = 'berhasil';
+
+                if (mergedAddressPhotos.length > 0) {
+                    mainAddr.photos = mergedAddressPhotos;
+                    mainAddr.photo = mergedAddressPhotos[0];
+                    mainAddr.photo_ref = mainAddr.photo_ref || `addr-${Date.now()}.jpg`;
+                }
+
+                mainAddr.visit_count = totalVisits || mainAddr.visit_count || 0;
+                if (lastVisits.length > 0) mainAddr.last_visit_at = lastVisits[0];
+
+                if (!mainAddr.history) mainAddr.history = [];
+                const mergedNames = addressesToMerge.map((a) => a.recipient_name).filter(Boolean).join(' + ');
+                mainAddr.history.push({
+                    date: new Date().toISOString(),
+                    status: 'merge',
+                    notes: `📌 Gabung ${addressesToMerge.length} record: ${mergedNames}`
+                });
+
+                mainAddr.updated_at = new Date().toISOString();
+                await saveAddress(mainAddr);
+
+                for (let i = 1; i < addressesToMerge.length; i++) {
+                    await deleteAddress(addressesToMerge[i].id);
+                }
+
+                closeModal();
+                document.getElementById('detail-sheet').classList.remove('active');
+                setTimeout(() => {
+                    updateMapMarkers();
+                    updateAddressList();
+                }, 100);
+
+                showModal('Sukses',
+                    `✅ ${addressesToMerge.length} record berhasil digabung!\n\n` +
+                    `👥 Total ${allRecipients.length} penerima dalam 1 record\n` +
+                    `📸 ${mergedAddressPhotos.length} foto alamat tersimpan\n` +
+                    `🔢 ${totalVisits} total kunjungan`
+                );
+            });
         }
 
         // ============================================
@@ -1904,16 +2443,8 @@ self.addEventListener('fetch', (e) => {
             document.getElementById('form-description').value = address.description || '';
 
             setTimeout(() => {
-                if (address.photo) {
-                    window.addressPhotoData = address.photo;
-                    const preview = document.getElementById('address-photo-preview');
-                    if (preview) {
-                        preview.src = address.photo;
-                        preview.style.display = 'block';
-                        preview.style.maxWidth = '150px';
-                        preview.style.maxHeight = '150px';
-                    }
-                }
+                const photos = extractAddressPhotos(address);
+                loadAddressPhotos(photos);
             }, 250);
 
             document.querySelectorAll('#problems-group .checkbox-item').forEach((item) => {
@@ -1959,9 +2490,15 @@ self.addEventListener('fetch', (e) => {
             });
             address.problem_tags = problems;
 
-            if (window.addressPhotoData) {
-                address.photo = window.addressPhotoData;
+            const validPhotos = getValidAddressPhotos();
+            if (validPhotos.length > 0) {
+                address.photos = validPhotos;
+                address.photo = validPhotos[0];
                 address.photo_ref = address.photo_ref || generatePhotoFileName(newName);
+            } else {
+                delete address.photos;
+                delete address.photo;
+                delete address.photo_ref;
             }
 
             address.updated_at = new Date().toISOString();
@@ -2030,33 +2567,23 @@ self.addEventListener('fetch', (e) => {
 
             switch (sortType) {
                 case 'nama-asc':
-                    sorted.sort((a, b) =>
-                        getMainName(a).toLowerCase().localeCompare(getMainName(b).toLowerCase(), 'id')
-                    );
+                    sorted.sort((a, b) => getMainName(a).toLowerCase().localeCompare(getMainName(b).toLowerCase(), 'id'));
                     break;
                 case 'nama-desc':
-                    sorted.sort((a, b) =>
-                        getMainName(b).toLowerCase().localeCompare(getMainName(a).toLowerCase(), 'id')
-                    );
+                    sorted.sort((a, b) => getMainName(b).toLowerCase().localeCompare(getMainName(a).toLowerCase(), 'id'));
                     break;
                 case 'tanggal-baru':
-                    sorted.sort((a, b) =>
-                        new Date(b.created_at || 0) - new Date(a.created_at || 0)
-                    );
+                    sorted.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
                     break;
                 case 'tanggal-lama':
-                    sorted.sort((a, b) =>
-                        new Date(a.created_at || 0) - new Date(b.created_at || 0)
-                    );
+                    sorted.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
                     break;
                 case 'kunjungan':
                     sorted.sort((a, b) => (b.visit_count || 0) - (a.visit_count || 0));
                     break;
                 case 'default':
                 default:
-                    sorted.sort((a, b) =>
-                        new Date(b.created_at || 0) - new Date(a.created_at || 0)
-                    );
+                    sorted.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
                     break;
             }
 
@@ -2112,18 +2639,20 @@ self.addEventListener('fetch', (e) => {
                 else if (addr.delivery_status === 'belum selesai') { statusColor = '#f59e0b'; statusLabel = '🔔 Belum Selesai'; }
                 const recipientCount = addr.recipients ? addr.recipients.length : 1;
                 const isChecked = bulkSelectedIds.has(addr.id);
+                const addrPhotos = extractAddressPhotos(addr);
+                const thumb = addrPhotos.length > 0 ? addrPhotos[0] : null;
                 return `
                     <div class="address-item" data-addr-id="${addr.id}" onclick="showAddressDetail('${addr.id}')">
                         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 4px;">
                             <div style="display: flex; align-items: center; flex: 1; gap: 8px;">
                                 <input type="checkbox" class="address-item-checkbox" data-addr-id="${addr.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer;" onclick="event.stopPropagation(); toggleBulkSelect('${addr.id}');">
-                                ${addr.photo ? `<img src="${addr.photo}" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover;">` : ''}
+                                ${thumb ? `<img src="${thumb}" style="width: 32px; height: 32px; border-radius: 4px; object-fit: cover; pointer-events: none;">` : ''}
                                 <div class="address-item-name">${addr.recipient_name}</div>
                             </div>
                             <span style="color: ${statusColor}; font-weight: 600; font-size: 12px;">${statusLabel}</span>
                         </div>
                         <div class="address-item-details">${addr.gang || ''} ${addr.house_number || ''}<br>${addr.landmark || addr.address || ''}</div>
-                        <div class="address-item-meta">📍 ${formatDate(addr.last_visit_at || addr.created_at)} · ${addr.visit_count || 1}x · ${recipientCount} penerima</div>
+                        <div class="address-item-meta">📍 ${formatDate(addr.last_visit_at || addr.created_at)} · ${addr.visit_count || 1}x · ${recipientCount} penerima${addrPhotos.length > 1 ? ` · ${addrPhotos.length} foto` : ''}</div>
                     </div>
                 `;
             }).join('');
@@ -2353,7 +2882,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
         }
 
         // ============================================
-        // IMPORT: JSON (Full Restore) & CSV (Order Baru)
+        // IMPORT
         // ============================================
         function importJSON() {
             document.getElementById('file-import-json').click();
@@ -2476,9 +3005,6 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
             return result;
         }
 
-        // ============================================
-        // MODAL IMPORT
-        // ============================================
         async function showImportModal(newAddresses, type) {
             const isJSON = type === 'json';
 
@@ -2490,7 +3016,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                     </div>
                     <p style="margin-bottom: 12px;">Ditemukan <strong>${newAddresses.length}</strong> alamat di file backup.</p>
                     <div style="background: var(--bg-alt); padding: 12px; border-radius: 6px; font-size: 12px; color: var(--text-light); margin-bottom: 16px; line-height: 1.6;">
-                        ✓ Status (berhasil / belum selesai / tidak order) dipertahankan<br>
+                        ✓ Status dipertahankan<br>
                         ✓ Foto alamat & penerima ikut direstore<br>
                         ✓ Riwayat kunjungan tetap sama<br>
                         ✓ Tanggal & statistik tidak berubah
@@ -2533,9 +3059,6 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
             }
         }
 
-        // ============================================
-        // CONFIRM IMPORT
-        // ============================================
         async function confirmImport(type, count) {
             document.getElementById('modal').classList.remove('active');
 
@@ -2555,11 +3078,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
 
                             if (!addr.recipients) {
                                 addr.recipients = addr.recipient_name
-                                    ? [{
-                                        name: addr.recipient_name,
-                                        status: addr.delivery_status || 'berhasil',
-                                        added_at: addr.created_at
-                                    }]
+                                    ? [{ name: addr.recipient_name, status: addr.delivery_status || 'berhasil', added_at: addr.created_at }]
                                     : [];
                             }
                             await saveAddress(addr);
@@ -2575,9 +3094,6 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
             }
         }
 
-        // ============================================
-        // PROSES IMPORT CSV
-        // ============================================
         async function processCSVImport(count) {
             document.getElementById('modal-content').innerHTML = `
                 <div style="padding: 40px; text-align: center;">
@@ -2610,8 +3126,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                     const namaLower = nama.toLowerCase();
                     existing = allExisting.find((a) => {
                         if ((a.recipient_name || '').toLowerCase().trim() === namaLower) return true;
-                        if (a.recipients && a.recipients.some((r) =>
-                            (r.name || '').toLowerCase().trim() === namaLower)) return true;
+                        if (a.recipients && a.recipients.some((r) => (r.name || '').toLowerCase().trim() === namaLower)) return true;
                         return false;
                     });
                 }
@@ -2693,12 +3208,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
             updateMapMarkers();
             updateAddressList();
             closeModal();
-            showModal('Sukses', `✓ Import CSV selesai!
-
-🔔 Status diubah: ${updatedCount}
-➕ Data baru: ${addedCount}
-
-Semua berstatus "Belum Selesai"`);
+            showModal('Sukses', `✓ Import CSV selesai!\n\n🔔 Status diubah: ${updatedCount}\n➕ Data baru: ${addedCount}\n\nSemua berstatus "Belum Selesai"`);
         }
 
         // ============================================
@@ -2772,7 +3282,7 @@ Semua berstatus "Belum Selesai"`);
             const modal = document.getElementById('modal-content');
             modal.innerHTML = `
                 <h2>${title}</h2>
-                <p>${message}</p>
+                <p style="white-space: pre-line;">${message}</p>
             `;
 
             const buttons = document.createElement('div');
@@ -2905,7 +3415,6 @@ Semua berstatus "Belum Selesai"`);
             const btn = document.getElementById('zoom-to-location-btn');
             if (!btn) return;
 
-            // Restore posisi terakhir
             const savedPos = localStorage.getItem('kurirq_zoomBtnPos');
             if (savedPos) {
                 try {
@@ -2973,17 +3482,14 @@ Semua berstatus "Belum Selesai"`);
                 btn.style.cursor = 'grab';
 
                 if (dragStarted) {
-                    // Simpan posisi
                     const pos = getPos(btn);
                     try {
                         localStorage.setItem('kurirq_zoomBtnPos', JSON.stringify({ x: pos.x, y: pos.y }));
                     } catch (err) {}
                 } else {
-                    // Tap → jalankan zoom
                     zoomToCurrentLocation();
                 }
 
-                // Kembalikan opacity
                 setTimeout(() => { btn.style.opacity = '0.9'; }, 300);
             });
 
@@ -2995,7 +3501,6 @@ Semua berstatus "Belum Selesai"`);
 
             btn.addEventListener('contextmenu', (e) => e.preventDefault());
 
-            // Handle resize
             window.addEventListener('resize', () => {
                 const pos = getPos(btn);
                 const maxX = window.innerWidth - btn.offsetWidth - 8;
@@ -3015,9 +3520,6 @@ Semua berstatus "Belum Selesai"`);
         document.querySelectorAll('[data-page]').forEach((btn) => {
             btn.addEventListener('click', () => showPage(btn.dataset.page));
         });
-
-        // ⚠️ Tidak ada addEventListener click di zoom-to-location-btn
-        // — sudah digantikan oleh drag handler di atas
 
         document.getElementById('record-btn').addEventListener('click', showRecordSheet);
         document.getElementById('close-record-sheet').addEventListener('click', () => closeRecordSheet());
@@ -3119,28 +3621,35 @@ Semua berstatus "Belum Selesai"`);
         // PHOTO HANDLERS
         // ============================================
         function attachAddressPhotoHandlers() {
-            const handlePhotoChange = function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    compressImage(file).then((compressed) => {
-                        window.addressPhotoData = compressed;
-                        const preview = document.getElementById('address-photo-preview');
-                        if (preview) {
-                            preview.src = compressed;
-                            preview.style.display = 'block';
+            for (let slot = 1; slot <= 2; slot++) {
+                const handlePhotoChange = async function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        try {
+                            const compressed = await compressImage(file);
+                            setAddressPhoto(slot, compressed);
+                        } catch (err) {
+                            console.log('Photo error:', err);
                         }
-                    }).catch(err => console.log('Photo error:', err));
+                    }
+                    e.target.value = '';
+                };
+
+                const cameraInput = document.getElementById(`address-photo-camera-${slot}`);
+                const galleryInput = document.getElementById(`address-photo-gallery-${slot}`);
+                const deleteBtn = document.getElementById(`address-photo-delete-${slot}`);
+
+                if (cameraInput) cameraInput.onchange = handlePhotoChange;
+                if (galleryInput) galleryInput.onchange = handlePhotoChange;
+                if (deleteBtn) {
+                    deleteBtn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (confirm('Hapus foto ini?')) {
+                            removeAddressPhoto(slot);
+                        }
+                    };
                 }
-            };
-            const cameraInput = document.getElementById('form-address-photo-camera');
-            const galleryInput = document.getElementById('form-address-photo-gallery');
-            if (cameraInput) {
-                cameraInput.removeEventListener('change', handlePhotoChange);
-                cameraInput.addEventListener('change', handlePhotoChange);
-            }
-            if (galleryInput) {
-                galleryInput.removeEventListener('change', handlePhotoChange);
-                galleryInput.addEventListener('change', handlePhotoChange);
             }
         }
 
@@ -3187,7 +3696,7 @@ Semua berstatus "Belum Selesai"`);
                 }
 
                 updateMapMarkers();
-                showModal('Selamat Datang', '👋 Kurir-Q siap digunakan!\n\nCara pakai:\n1. Tap tombol ✓ besar untuk catat alamat\n2. Sesuaikan pin di peta\n3. Bicara atau isi manual\n4. Simpan\n\n💡 Tips:\n• Tap tombol 🎯 di peta untuk refresh lokasi\n• Tekan & geser tombol 🎯 untuk pindah posisi\n• Gunakan export JSON untuk backup');
+                showModal('Selamat Datang', '👋 Kurir-Q siap digunakan!\n\nCara pakai:\n1. Tap tombol ✓ besar untuk catat alamat\n2. Sesuaikan pin di peta atau ketik manual\n3. Bicara atau isi manual\n4. Tambah max 2 foto (thumbnail hemat)\n5. Simpan\n\n💡 Tips:\n• Edit lokasi: ketik lat/lng atau tap 🎯 Lokasi Sekarang\n• Tombol 🎯 di peta bisa digeser\n• Foto otomatis dikompres (~5-8KB)\n• Backup dengan export JSON');
             } catch (err) {
                 console.error('Init error:', err);
                 showModal('Error', 'Gagal inisialisasi: ' + err.message);
