@@ -129,7 +129,6 @@
         }
         #zoom-to-location-btn:active { cursor: grabbing; }
 
-        /* Photo slots — kecil */
         .photo-slot-box {
             position: relative;
             width: 100%;
@@ -277,6 +276,13 @@
                     <h3 style="margin-bottom: 12px; font-size: 14px;">Import Data</h3>
                     <button class="btn-secondary" id="import-json-btn" style="width: 100%; margin-bottom: 12px;">🔄 Import JSON (Full Restore)</button>
                     <button class="btn-secondary" id="import-csv-btn" style="width: 100%; margin-bottom: 24px;">📤 Import CSV (Order Baru)</button>
+
+                    <h3 style="margin-bottom: 12px; font-size: 14px;">🗜️ Optimasi Penyimpanan</h3>
+                    <button class="btn-secondary" id="compress-photos-btn" style="width: 100%; margin-bottom: 8px;">🗜️ Kompres Semua Foto Lama</button>
+                    <div style="background: var(--bg-alt); padding: 10px; border-radius: 6px; font-size: 11px; color: var(--text-light); margin-bottom: 24px; line-height: 1.5;">
+                        💡 Kompres ulang semua foto lama agar lebih kecil (~5-8KB). Tekan sekali saja, tunggu sampai selesai.
+                    </div>
+
                     <h3 style="margin-bottom: 12px; font-size: 14px; color: var(--danger);">Zona Bahaya</h3>
                     <button class="btn-danger" id="clear-demo-btn" style="width: 100%; margin-bottom: 12px;">🗑️ Hapus Data Demo</button>
                     <button class="btn-danger" id="clear-all-btn" style="width: 100%;">⚠️ Hapus Semua Data</button>
@@ -312,6 +318,7 @@
                         ✓ Search & filter<br>
                         ✓ Sort abjad & tanggal<br>
                         ✓ Backup/restore<br>
+                        ✓ Kompres foto lama<br>
                         ✓ Offline first<br>
                         ✓ PWA Android
                     </div>
@@ -494,6 +501,7 @@
         let currentSort = 'default';
         let currentDetailId = null;
         let bulkSelectedIds = new Set();
+        let isCompressing = false;
 
         let addressMarkersLayer = null;
         let currentLocationLayer = null;
@@ -561,7 +569,7 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
-        // MAP INIT
+        // MAP
         // ============================================
         function initMap() {
             try {
@@ -595,10 +603,7 @@ self.addEventListener('fetch', (e) => {
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                         (pos) => {
-                            currentLocation = {
-                                latitude: pos.coords.latitude,
-                                longitude: pos.coords.longitude
-                            };
+                            currentLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
                             updateMapMarkers();
                         },
                         () => {},
@@ -616,9 +621,6 @@ self.addEventListener('fetch', (e) => {
             }
         }
 
-        // ============================================
-        // MAP OPERATIONS
-        // ============================================
         function zoomToCurrentLocation() {
             if (!map) { showModal('Error', '❌ Peta belum siap'); return; }
             const btn = document.getElementById('zoom-to-location-btn');
@@ -747,11 +749,7 @@ self.addEventListener('fetch', (e) => {
             });
 
             if (isSearching && firstSearchResult) {
-                map.flyTo(
-                    [firstSearchResult.latitude, firstSearchResult.longitude],
-                    16,
-                    { duration: 0.8 }
-                );
+                map.flyTo([firstSearchResult.latitude, firstSearchResult.longitude], 16, { duration: 0.8 });
             }
         }
 
@@ -783,11 +781,7 @@ self.addEventListener('fetch', (e) => {
                 if (!address.visit_count) address.visit_count = 0;
 
                 if (address.recipient_name && (!address.recipients || address.recipients.length === 0)) {
-                    address.recipients = [{
-                        name: address.recipient_name,
-                        status: address.delivery_status || 'berhasil',
-                        added_at: address.created_at
-                    }];
+                    address.recipients = [{ name: address.recipient_name, status: address.delivery_status || 'berhasil', added_at: address.created_at }];
                 }
                 if (!address.recipients) address.recipients = [];
 
@@ -840,7 +834,7 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
-        // ✅ KOMPRESI MAKSIMAL — WebP 150px, Q0.35
+        // KOMPRES FOTO — WebP 150px Q0.35
         // ============================================
         function compressImage(file, maxWidth = 150, quality = 0.35) {
             return new Promise((resolve) => {
@@ -859,7 +853,6 @@ self.addEventListener('fetch', (e) => {
 
                         canvas.width = width;
                         canvas.height = height;
-
                         ctx.fillStyle = '#ffffff';
                         ctx.fillRect(0, 0, width, height);
                         ctx.drawImage(img, 0, 0, width, height);
@@ -883,7 +876,7 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
-        // PHOTO HANDLING — 2 slots
+        // PHOTO HANDLING
         // ============================================
         function updatePhotoSlotUI(slot) {
             const i = slot - 1;
@@ -1483,7 +1476,7 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
-        // ADDRESS DETAIL — foto thumbnail kecil, no klik
+        // ADDRESS DETAIL
         // ============================================
         async function showAddressDetail(id) {
             const address = await getAddressById(id);
@@ -1503,15 +1496,7 @@ self.addEventListener('fetch', (e) => {
                 html += `<div class="form-group"><label>📸 Foto Alamat (${detailPhotos.length})</label>
                     <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                         ${detailPhotos.map((p) => `
-                            <div style="
-                                width: 60px;
-                                height: 60px;
-                                border-radius: 6px;
-                                overflow: hidden;
-                                border: 1px solid var(--border);
-                                background: var(--bg-alt);
-                                flex-shrink: 0;
-                            ">
+                            <div style="width: 60px; height: 60px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); background: var(--bg-alt); flex-shrink: 0;">
                                 <img src="${p}" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none;">
                             </div>
                         `).join('')}
@@ -1867,7 +1852,7 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
-        // SPLIT RECIPIENT
+        // SPLIT
         // ============================================
         function showSplitRecipientModal(addrId) {
             const loadAsync = async () => {
@@ -1925,14 +1910,9 @@ self.addEventListener('fetch', (e) => {
 
             let confirmMsg = '';
             if (willRemain.length === 0) {
-                confirmMsg = `Semua ${namesToSplit.length} penerima akan dipisahkan jadi record terpisah.\n\n` +
-                    `⚠️ Record asal akan dihapus karena tidak ada penerima sisa.\n\n` +
-                    `Setiap penerima baru akan punya titik & alamat yang sama persis.\n\nLanjutkan?`;
+                confirmMsg = `Semua ${namesToSplit.length} penerima akan dipisahkan jadi record terpisah.\n\n⚠️ Record asal akan dihapus karena tidak ada penerima sisa.\n\nSetiap penerima baru akan punya titik & alamat yang sama persis.\n\nLanjutkan?`;
             } else {
-                confirmMsg = `${namesToSplit.length} penerima akan dipisahkan jadi record baru.\n\n` +
-                    `📍 Titik & alamat: ${addr.gang || 'Gang'} No.${addr.house_number || '?'}\n` +
-                    `👤 Sisa di record ini: ${willRemain.length} penerima (${willRemain.map(r => r.name).join(', ')})\n\n` +
-                    `Setiap penerima baru akan punya titik & alamat yang sama persis.\n\nLanjutkan?`;
+                confirmMsg = `${namesToSplit.length} penerima akan dipisahkan jadi record baru.\n\n📍 Titik & alamat: ${addr.gang || 'Gang'} No.${addr.house_number || '?'}\n👤 Sisa di record ini: ${willRemain.length} penerima (${willRemain.map(r => r.name).join(', ')})\n\nSetiap penerima baru akan punya titik & alamat yang sama persis.\n\nLanjutkan?`;
             }
 
             showConfirmModal('✂️ Pisahkan Penerima', confirmMsg, async () => {
@@ -1972,11 +1952,7 @@ self.addEventListener('fetch', (e) => {
                         last_visit_at: null,
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString(),
-                        history: [{
-                            date: new Date().toISOString(),
-                            status: 'split',
-                            notes: `✂️ Dipisahkan dari: ${addr.recipient_name || '?'}`
-                        }],
+                        history: [{ date: new Date().toISOString(), status: 'split', notes: `✂️ Dipisahkan dari: ${addr.recipient_name || '?'}` }],
                         raw_voice_note: ''
                     };
 
@@ -1997,11 +1973,7 @@ self.addEventListener('fetch', (e) => {
                     else addr.delivery_status = 'berhasil';
 
                     if (!addr.history) addr.history = [];
-                    addr.history.push({
-                        date: new Date().toISOString(),
-                        status: 'split',
-                        notes: `✂️ Pisahkan ${splitCount} penerima: ${namesToSplit.join(', ')}`
-                    });
+                    addr.history.push({ date: new Date().toISOString(), status: 'split', notes: `✂️ Pisahkan ${splitCount} penerima: ${namesToSplit.join(', ')}` });
 
                     addr.updated_at = new Date().toISOString();
                     await saveAddress(addr);
@@ -2009,22 +1981,14 @@ self.addEventListener('fetch', (e) => {
 
                 closeModal();
                 document.getElementById('detail-sheet').classList.remove('active');
-                setTimeout(() => {
-                    updateMapMarkers();
-                    updateAddressList();
-                }, 100);
+                setTimeout(() => { updateMapMarkers(); updateAddressList(); }, 100);
 
-                showModal('Sukses',
-                    `✅ ${splitCount} penerima berhasil dipisahkan!\n\n` +
-                    `📍 Titik & alamat sama persis\n` +
-                    `📸 Foto alamat ikut tersalin\n` +
-                    `👤 Foto penerima ikut tersalin`
-                );
+                showModal('Sukses', `✅ ${splitCount} penerima berhasil dipisahkan!\n\n📍 Titik & alamat sama persis\n📸 Foto alamat ikut tersalin\n👤 Foto penerima ikut tersalin`);
             });
         }
 
         // ============================================
-        // MERGE RECIPIENTS
+        // MERGE
         // ============================================
         function showMergeRecipientsModal() {
             const loadAsync = async () => {
@@ -2111,11 +2075,7 @@ self.addEventListener('fetch', (e) => {
             addressesToMerge.forEach((addr) => {
                 const addrRecipients = (addr.recipients && Array.isArray(addr.recipients) && addr.recipients.length > 0)
                     ? addr.recipients
-                    : (addr.recipient_name ? [{
-                        name: addr.recipient_name,
-                        status: addr.delivery_status || 'berhasil',
-                        added_at: addr.created_at || new Date().toISOString()
-                    }] : []);
+                    : (addr.recipient_name ? [{ name: addr.recipient_name, status: addr.delivery_status || 'berhasil', added_at: addr.created_at || new Date().toISOString() }] : []);
 
                 addrRecipients.forEach((r) => {
                     const key = (r.name || '').toLowerCase().trim();
@@ -2139,19 +2099,9 @@ self.addEventListener('fetch', (e) => {
             });
 
             const totalVisits = addressesToMerge.reduce((sum, a) => sum + (a.visit_count || 0), 0);
-            const lastVisits = addressesToMerge
-                .map((a) => a.last_visit_at || a.created_at)
-                .filter(Boolean)
-                .sort((a, b) => new Date(b) - new Date(a));
+            const lastVisits = addressesToMerge.map((a) => a.last_visit_at || a.created_at).filter(Boolean).sort((a, b) => new Date(b) - new Date(a));
 
-            const confirmMsg =
-                `${addressesToMerge.length} record akan digabung jadi 1.\n\n` +
-                `📍 Titik: ${mainAddr.gang || 'Gang'} No.${mainAddr.house_number || '?'}\n` +
-                `👥 Total penerima: ${allRecipients.length}\n` +
-                `📸 Foto alamat: ${mergedAddressPhotos.length}\n` +
-                `🔢 Total kunjungan: ${totalVisits}\n\n` +
-                `⚠️ ${addressesToMerge.length - 1} record asal lainnya akan dihapus.\n\n` +
-                `Lanjutkan?`;
+            const confirmMsg = `${addressesToMerge.length} record akan digabung jadi 1.\n\n📍 Titik: ${mainAddr.gang || 'Gang'} No.${mainAddr.house_number || '?'}\n👥 Total penerima: ${allRecipients.length}\n📸 Foto alamat: ${mergedAddressPhotos.length}\n🔢 Total kunjungan: ${totalVisits}\n\n⚠️ ${addressesToMerge.length - 1} record asal lainnya akan dihapus.\n\nLanjutkan?`;
 
             showConfirmModal('📌 Gabung Record', confirmMsg, async () => {
                 mainAddr.recipients = allRecipients;
@@ -2174,11 +2124,7 @@ self.addEventListener('fetch', (e) => {
 
                 if (!mainAddr.history) mainAddr.history = [];
                 const mergedNames = addressesToMerge.map((a) => a.recipient_name).filter(Boolean).join(' + ');
-                mainAddr.history.push({
-                    date: new Date().toISOString(),
-                    status: 'merge',
-                    notes: `📌 Gabung ${addressesToMerge.length} record: ${mergedNames}`
-                });
+                mainAddr.history.push({ date: new Date().toISOString(), status: 'merge', notes: `📌 Gabung ${addressesToMerge.length} record: ${mergedNames}` });
 
                 mainAddr.updated_at = new Date().toISOString();
                 await saveAddress(mainAddr);
@@ -2189,17 +2135,9 @@ self.addEventListener('fetch', (e) => {
 
                 closeModal();
                 document.getElementById('detail-sheet').classList.remove('active');
-                setTimeout(() => {
-                    updateMapMarkers();
-                    updateAddressList();
-                }, 100);
+                setTimeout(() => { updateMapMarkers(); updateAddressList(); }, 100);
 
-                showModal('Sukses',
-                    `✅ ${addressesToMerge.length} record berhasil digabung!\n\n` +
-                    `👥 Total ${allRecipients.length} penerima dalam 1 record\n` +
-                    `📸 ${mergedAddressPhotos.length} foto alamat tersimpan\n` +
-                    `🔢 ${totalVisits} total kunjungan`
-                );
+                showModal('Sukses', `✅ ${addressesToMerge.length} record berhasil digabung!\n\n👥 Total ${allRecipients.length} penerima dalam 1 record\n📸 ${mergedAddressPhotos.length} foto alamat tersimpan\n🔢 ${totalVisits} total kunjungan`);
             });
         }
 
@@ -2550,18 +2488,14 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
-        // SORT FUNCTIONS
+        // SORT
         // ============================================
         function sortAddresses(addresses, sortType) {
             const sorted = [...addresses];
 
             const getMainName = (addr) => {
-                if (addr.recipient_name && addr.recipient_name.trim()) {
-                    return addr.recipient_name.trim();
-                }
-                if (addr.recipients && addr.recipients.length > 0) {
-                    return addr.recipients[0].name || '';
-                }
+                if (addr.recipient_name && addr.recipient_name.trim()) return addr.recipient_name.trim();
+                if (addr.recipients && addr.recipients.length > 0) return addr.recipients[0].name || '';
                 return '';
             };
 
@@ -2581,7 +2515,6 @@ self.addEventListener('fetch', (e) => {
                 case 'kunjungan':
                     sorted.sort((a, b) => (b.visit_count || 0) - (a.visit_count || 0));
                     break;
-                case 'default':
                 default:
                     sorted.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
                     break;
@@ -2659,14 +2592,11 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
-        // BACKUP: EXPORT
+        // EXPORT
         // ============================================
         async function exportJSON() {
             const addresses = await getAllAddresses();
-            if (addresses.length === 0) {
-                showModal('Info', '⚠️ Tidak ada data untuk di-backup.');
-                return;
-            }
+            if (addresses.length === 0) { showModal('Info', '⚠️ Tidak ada data untuk di-backup.'); return; }
             const data = { version: '1.0', exported_at: new Date().toISOString(), addresses };
             const json = JSON.stringify(data, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
@@ -2676,40 +2606,21 @@ self.addEventListener('fetch', (e) => {
             link.download = `kurir-q-backup-${new Date().toISOString().split('T')[0]}.json`;
             link.click();
             URL.revokeObjectURL(url);
-            showModal('Sukses', `✓ Backup JSON berisi ${addresses.length} alamat.\n\nSimpan file ini untuk restore di device lain.`);
+            showModal('Sukses', `✓ Backup JSON berisi ${addresses.length} alamat.`);
         }
 
         async function exportCSV() {
             const addresses = await getAllAddresses();
-            if (addresses.length === 0) {
-                showModal('Info', '⚠️ Tidak ada data untuk di-export.');
-                return;
-            }
-
+            if (addresses.length === 0) { showModal('Info', '⚠️ Tidak ada data untuk di-export.'); return; }
             const headers = ['id', 'nama', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan', 'delivery_status', 'penerima_lain'];
-
             const rows = addresses.map((addr) => [
-                addr.id,
-                addr.recipient_name,
-                addr.gang,
-                addr.house_number,
-                addr.address,
-                addr.latitude,
-                addr.longitude,
-                addr.landmark,
-                addr.payment_status,
-                (addr.problem_tags || []).join('; '),
-                addr.location_type,
-                addr.visit_count || 1,
-                formatDate(addr.last_visit_at || addr.created_at),
-                addr.description,
-                addr.delivery_status,
-                (addr.recipients || [])
-                    .filter((r) => r.name !== addr.recipient_name)
-                    .map((r) => `${r.name}:${r.status}`)
-                    .join('; ')
+                addr.id, addr.recipient_name, addr.gang, addr.house_number, addr.address,
+                addr.latitude, addr.longitude, addr.landmark, addr.payment_status,
+                (addr.problem_tags || []).join('; '), addr.location_type,
+                addr.visit_count || 1, formatDate(addr.last_visit_at || addr.created_at),
+                addr.description, addr.delivery_status,
+                (addr.recipients || []).filter((r) => r.name !== addr.recipient_name).map((r) => `${r.name}:${r.status}`).join('; ')
             ]);
-
             let csv = headers.join(',') + '\n';
             rows.forEach((row) => {
                 csv += row.map((cell) => {
@@ -2719,7 +2630,6 @@ self.addEventListener('fetch', (e) => {
                     return cell || '';
                 }).join(',') + '\n';
             });
-
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -2727,8 +2637,7 @@ self.addEventListener('fetch', (e) => {
             link.download = `kurir-q-backup-${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
             URL.revokeObjectURL(url);
-
-            showModal('Sukses', `✓ Export SEMUA ${addresses.length} alamat ke CSV\n\nFile berisi seluruh data.`);
+            showModal('Sukses', `✓ Export SEMUA ${addresses.length} alamat ke CSV`);
         }
 
         async function exportShortCSV() {
@@ -2784,7 +2693,7 @@ self.addEventListener('fetch', (e) => {
         function exportCSVTemplate() {
             const template = `nama,gang,nomor,alamat,latitude,longitude,patokan,status_pembayaran,masalah,tipe_lokasi,catatan
 Pak Budi,Gang 4,27,Jl. Raya No. 10,-6.2088,106.8650,Pagar hitam; sebelah warung biru,cod-transfer,Sulit dihubungi,-,COD minta transfer
-Bu Siti,Gang 2,15,Jl. Makmur No. 5,-6.2100,106.8700,Sebelah toko roti,cod,,jelas,
+Bu Siti,Gang 2,15,Jl. Makmur No. 5,-6.2100,106.8700,Sebelum toko roti,cod,,jelas,
 Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jalan buntu,transfer,Sulit ditemukan,sulit,Alamat sulit dicari
 Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
             const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
@@ -2798,7 +2707,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
         }
 
         // ============================================
-        // BULK SELECT
+        // BULK
         // ============================================
         function toggleBulkSelect(addrId) {
             if (bulkSelectedIds.has(addrId)) bulkSelectedIds.delete(addrId);
@@ -3086,7 +2995,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
 
                         updateMapMarkers();
                         updateAddressList();
-                        showModal('Sukses', `✓ ${count} alamat berhasil direstore!\n\nStatus, riwayat, dan foto dipertahankan apa adanya.`);
+                        showModal('Sukses', `✓ ${count} alamat berhasil direstore!`);
                     }
                 );
             } else {
@@ -3113,8 +3022,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
 
                 let existing = null;
 
-                if (newAddr.latitude && newAddr.longitude &&
-                    (newAddr.latitude !== 0 || newAddr.longitude !== 0)) {
+                if (newAddr.latitude && newAddr.longitude && (newAddr.latitude !== 0 || newAddr.longitude !== 0)) {
                     existing = allExisting.find((a) => {
                         const latDiff = Math.abs(a.latitude - newAddr.latitude);
                         const lonDiff = Math.abs(a.longitude - newAddr.longitude);
@@ -3133,18 +3041,13 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
 
                 if (existing) {
                     existing.delivery_status = 'belum selesai';
-
                     if (existing.recipients && existing.recipients.length > 0) {
                         existing.recipients.forEach((r) => {
                             r.status = 'belum selesai';
                             r.updated_at = new Date().toISOString();
                         });
                     } else {
-                        existing.recipients = [{
-                            name: existing.recipient_name,
-                            status: 'belum selesai',
-                            added_at: existing.created_at || new Date().toISOString()
-                        }];
+                        existing.recipients = [{ name: existing.recipient_name, status: 'belum selesai', added_at: existing.created_at || new Date().toISOString() }];
                     }
 
                     if (newAddr.gang) existing.gang = newAddr.gang;
@@ -3154,18 +3057,13 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                     if (newAddr.payment_status && newAddr.payment_status !== 'belum') existing.payment_status = newAddr.payment_status;
                     if (newAddr.location_type && newAddr.location_type !== 'jelas') existing.location_type = newAddr.location_type;
                     if (newAddr.description) existing.description = newAddr.description;
-                    if (newAddr.latitude && newAddr.longitude &&
-                        (newAddr.latitude !== 0 || newAddr.longitude !== 0)) {
+                    if (newAddr.latitude && newAddr.longitude && (newAddr.latitude !== 0 || newAddr.longitude !== 0)) {
                         existing.latitude = newAddr.latitude;
                         existing.longitude = newAddr.longitude;
                     }
 
                     if (!existing.history) existing.history = [];
-                    existing.history.push({
-                        date: new Date().toISOString(),
-                        status: 'belum selesai',
-                        notes: `CSV import: status diubah ke belum selesai`
-                    });
+                    existing.history.push({ date: new Date().toISOString(), status: 'belum selesai', notes: `CSV import: status diubah ke belum selesai` });
 
                     await saveAddress(existing);
                     updatedCount++;
@@ -3174,28 +3072,16 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                         ...newAddr,
                         id: newAddr.id || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                         delivery_status: 'belum selesai',
-                        recipients: (newAddr.recipients || []).map((r) => ({
-                            name: r.name,
-                            status: 'belum selesai',
-                            added_at: r.added_at || new Date().toISOString()
-                        })),
+                        recipients: (newAddr.recipients || []).map((r) => ({ name: r.name, status: 'belum selesai', added_at: r.added_at || new Date().toISOString() })),
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString(),
                         visit_count: 0,
                         last_visit_at: null,
-                        history: [{
-                            date: new Date().toISOString(),
-                            status: 'belum selesai',
-                            notes: `Import dari CSV`
-                        }]
+                        history: [{ date: new Date().toISOString(), status: 'belum selesai', notes: `Import dari CSV` }]
                     };
 
                     if (createdAddr.recipients.length === 0) {
-                        createdAddr.recipients = [{
-                            name: nama,
-                            status: 'belum selesai',
-                            added_at: new Date().toISOString()
-                        }];
+                        createdAddr.recipients = [{ name: nama, status: 'belum selesai', added_at: new Date().toISOString() }];
                     }
                     createdAddr.recipient_name = nama;
 
@@ -3212,7 +3098,266 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
         }
 
         // ============================================
-        // CLEAR DATA
+        // KOMPRES FOTO LAMA
+        // ============================================
+        async function openCompressPhotosModal() {
+            if (isCompressing) {
+                showModal('Sedang Proses', '⏳ Kompresi masih berjalan.\n\nTunggu sampai selesai dulu.');
+                return;
+            }
+
+            const addresses = await getAllAddresses();
+
+            let totalPhotos = 0;
+            let totalSize = 0;
+            let photosNeedCompress = 0;
+
+            addresses.forEach((addr) => {
+                const photos = extractAddressPhotos(addr);
+                totalPhotos += photos.length;
+                totalSize += photos.reduce((s, p) => s + (p || '').length, 0);
+                photos.forEach((p) => { if (p && p.length > 8000) photosNeedCompress++; });
+                if (addr.recipients) {
+                    addr.recipients.forEach((r) => {
+                        if (r.photo) {
+                            totalPhotos++;
+                            totalSize += r.photo.length;
+                            if (r.photo.length > 5000) photosNeedCompress++;
+                        }
+                    });
+                }
+            });
+
+            if (totalPhotos === 0) {
+                showModal('Info', '📭 Tidak ada foto untuk dikompres.');
+                return;
+            }
+
+            if (photosNeedCompress === 0) {
+                showModal('Info', '✅ Semua foto sudah optimal!\n\nTidak ada foto yang perlu dikompres lagi.\n\nRata-rata ukuran foto sudah < 8KB.');
+                return;
+            }
+
+            const sizeKB = (totalSize / 1024).toFixed(1);
+            const sizeMB = (totalSize / 1024 / 1024).toFixed(2);
+
+            const html = `
+                <h2>🗜️ Kompres Foto Lama</h2>
+                <div class="info-box" style="margin: 16px 0; line-height: 1.7;">
+                    📊 <strong>Data saat ini:</strong><br>
+                    • Total alamat: <strong>${addresses.length}</strong><br>
+                    • Total foto: <strong>${totalPhotos}</strong><br>
+                    • Perlu dikompres: <strong>${photosNeedCompress}</strong> foto<br>
+                    • Ukuran: <strong>${sizeKB < 1024 ? sizeKB + ' KB' : sizeMB + ' MB'}</strong>
+                </div>
+                <div style="background: #dbeafe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 12px; line-height: 1.6; margin-bottom: 16px;">
+                    💡 Semua foto akan dikompres ulang jadi <strong>thumbnail kecil (~5-8KB)</strong>.<br>
+                    Foto yang sudah kecil akan dilewati otomatis.<br>
+                    <strong>Jangan tutup app</strong> selama proses berjalan.
+                </div>
+            `;
+
+            const modal = document.getElementById('modal-content');
+            modal.innerHTML = html;
+
+            const buttons = document.createElement('div');
+            buttons.className = 'modal-buttons';
+            buttons.innerHTML = `
+                <button class="btn-secondary" onclick="document.getElementById('modal').classList.remove('active')">Batal</button>
+                <button class="btn-primary" id="start-compress-btn" onclick="compressAllPhotos()">🗜️ Mulai Kompres</button>
+            `;
+            modal.appendChild(buttons);
+
+            document.getElementById('modal').classList.add('active');
+        }
+
+        async function compressAllPhotos() {
+            if (isCompressing) return;
+            isCompressing = true;
+
+            const startBtn = document.getElementById('start-compress-btn');
+            if (startBtn) {
+                startBtn.disabled = true;
+                startBtn.style.opacity = '0.5';
+                startBtn.textContent = '⏳ Sedang Jalan...';
+            }
+
+            const modalContent = document.getElementById('modal-content');
+            modalContent.innerHTML = `
+                <h2 style="margin-bottom: 12px;">🗜️ Mengompres...</h2>
+                <div id="compress-progress" style="font-size: 14px; color: var(--text-light); margin-bottom: 12px;">Menyiapkan...</div>
+                <div style="background: var(--bg-alt); height: 12px; border-radius: 6px; overflow: hidden; margin-bottom: 12px;">
+                    <div id="compress-bar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s;"></div>
+                </div>
+                <div id="compress-stats" style="font-size: 12px; color: var(--text-light); line-height: 1.6;">Mohon tunggu, jangan tutup aplikasi...</div>
+            `;
+
+            const allAddresses = await getAllAddresses();
+            const totalRecords = allAddresses.length;
+            let processedRecords = 0;
+            let compressedCount = 0;
+            let skippedCount = 0;
+            let totalBefore = 0;
+            let totalAfter = 0;
+
+            const compressOne = (dataUrl, maxW = 150, q = 0.35) => {
+                return new Promise((resolve) => {
+                    if (!dataUrl || typeof dataUrl !== 'string') { resolve(dataUrl); return; }
+                    if (dataUrl.length < 8000 && maxW >= 150) { resolve(dataUrl); return; }
+                    if (dataUrl.length < 5000 && maxW < 150) { resolve(dataUrl); return; }
+
+                    const img = new Image();
+                    img.onload = () => {
+                        try {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            let { width, height } = img;
+                            if (width > maxW) {
+                                height = Math.round((height * maxW) / width);
+                                width = maxW;
+                            }
+                            canvas.width = width;
+                            canvas.height = height;
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(0, 0, width, height);
+                            ctx.drawImage(img, 0, 0, width, height);
+
+                            try {
+                                const webp = canvas.toDataURL('image/webp', q);
+                                if (webp && webp.startsWith('data:image/webp') && webp.length < 50000) {
+                                    resolve(webp);
+                                    return;
+                                }
+                            } catch (e) {}
+                            resolve(canvas.toDataURL('image/jpeg', q));
+                        } catch (err) {
+                            resolve(dataUrl);
+                        }
+                    };
+                    img.onerror = () => resolve(dataUrl);
+                    img.src = dataUrl;
+                });
+            };
+
+            const updateProgress = () => {
+                const pct = totalRecords > 0 ? Math.round((processedRecords / totalRecords) * 100) : 0;
+                const bar = document.getElementById('compress-bar');
+                const prog = document.getElementById('compress-progress');
+                const stats = document.getElementById('compress-stats');
+                if (bar) bar.style.width = pct + '%';
+                if (prog) prog.textContent = `Memproses ${processedRecords} dari ${totalRecords} alamat (${pct}%)`;
+                if (stats) {
+                    const kbBefore = (totalBefore / 1024).toFixed(1);
+                    const kbAfter = (totalAfter / 1024).toFixed(1);
+                    stats.innerHTML = `
+                        ✅ Dikompres: <strong>${compressedCount}</strong><br>
+                        ⏭️ Dilewati (sudah kecil): <strong>${skippedCount}</strong><br>
+                        📦 Sebelum: ${kbBefore} KB<br>
+                        📦 Sesudah: ${kbAfter} KB
+                    `;
+                }
+            };
+
+            setTimeout(updateProgress, 100);
+
+            try {
+                for (const addr of allAddresses) {
+                    let changed = false;
+
+                    const sizeBefore = (addr.photo || '').length + (addr.photos || []).reduce((s, p) => s + (p || '').length, 0) + (addr.recipients || []).reduce((s, r) => s + (r.photo || '').length, 0);
+                    totalBefore += sizeBefore;
+
+                    if (addr.photos && Array.isArray(addr.photos) && addr.photos.length > 0) {
+                        const newPhotos = [];
+                        for (const p of addr.photos) {
+                            if (!p) continue;
+                            if (p.length < 8000) {
+                                newPhotos.push(p);
+                                skippedCount++;
+                                continue;
+                            }
+                            const np = await compressOne(p, 150, 0.35);
+                            if (np !== p) { changed = true; compressedCount++; }
+                            else { skippedCount++; }
+                            newPhotos.push(np);
+                        }
+                        addr.photos = newPhotos;
+                        if (newPhotos[0]) addr.photo = newPhotos[0];
+                    } else if (addr.photo) {
+                        if (addr.photo.length >= 8000) {
+                            const np = await compressOne(addr.photo, 150, 0.35);
+                            if (np !== addr.photo) { addr.photo = np; changed = true; compressedCount++; }
+                            else { skippedCount++; }
+                        } else {
+                            skippedCount++;
+                        }
+                    }
+
+                    if (addr.recipients && Array.isArray(addr.recipients)) {
+                        for (const r of addr.recipients) {
+                            if (!r.photo) continue;
+                            if (r.photo.length < 5000) {
+                                skippedCount++;
+                                continue;
+                            }
+                            const np = await compressOne(r.photo, 100, 0.30);
+                            if (np !== r.photo) { r.photo = np; changed = true; compressedCount++; }
+                            else { skippedCount++; }
+                        }
+                    }
+
+                    const sizeAfter = (addr.photo || '').length + (addr.photos || []).reduce((s, p) => s + (p || '').length, 0) + (addr.recipients || []).reduce((s, r) => s + (r.photo || '').length, 0);
+                    totalAfter += sizeAfter;
+
+                    if (changed) await saveAddress(addr);
+
+                    processedRecords++;
+                    updateProgress();
+
+                    if (processedRecords % 3 === 0) {
+                        await new Promise((r) => setTimeout(r, 15));
+                    }
+                }
+
+                const kbBefore = (totalBefore / 1024).toFixed(1);
+                const kbAfter = (totalAfter / 1024).toFixed(1);
+                const kbSaved = ((totalBefore - totalAfter) / 1024).toFixed(1);
+                const pctSaved = totalBefore > 0 ? ((1 - totalAfter / totalBefore) * 100).toFixed(1) : 0;
+
+                modalContent.innerHTML = `
+                    <h2 style="margin-bottom: 16px;">✅ Selesai!</h2>
+                    <div style="background: var(--bg-alt); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.8; margin-bottom: 16px;">
+                        ✅ Foto dikompres: <strong>${compressedCount}</strong><br>
+                        ⏭️ Dilewati: <strong>${skippedCount}</strong> (sudah kecil)<br><br>
+                        📦 Sebelum: <strong>${kbBefore} KB</strong><br>
+                        📦 Sesudah: <strong>${kbAfter} KB</strong><br>
+                        💾 Hemat: <strong style="color: var(--secondary);">${kbSaved} KB (${pctSaved}%)</strong>
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="btn-primary" onclick="location.reload();" style="flex: 1;">Selesai & Refresh</button>
+                    </div>
+                `;
+
+                try {
+                    updateMapMarkers();
+                    updateAddressList();
+                } catch (e) {}
+            } catch (err) {
+                console.error('Compress error:', err);
+                modalContent.innerHTML = `
+                    <h2>❌ Error</h2>
+                    <p>${err.message}</p>
+                    <div class="modal-buttons">
+                        <button class="btn-primary" onclick="document.getElementById('modal').classList.remove('active')" style="flex: 1;">Tutup</button>
+                    </div>
+                `;
+            } finally {
+                isCompressing = false;
+            }
+        }
+
+        // ============================================
+        // CLEAR
         // ============================================
         async function clearDemoData() {
             const addresses = await getAllAddresses();
@@ -3234,7 +3379,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
         }
 
         // ============================================
-        // UI & NAVIGATION
+        // UI & NAV
         // ============================================
         function showPage(pageId) {
             document.querySelectorAll('.page').forEach((page) => page.classList.remove('active'));
@@ -3614,6 +3759,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
         document.getElementById('bulk-delete-btn').addEventListener('click', bulkDeleteSelected);
         document.getElementById('import-json-btn').addEventListener('click', importJSON);
         document.getElementById('import-csv-btn').addEventListener('click', importCSV);
+        document.getElementById('compress-photos-btn').addEventListener('click', openCompressPhotosModal);
         document.getElementById('clear-demo-btn').addEventListener('click', clearDemoData);
         document.getElementById('clear-all-btn').addEventListener('click', clearAllData);
 
@@ -3654,7 +3800,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
         }
 
         // ============================================
-        // INITIALIZATION
+        // INIT
         // ============================================
         async function init() {
             try {
@@ -3667,36 +3813,15 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                 const addresses = await getAllAddresses();
                 if (addresses.length === 0) {
                     const demo = [
-                        {
-                            recipient_name: 'Pak Budi', gang: 'Gang 4', house_number: '27',
-                            landmark: 'Pagar hitam', latitude: -6.2088, longitude: 106.8650,
-                            payment_status: 'cod', location_type: 'jelas', problem_tags: [],
-                            visit_count: 1, delivery_status: 'berhasil',
-                            recipients: [{ name: 'Pak Budi', status: 'berhasil', added_at: new Date().toISOString() }],
-                            history: [{ date: new Date().toISOString(), status: 'berhasil' }]
-                        },
-                        {
-                            recipient_name: 'Bu Siti', gang: 'Gang 2', house_number: '15',
-                            landmark: 'Sebelah toko roti', latitude: -6.2100, longitude: 106.8700,
-                            payment_status: 'cod-transfer', location_type: 'jelas', problem_tags: [],
-                            visit_count: 1, delivery_status: 'berhasil',
-                            recipients: [{ name: 'Bu Siti', status: 'berhasil', added_at: new Date().toISOString() }],
-                            history: [{ date: new Date().toISOString(), status: 'berhasil' }]
-                        },
-                        {
-                            recipient_name: 'Pak Ahmad', gang: 'Gang 5', house_number: '8',
-                            landmark: 'Rumah hijau', latitude: -6.2050, longitude: 106.8600,
-                            payment_status: 'transfer', location_type: 'sulit', problem_tags: ['Sulit ditemukan'],
-                            visit_count: 1, delivery_status: 'berhasil',
-                            recipients: [{ name: 'Pak Ahmad', status: 'berhasil', added_at: new Date().toISOString() }],
-                            history: [{ date: new Date().toISOString(), status: 'berhasil' }]
-                        }
+                        { recipient_name: 'Pak Budi', gang: 'Gang 4', house_number: '27', landmark: 'Pagar hitam', latitude: -6.2088, longitude: 106.8650, payment_status: 'cod', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Pak Budi', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
+                        { recipient_name: 'Bu Siti', gang: 'Gang 2', house_number: '15', landmark: 'Sebelah toko roti', latitude: -6.2100, longitude: 106.8700, payment_status: 'cod-transfer', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Bu Siti', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
+                        { recipient_name: 'Pak Ahmad', gang: 'Gang 5', house_number: '8', landmark: 'Rumah hijau', latitude: -6.2050, longitude: 106.8600, payment_status: 'transfer', location_type: 'sulit', problem_tags: ['Sulit ditemukan'], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Pak Ahmad', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] }
                     ];
                     for (const addr of demo) await saveAddress(addr);
                 }
 
                 updateMapMarkers();
-                showModal('Selamat Datang', '👋 Kurir-Q siap digunakan!\n\nCara pakai:\n1. Tap tombol ✓ besar untuk catat alamat\n2. Sesuaikan pin di peta atau ketik manual\n3. Bicara atau isi manual\n4. Tambah max 2 foto (thumbnail hemat)\n5. Simpan\n\n💡 Tips:\n• Edit lokasi: ketik lat/lng atau tap 🎯 Lokasi Sekarang\n• Tombol 🎯 di peta bisa digeser\n• Foto otomatis dikompres (~5-8KB)\n• Backup dengan export JSON');
+                showModal('Selamat Datang', '👋 Kurir-Q siap digunakan!\n\nCara pakai:\n1. Tap tombol ✓ besar untuk catat alamat\n2. Sesuaikan pin di peta atau ketik manual\n3. Bicara atau isi manual\n4. Tambah max 2 foto (thumbnail hemat)\n5. Simpan\n\n💡 Tips:\n• Edit lokasi: ketik lat/lng atau tap 🎯 Lokasi Sekarang\n• Tombol 🎯 di peta bisa digeser\n• Kompres foto lama via 💾 Backup\n• Backup dengan export JSON');
             } catch (err) {
                 console.error('Init error:', err);
                 showModal('Error', 'Gagal inisialisasi: ' + err.message);
