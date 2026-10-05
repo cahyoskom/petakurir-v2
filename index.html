@@ -149,23 +149,24 @@
         }
         .photo-slot-delete {
             position: absolute;
-            top: 4px;
-            right: 4px;
+            top: 6px;
+            right: 6px;
             background: rgba(239,68,68,0.9);
             color: white;
-            border: none;
+            border: 2px solid white;
             border-radius: 50%;
-            width: 22px;
-            height: 22px;
+            width: 26px;
+            height: 26px;
             cursor: pointer;
             display: none;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
             line-height: 1;
             z-index: 2;
+            touch-action: manipulation;
         }
         .photo-slot-delete:active { background: rgba(220,38,38,1); transform: scale(0.9); }
 
@@ -312,6 +313,7 @@
                         ✓ Voice input<br>
                         ✓ Peta interaktif<br>
                         ✓ 2 foto alamat (thumbnail kecil)<br>
+                        ✓ Foto penerima bisa dihapus<br>
                         ✓ Anti duplikat<br>
                         ✓ History kunjungan<br>
                         ✓ Split & Merge penerima<br>
@@ -834,7 +836,7 @@ self.addEventListener('fetch', (e) => {
         }
 
         // ============================================
-        // KOMPRES FOTO — WebP 150px Q0.35
+        // KOMPRES FOTO
         // ============================================
         function compressImage(file, maxWidth = 150, quality = 0.35) {
             return new Promise((resolve) => {
@@ -1598,6 +1600,9 @@ self.addEventListener('fetch', (e) => {
             if (modal) modal.classList.remove('active');
         }
 
+        // ============================================
+        // EDIT PENERIMA
+        // ============================================
         async function showEditRecipientModal(addrId, recipientName, currentStatus) {
             const displayName = recipientName.replace(/\\'/g, "'");
             const addr = await getAddressById(addrId);
@@ -1620,7 +1625,10 @@ self.addEventListener('fetch', (e) => {
                             <button type="button" class="btn-secondary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('edit-recipient-photo-gallery').click();">📁 Pilih File</button>
                         </div>
                         <div id="photo-preview-container" style="margin-top: 8px; text-align: center;">
-                            ${currentPhoto ? `<img id="photo-preview" src="${currentPhoto}" style="max-width: 100px; max-height: 100px; border-radius: 6px; border: 1px solid var(--border);">` : `<img id="photo-preview" style="max-width: 100px; max-height: 100px; border-radius: 6px; border: 1px solid var(--border); display: none;">`}
+                            <div style="position: relative; display: inline-block;">
+                                <img id="photo-preview" src="${currentPhoto || ''}" style="max-width: 100px; max-height: 100px; border-radius: 6px; border: 1px solid var(--border); display: ${currentPhoto ? 'block' : 'none'};">
+                                <button type="button" id="delete-recipient-photo-btn" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border: 2px solid white; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; display: ${currentPhoto ? 'flex' : 'none'}; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.3); line-height: 1; padding: 0;">×</button>
+                            </div>
                         </div>
                     </div>
                     <div class="form-group">
@@ -1638,7 +1646,7 @@ self.addEventListener('fetch', (e) => {
                     </div>
                 </div>
             `;
-            window.editRecipientData = { addrId, oldName: displayName, selectedStatus: currentStatus, photoData: null };
+            window.editRecipientData = { addrId, oldName: displayName, selectedStatus: currentStatus, photoData: null, removePhoto: false };
             document.getElementById('modal-content').innerHTML = html;
             document.getElementById('modal').classList.add('active');
 
@@ -1648,8 +1656,11 @@ self.addEventListener('fetch', (e) => {
                     if (file) {
                         compressImage(file, 100, 0.3).then((compressed) => {
                             window.editRecipientData.photoData = compressed;
+                            window.editRecipientData.removePhoto = false;
                             const preview = document.getElementById('photo-preview');
+                            const delBtn = document.getElementById('delete-recipient-photo-btn');
                             if (preview) { preview.src = compressed; preview.style.display = 'block'; }
+                            if (delBtn) delBtn.style.display = 'flex';
                         }).catch(err => console.log('Photo error:', err));
                     }
                 };
@@ -1657,6 +1668,19 @@ self.addEventListener('fetch', (e) => {
                 const g = document.getElementById('edit-recipient-photo-gallery');
                 if (c) c.addEventListener('change', handlePhotoChange);
                 if (g) g.addEventListener('change', handlePhotoChange);
+
+                const delPhotoBtn = document.getElementById('delete-recipient-photo-btn');
+                if (delPhotoBtn) {
+                    delPhotoBtn.onclick = function() {
+                        if (confirm('⚠️ Hapus foto penerima ini?\n\nFoto akan dihapus saat Anda klik Simpan.')) {
+                            window.editRecipientData.photoData = null;
+                            window.editRecipientData.removePhoto = true;
+                            const prev = document.getElementById('photo-preview');
+                            if (prev) { prev.src = ''; prev.style.display = 'none'; }
+                            delPhotoBtn.style.display = 'none';
+                        }
+                    };
+                }
             }, 50);
         }
 
@@ -1687,10 +1711,15 @@ self.addEventListener('fetch', (e) => {
                 if (recipient) {
                     recipient.name = newName;
                     recipient.status = newStatus;
-                    if (window.editRecipientData.photoData) {
+
+                    if (window.editRecipientData.removePhoto) {
+                        delete recipient.photo;
+                        delete recipient.photo_ref;
+                    } else if (window.editRecipientData.photoData) {
                         recipient.photo = window.editRecipientData.photoData;
                         recipient.photo_ref = generatePhotoFileName(newName);
                     }
+
                     recipient.updated_at = new Date().toISOString();
                     const statuses = addr.recipients.map((r) => r.status);
                     if (statuses.includes('tidak order')) addr.delivery_status = 'tidak order';
@@ -1699,7 +1728,10 @@ self.addEventListener('fetch', (e) => {
                     else addr.delivery_status = 'berhasil';
 
                     if (!addr.history) addr.history = [];
-                    addr.history.push({ date: new Date().toISOString(), status: newStatus, notes: `Edit penerima: ${displayOldName} → ${newName} (${newStatus})` });
+                    let noteText = `Edit penerima: ${displayOldName} → ${newName} (${newStatus})`;
+                    if (window.editRecipientData.removePhoto) noteText += ' · foto dihapus';
+                    addr.history.push({ date: new Date().toISOString(), status: newStatus, notes: noteText });
+
                     await saveAddress(addr);
                     closeModal();
                     setTimeout(() => { showAddressDetail(addrId); updateMapMarkers(); updateAddressList(); }, 100);
@@ -1713,6 +1745,9 @@ self.addEventListener('fetch', (e) => {
             return `${sanitized}-${Date.now()}.jpg`;
         }
 
+        // ============================================
+        // ADD RECIPIENT
+        // ============================================
         function showAddRecipientModal(addrId) {
             const html = `
                 <div style="padding: 16px;">
@@ -1730,7 +1765,10 @@ self.addEventListener('fetch', (e) => {
                             <button type="button" class="btn-secondary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="document.getElementById('new-recipient-photo-gallery').click();">📁 Pilih File</button>
                         </div>
                         <div id="photo-preview-container" style="margin-top: 8px; text-align: center;">
-                            <img id="photo-preview" style="max-width: 100px; max-height: 100px; border-radius: 6px; border: 1px solid var(--border); display: none;">
+                            <div style="position: relative; display: inline-block;">
+                                <img id="photo-preview" style="max-width: 100px; max-height: 100px; border-radius: 6px; border: 1px solid var(--border); display: none;">
+                                <button type="button" id="delete-new-photo-btn" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border: 2px solid white; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.3); line-height: 1; padding: 0;">×</button>
+                            </div>
                         </div>
                     </div>
                     <div class="form-group">
@@ -1759,7 +1797,9 @@ self.addEventListener('fetch', (e) => {
                         compressImage(file, 100, 0.3).then((compressed) => {
                             window.newRecipientData.photoData = compressed;
                             const preview = document.getElementById('photo-preview');
+                            const delBtn = document.getElementById('delete-new-photo-btn');
                             if (preview) { preview.src = compressed; preview.style.display = 'block'; }
+                            if (delBtn) delBtn.style.display = 'flex';
                         }).catch(err => console.log('Photo error:', err));
                     }
                 };
@@ -1767,6 +1807,19 @@ self.addEventListener('fetch', (e) => {
                 const g = document.getElementById('new-recipient-photo-gallery');
                 if (c) c.addEventListener('change', handlePhotoChange);
                 if (g) g.addEventListener('change', handlePhotoChange);
+
+                const delBtn = document.getElementById('delete-new-photo-btn');
+                if (delBtn) {
+                    delBtn.onclick = function() {
+                        if (confirm('Hapus foto ini?')) {
+                            window.newRecipientData.photoData = null;
+                            const prev = document.getElementById('photo-preview');
+                            if (prev) { prev.src = ''; prev.style.display = 'none'; }
+                            delBtn.style.display = 'none';
+                        }
+                    };
+                }
+
                 const nameInput = document.getElementById('new-recipient-name');
                 if (nameInput) nameInput.focus();
             }, 50);
@@ -1818,6 +1871,9 @@ self.addEventListener('fetch', (e) => {
             showModal('Sukses', `✓ Penerima ${newName} ditambahkan!`);
         }
 
+        // ============================================
+        // DELETE RECIPIENT
+        // ============================================
         function confirmDeleteRecipient(addrId, recipientName) {
             const displayName = recipientName.replace(/\\'/g, "'");
             showConfirmModal(
@@ -2380,10 +2436,12 @@ self.addEventListener('fetch', (e) => {
             document.getElementById('form-location-type').value = address.location_type || 'jelas';
             document.getElementById('form-description').value = address.description || '';
 
+            // ✅ Load foto dengan delay lebih aman (fix bug foto kedua tidak muncul)
             setTimeout(() => {
                 const photos = extractAddressPhotos(address);
+                console.log('📸 Foto ditemukan:', photos.length, 'foto');
                 loadAddressPhotos(photos);
-            }, 250);
+            }, 450);
 
             document.querySelectorAll('#problems-group .checkbox-item').forEach((item) => {
                 const label = item.textContent.trim();
@@ -2693,7 +2751,7 @@ self.addEventListener('fetch', (e) => {
         function exportCSVTemplate() {
             const template = `nama,gang,nomor,alamat,latitude,longitude,patokan,status_pembayaran,masalah,tipe_lokasi,catatan
 Pak Budi,Gang 4,27,Jl. Raya No. 10,-6.2088,106.8650,Pagar hitam; sebelah warung biru,cod-transfer,Sulit dihubungi,-,COD minta transfer
-Bu Siti,Gang 2,15,Jl. Makmur No. 5,-6.2100,106.8700,Sebelum toko roti,cod,,jelas,
+Bu Siti,Gang 2,15,Jl. Makmur No. 5,-6.2100,106.8700,Sebelah toko roti,cod,,jelas,
 Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau; jalan buntu,transfer,Sulit ditemukan,sulit,Alamat sulit dicari
 Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
             const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
@@ -3267,10 +3325,11 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                     const sizeBefore = (addr.photo || '').length + (addr.photos || []).reduce((s, p) => s + (p || '').length, 0) + (addr.recipients || []).reduce((s, r) => s + (r.photo || '').length, 0);
                     totalBefore += sizeBefore;
 
+                    // ✅ FIX: Jangan skip foto ke-2 kalau ada yang kosong
                     if (addr.photos && Array.isArray(addr.photos) && addr.photos.length > 0) {
                         const newPhotos = [];
                         for (const p of addr.photos) {
-                            if (!p) continue;
+                            if (typeof p !== 'string' || p.length === 0) continue;
                             if (p.length < 8000) {
                                 newPhotos.push(p);
                                 skippedCount++;
@@ -3791,7 +3850,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                     deleteBtn.onclick = (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        if (confirm('Hapus foto ini?')) {
+                        if (confirm('⚠️ Hapus foto ini?\n\nFoto akan dihapus dari preview.\nKlik "Batal" jika tidak yakin.\n\n(Jika sudah terlanjur, tekan tombol "Batal" di bawah form untuk membatalkan seluruh perubahan)')) {
                             removeAddressPhoto(slot);
                         }
                     };
@@ -3821,7 +3880,7 @@ Ibu Rina,,,Kompleks Perumahan,,,Blok A,,,`;
                 }
 
                 updateMapMarkers();
-                showModal('Selamat Datang', '👋 Kurir-Q siap digunakan!\n\nCara pakai:\n1. Tap tombol ✓ besar untuk catat alamat\n2. Sesuaikan pin di peta atau ketik manual\n3. Bicara atau isi manual\n4. Tambah max 2 foto (thumbnail hemat)\n5. Simpan\n\n💡 Tips:\n• Edit lokasi: ketik lat/lng atau tap 🎯 Lokasi Sekarang\n• Tombol 🎯 di peta bisa digeser\n• Kompres foto lama via 💾 Backup\n• Backup dengan export JSON');
+                showModal('Selamat Datang', '👋 Kurir-Q siap digunakan!\n\nCara pakai:\n1. Tap tombol ✓ besar untuk catat alamat\n2. Sesuaikan pin di peta atau ketik manual\n3. Bicara atau isi manual\n4. Tambah max 2 foto (thumbnail hemat)\n5. Simpan\n\n💡 Tips:\n• Edit penerima: bisa hapus foto dengan tombol ×\n• Tombol 🎯 di peta bisa digeser\n• Kompres foto lama via 💾 Backup\n• Backup dengan export JSON');
             } catch (err) {
                 console.error('Init error:', err);
                 showModal('Error', 'Gagal inisialisasi: ' + err.message);
