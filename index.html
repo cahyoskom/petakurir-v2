@@ -107,12 +107,8 @@ input[type=number]{-moz-appearance:textfield}
 <div class="container">
 <header><h1>📦 Kurir-Q</h1><button class="menu-btn" id="menu-btn">☰</button></header>
 <main>
-<!-- MAP PAGE -->
 <div class="page active" id="map-page">
-<div class="search-bar">
-<input type="text" id="search-input" placeholder="Cari nama / gang / nomor / patokan">
-<button id="search-btn">Cari</button>
-</div>
+<div class="search-bar"><input type="text" id="search-input" placeholder="Cari nama / gang / nomor / patokan"><button id="search-btn">Cari</button></div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-map-filter="belum">🔔 Belum Selesai</button>
 <button class="filter-btn" data-map-filter="semua">Semua</button>
@@ -128,13 +124,8 @@ input[type=number]{-moz-appearance:textfield}
 <div class="fab-container"><button class="fab" id="record-btn" title="Catat Selesai">✓</button></div>
 </div>
 
-<!-- LIST PAGE -->
 <div class="page" id="list-page">
-<div class="search-bar">
-<input type="text" id="list-search-input" placeholder="Cari alamat...">
-<button id="list-search-btn">Cari</button>
-<button id="voice-search-btn" title="Voice search" style="padding:8px 12px;background:var(--secondary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">🎤</button>
-</div>
+<div class="search-bar"><input type="text" id="list-search-input" placeholder="Cari alamat..."><button id="list-search-btn">Cari</button><button id="voice-search-btn" title="Voice search" style="padding:8px 12px;background:var(--secondary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">🎤</button></div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-filter="semua">Semua</button>
 <button class="filter-btn" data-filter="tidak-order">Tidak Order</button>
@@ -148,12 +139,7 @@ input[type=number]{-moz-appearance:textfield}
 <div style="padding:8px 12px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
 <span style="font-size:12px;color:var(--text-light);font-weight:600;white-space:nowrap">🔤 Urutkan:</span>
 <select id="sort-select" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;cursor:pointer">
-<option value="default">Default (Terbaru dulu)</option>
-<option value="nama-asc">Nama A → Z</option>
-<option value="nama-desc">Nama Z → A</option>
-<option value="tanggal-baru">Tanggal Dibuat (Terbaru)</option>
-<option value="tanggal-lama">Tanggal Dibuat (Terlama)</option>
-<option value="kunjungan">Paling Sering Dikunjungi</option>
+<option value="default">Default (Terbaru dulu)</option><option value="nama-asc">Nama A → Z</option><option value="nama-desc">Nama Z → A</option><option value="tanggal-baru">Tanggal Dibuat (Terbaru)</option><option value="tanggal-lama">Tanggal Dibuat (Terlama)</option><option value="kunjungan">Paling Sering Dikunjungi</option>
 </select>
 </div>
 <div id="bulk-section" style="display:none;background:var(--bg-alt);padding:12px;border-radius:6px;margin-bottom:12px">
@@ -174,7 +160,6 @@ input[type=number]{-moz-appearance:textfield}
 <div class="address-list" id="address-list"></div>
 </div>
 
-<!-- BACKUP PAGE -->
 <div class="page" id="backup-page">
 <div class="sheet-content">
 <div class="info-box">💾 Data Anda disimpan di perangkat ini. Lakukan backup secara berkala agar tidak hilang.</div>
@@ -203,13 +188,10 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 </div>
 
-<!-- SETTINGS PAGE -->
 <div class="page" id="settings-page">
 <div class="sheet-content">
 <h3 style="margin-bottom:12px;font-size:14px">🗺️ Cache Peta</h3>
-<div id="cache-info-box" style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.7;margin-bottom:12px">
-<div id="cache-info-content">Memuat info cache...</div>
-</div>
+<div id="cache-info-box" style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.7;margin-bottom:12px"><div id="cache-info-content">Memuat info cache...</div></div>
 <div style="display:flex;gap:8px;margin-bottom:24px">
 <button class="btn-secondary" id="refresh-cache-btn" style="flex:1;padding:10px;font-size:13px">🔄 Refresh Info</button>
 <button class="btn-danger" id="clear-cache-btn" style="flex:1;padding:10px;font-size:13px">🗑️ Hapus Cache</button>
@@ -221,7 +203,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="info-box"><strong>Kurir-Q v1.0</strong><br>Buku alamat pribadi kurir berbasis GPS + peta.<br><br><strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.</div>
 <h3 style="margin-bottom:12px;margin-top:20px">Fitur</h3>
 <div style="font-size:13px;color:var(--text-light);line-height:1.8">
-✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ Peta interaktif<br>✓ 2 foto alamat<br>✓ Foto penerima bisa dihapus<br>✓ Anti duplikat<br>✓ History kunjungan<br>✓ Split & Merge penerima<br>✓ Search & filter<br>✓ Sort abjad & tanggal<br>✓ Share ke map lain<br>✓ Peta offline per-area<br>✓ Backup/restore<br>✓ Kompres foto lama<br>✓ PWA Android
+✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ Peta interaktif<br>✓ 2 foto alamat<br>✓ Foto penerima bisa dihapus<br>✓ Auto-save state (anti reload)<br>✓ Anti duplikat<br>✓ History kunjungan<br>✓ Split & Merge penerima<br>✓ Search & filter<br>✓ Sort abjad & tanggal<br>✓ Share ke map lain<br>✓ Peta offline per-area<br>✓ Backup/restore<br>✓ Kompres foto lama<br>✓ PWA Android
 </div>
 </div>
 </div>
@@ -242,10 +224,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="bottom-sheet" id="record-sheet">
 <div class="sheet-header"><h3>Catat Alamat Selesai</h3><button class="close-btn" id="close-record-sheet">×</button></div>
 <div class="sheet-content">
-<div class="form-group">
-<label>📍 Titik Lokasi</label>
-<div id="gps-status" style="font-size:14px;color:var(--text-light)">Mengambil lokasi...</div>
-</div>
+<div class="form-group"><label>📍 Titik Lokasi</label><div id="gps-status" style="font-size:14px;color:var(--text-light)">Mengambil lokasi...</div></div>
 <div style="display:flex;gap:8px;margin-bottom:16px">
 <button class="btn-primary" id="voice-mode-btn" style="flex:1;background:var(--primary)">🎤 Voice</button>
 <button class="btn-secondary" id="manual-mode-btn" style="flex:1">✏️ Manual</button>
@@ -254,30 +233,15 @@ input[type=number]{-moz-appearance:textfield}
 <button class="btn-primary" id="voice-start-btn" style="width:100%;margin-bottom:12px">🎤 Mulai Bicara</button>
 <div id="voice-status" style="font-size:13px;color:var(--text-light);text-align:center;margin-bottom:12px;min-height:40px;display:flex;align-items:center;justify-content:center"></div>
 </div>
-<div id="voice-result" style="display:none">
-<div class="form-group"><label>Catatan Voice (Mentah)</label><textarea id="voice-transcript" readonly></textarea></div>
-</div>
+<div id="voice-result" style="display:none"><div class="form-group"><label>Catatan Voice (Mentah)</label><textarea id="voice-transcript" readonly></textarea></div></div>
 <div id="manual-form" style="display:none">
 <div class="form-group"><label>Nama Penerima</label><input type="text" id="form-name" placeholder="Contoh: Pak Budi"></div>
 <div class="form-group"><label>Gang</label><input type="text" id="form-gang" placeholder="Contoh: Gang 4"></div>
 <div class="form-group"><label>Nomor Rumah</label><input type="text" id="form-house-number" placeholder="Contoh: 27"></div>
 <div class="form-group"><label>Alamat Lengkap</label><input type="text" id="form-address" placeholder="Contoh: Jl. Raya No. 10"></div>
 <div class="form-group"><label>Patokan/Landmark</label><input type="text" id="form-landmark" placeholder="Contoh: Pagar hitam"></div>
-<div class="form-group"><label>Status Pembayaran</label>
-<select id="form-payment">
-<option value="belum">Belum diketahui</option>
-<option value="cod">COD normal</option>
-<option value="cod-transfer">COD minta transfer</option>
-<option value="transfer">Transfer</option>
-<option value="other">Minta metode lain</option>
-</select></div>
-<div class="form-group"><label>Tipe Lokasi</label>
-<select id="form-location-type">
-<option value="jelas">Alamat jelas</option>
-<option value="nitip">Alamat nitip</option>
-<option value="sulit">Sulit ditemukan</option>
-<option value="patokan">Butuh patokan</option>
-</select></div>
+<div class="form-group"><label>Status Pembayaran</label><select id="form-payment"><option value="belum">Belum diketahui</option><option value="cod">COD normal</option><option value="cod-transfer">COD minta transfer</option><option value="transfer">Transfer</option><option value="other">Minta metode lain</option></select></div>
+<div class="form-group"><label>Tipe Lokasi</label><select id="form-location-type"><option value="jelas">Alamat jelas</option><option value="nitip">Alamat nitip</option><option value="sulit">Sulit ditemukan</option><option value="patokan">Butuh patokan</option></select></div>
 <div class="form-group"><label>Masalah Pengantaran</label><div class="checkbox-group" id="problems-group"></div></div>
 <div class="form-group"><label>Catatan Tambahan</label><textarea id="form-description" placeholder="Catatan lainnya..."></textarea></div>
 <div class="form-group">
@@ -313,10 +277,7 @@ input[type=number]{-moz-appearance:textfield}
 <small style="color:var(--text-light);font-size:10px;margin-top:6px">📌 Kompresi otomatis (~5-8KB). Thumbnail hemat penyimpanan.</small>
 </div>
 </div>
-<div class="action-buttons" style="margin-top:20px">
-<button class="btn-secondary" id="cancel-record-btn">Batal</button>
-<button class="btn-primary" id="save-record-btn">Simpan</button>
-</div>
+<div class="action-buttons" style="margin-top:20px"><button class="btn-secondary" id="cancel-record-btn">Batal</button><button class="btn-primary" id="save-record-btn">Simpan</button></div>
 </div>
 </div>
 
@@ -352,10 +313,57 @@ let bulkSelectedIds = new Set();
 let isCompressing = false;
 let addressMarkersLayer = null;
 let currentLocationLayer = null;
+let _photoHandlersAttached = false;
 window.addressPhotos = [null, null];
 window._mapInitiallyCentered = false;
 const ORS_CONFIG = { apiKey: 'YOUR_ORS_API_KEY_HERE', apiUrl: 'https://api.openrouteservice.org/v2/directions/driving-car' };
 let distanceCache = {};
+
+// ============ AUTO-SAVE STATE ============
+function saveAppState() {
+    try {
+        const state = {
+            currentFilter, currentMapFilter, currentSort,
+            mapCenter: map ? { lat: map.getCenter().lat, lng: map.getCenter().lng } : null,
+            mapZoom: map ? map.getZoom() : null,
+            activePage: document.querySelector('.page.active')?.id || 'map-page',
+            timestamp: Date.now()
+        };
+        sessionStorage.setItem('kurirq_state', JSON.stringify(state));
+    } catch (e) {}
+}
+function restoreAppState() {
+    try {
+        const raw = sessionStorage.getItem('kurirq_state');
+        if (!raw) return false;
+        const state = JSON.parse(raw);
+        if (Date.now() - state.timestamp > 5 * 60 * 1000) return false;
+        currentFilter = state.currentFilter || 'semua';
+        currentMapFilter = state.currentMapFilter || 'belum';
+        currentSort = state.currentSort || 'default';
+        if (state.mapCenter && state.mapZoom) {
+            window._pendingMapState = { center: state.mapCenter, zoom: state.mapZoom };
+        }
+        if (state.activePage && state.activePage !== 'map-page') {
+            window._pendingActivePage = state.activePage;
+        }
+        document.querySelectorAll('[data-map-filter]').forEach(b => {
+            b.classList.toggle('active', b.dataset.mapFilter === currentMapFilter);
+        });
+        document.querySelectorAll('[data-filter]').forEach(b => {
+            b.classList.toggle('active', b.dataset.filter === currentFilter);
+        });
+        if (document.getElementById('sort-select')) document.getElementById('sort-select').value = currentSort;
+        console.log('✅ State dipulihkan');
+        return true;
+    } catch (e) { return false; }
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) saveAppState();
+    else { if (map) setTimeout(() => map.invalidateSize(), 100); }
+});
+window.addEventListener('beforeunload', saveAppState);
+window.addEventListener('pagehide', saveAppState);
 
 // ============ DB ============
 function initDB() {
@@ -415,13 +423,22 @@ function initMap() {
         Object.assign(mapContainer.style, { backgroundColor: '#e5e7eb', display: 'block', width: '100%', height: '100%', minHeight: '400px', position: 'relative' });
         if (map) { try { map.remove(); } catch (e) {} }
         mapContainer.innerHTML = '';
-        map = L.map('map', { attributionControl: true, zoomControl: true }).setView([-6.2088, 106.8650], 13);
+        
+        const pendingState = window._pendingMapState;
+        const initCenter = pendingState ? [pendingState.center.lat, pendingState.center.lng] : [-6.2088, 106.8650];
+        const initZoom = pendingState ? pendingState.zoom : 13;
+        
+        map = L.map('map', { attributionControl: true, zoomControl: true }).setView(initCenter, initZoom);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
         addressMarkersLayer = L.layerGroup().addTo(map);
         currentLocationLayer = L.layerGroup().addTo(map);
         map.invalidateSize(true);
         
-        // ✅ Auto-center ke lokasi user saat pertama kali buka
+        if (pendingState) {
+            window._mapInitiallyCentered = true;
+            window._pendingMapState = null;
+        }
+        
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
@@ -466,10 +483,7 @@ function zoomToCurrentLocation() {
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    } else {
-        showModal('Error', '❌ Browser tidak support Geolocation');
-        if (btn) btn.style.opacity = '0.9';
-    }
+    } else { showModal('Error', '❌ Browser tidak support Geolocation'); if (btn) btn.style.opacity = '0.9'; }
 }
 
 async function updateMapMarkers(searchText = '') {
@@ -485,13 +499,7 @@ async function updateMapMarkers(searchText = '') {
     const isSearching = searchText && searchText.length > 0;
     addresses.forEach((addr) => {
         if (isSearching) {
-            const basicMatch = (
-                (addr.recipient_name || '').toLowerCase().includes(searchText) ||
-                (addr.gang || '').toLowerCase().includes(searchText) ||
-                (addr.house_number || '').toLowerCase().includes(searchText) ||
-                (addr.landmark || '').toLowerCase().includes(searchText) ||
-                (addr.address || '').toLowerCase().includes(searchText)
-            );
+            const basicMatch = ((addr.recipient_name || '').toLowerCase().includes(searchText) || (addr.gang || '').toLowerCase().includes(searchText) || (addr.house_number || '').toLowerCase().includes(searchText) || (addr.landmark || '').toLowerCase().includes(searchText) || (addr.address || '').toLowerCase().includes(searchText));
             const recipientMatch = addr.recipients && addr.recipients.some(r => (r.name || '').toLowerCase().includes(searchText));
             if (!basicMatch && !recipientMatch) return;
             if (!firstSearchResult) firstSearchResult = addr;
@@ -524,16 +532,7 @@ async function updateMapMarkers(searchText = '') {
         const marker = L.marker([addr.latitude, addr.longitude], { icon }).addTo(addressMarkersLayer);
         const problemTags = addr.problem_tags && addr.problem_tags.length > 0 ? `<div style="color:#ef4444;font-size:11px;margin-top:4px">⚠️ ${addr.problem_tags.join(', ')}</div>` : '';
         const paymentBadge = addr.payment_status ? `<div style="display:inline-block;background:#e5e7eb;padding:2px 6px;border-radius:3px;font-size:10px;margin-top:4px">${formatPaymentStatus(addr.payment_status)}</div>` : '';
-        marker.bindPopup(`
-            <div style="font-size:13px;min-width:150px">
-                <strong>${addr.recipient_name}</strong><br>
-                ${addr.gang || ''} ${addr.house_number || ''}<br>
-                <small style="color:#666">${addr.landmark || addr.address || ''}</small>
-                ${paymentBadge}${problemTags}
-                <div style="margin-top:6px;font-size:11px;color:#999">Kunjungan: ${addr.visit_count || 1}x</div>
-                <div style="margin-top:6px;text-align:center;font-size:12px"><strong style="color:#2563eb;cursor:pointer" onclick="showAddressDetail('${addr.id}')">👉 Lihat Detail</strong></div>
-            </div>
-        `);
+        marker.bindPopup(`<div style="font-size:13px;min-width:150px"><strong>${addr.recipient_name}</strong><br>${addr.gang || ''} ${addr.house_number || ''}<br><small style="color:#666">${addr.landmark || addr.address || ''}</small>${paymentBadge}${problemTags}<div style="margin-top:6px;font-size:11px;color:#999">Kunjungan: ${addr.visit_count || 1}x</div><div style="margin-top:6px;text-align:center;font-size:12px"><strong style="color:#2563eb;cursor:pointer" onclick="showAddressDetail('${addr.id}')">👉 Lihat Detail</strong></div></div>`);
         marker.on('click', () => showAddressDetail(addr.id));
     });
     if (isSearching && firstSearchResult) {
@@ -607,27 +606,36 @@ async function checkDuplicate(latitude, longitude, newAddress) {
     return null;
 }
 
-// ============ FOTO ============
+// ============ FOTO — FIX MEMORY LEAK ============
 function compressImage(file, maxWidth = 150, quality = 0.35) {
     return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                let { width, height } = img;
-                if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-                canvas.width = width; canvas.height = height;
-                ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height);
-                ctx.drawImage(img, 0, 0, width, height);
+                let canvas = null;
                 try {
-                    const webp = canvas.toDataURL('image/webp', quality);
-                    if (webp && webp.startsWith('data:image/webp') && webp.length < 50000) { resolve(webp); return; }
-                } catch (e) {}
-                resolve(canvas.toDataURL('image/jpeg', quality));
+                    canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    let { width, height } = img;
+                    if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+                    canvas.width = width; canvas.height = height;
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height);
+                    ctx.drawImage(img, 0, 0, width, height);
+                    let result;
+                    try {
+                        const webp = canvas.toDataURL('image/webp', quality);
+                        if (webp && webp.startsWith('data:image/webp') && webp.length < 50000) result = webp;
+                        else result = canvas.toDataURL('image/jpeg', quality);
+                    } catch (err) { result = canvas.toDataURL('image/jpeg', quality); }
+                    resolve(result);
+                } catch (err) { resolve(null); }
+                finally {
+                    if (canvas) { canvas.width = 0; canvas.height = 0; canvas = null; }
+                    img.src = ''; img.onload = null; img.onerror = null;
+                }
             };
-            img.onerror = () => resolve(null);
+            img.onerror = () => { img.src = ''; resolve(null); };
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
@@ -726,17 +734,9 @@ async function showRecordSheet() {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 currentLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-                setTimeout(() => {
-                    initLocationAdjustment();
-                    document.getElementById('voice-input-section').style.display = 'block';
-                    document.getElementById('manual-form').style.display = 'none';
-                }, 100);
+                setTimeout(() => { initLocationAdjustment(); document.getElementById('voice-input-section').style.display = 'block'; document.getElementById('manual-form').style.display = 'none'; }, 100);
             },
-            (err) => {
-                initManualLocationInput();
-                document.getElementById('voice-input-section').style.display = 'block';
-                document.getElementById('manual-form').style.display = 'none';
-            }
+            (err) => { initManualLocationInput(); document.getElementById('voice-input-section').style.display = 'block'; document.getElementById('manual-form').style.display = 'none'; }
         );
     } else {
         initManualLocationInput();
@@ -744,9 +744,7 @@ async function showRecordSheet() {
         document.getElementById('manual-form').style.display = 'none';
     }
 }
-
 let adjustmentMap = null, adjustmentMarker = null;
-
 function initLocationAdjustment() {
     const container = document.getElementById('gps-status');
     if (!adjustmentMap) {
@@ -779,9 +777,7 @@ function initLocationAdjustment() {
             const mapEl = container.querySelector('#adjustment-map');
             if (mapEl) mapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-light);font-size:13px">⚠️ Peta gagal dimuat.</div>';
         }
-    } else {
-        syncInputsFromLocation();
-    }
+    } else syncInputsFromLocation();
     initVoiceRecognition();
 }
 function syncInputsFromLocation() {
@@ -921,17 +917,14 @@ async function saveRecord() {
     document.querySelectorAll('#problems-group .checkbox-item.checked').forEach((item) => problems.push(item.textContent.trim()));
     const newAddress = {
         recipient_name: name, latitude: currentLocation.latitude, longitude: currentLocation.longitude,
-        address: document.getElementById('form-address').value,
-        gang: document.getElementById('form-gang').value,
+        address: document.getElementById('form-address').value, gang: document.getElementById('form-gang').value,
         house_number: document.getElementById('form-house-number').value,
         landmark: document.getElementById('form-landmark').value,
         description: document.getElementById('form-description').value,
         payment_status: document.getElementById('form-payment').value,
         location_type: document.getElementById('form-location-type').value,
-        problem_tags: problems,
-        raw_voice_note: document.getElementById('voice-transcript').value,
-        visit_count: 1, last_visit_at: new Date().toISOString(),
-        delivery_status: 'berhasil',
+        problem_tags: problems, raw_voice_note: document.getElementById('voice-transcript').value,
+        visit_count: 1, last_visit_at: new Date().toISOString(), delivery_status: 'berhasil',
         recipients: [{ name, status: 'berhasil', added_at: new Date().toISOString() }],
         history: [{ date: new Date().toISOString(), status: 'berhasil', payment_status: document.getElementById('form-payment').value, landmark: document.getElementById('form-landmark').value, notes: document.getElementById('form-description').value }]
     };
@@ -943,12 +936,7 @@ async function saveRecord() {
     }
     const dup = await checkDuplicate(currentLocation.latitude, currentLocation.longitude, newAddress);
     if (dup) showDuplicateModal(dup, newAddress);
-    else {
-        await saveAddress(newAddress);
-        closeRecordSheet();
-        updateMapMarkers();
-        showModal('Sukses', '✓ Alamat berhasil disimpan!');
-    }
+    else { await saveAddress(newAddress); closeRecordSheet(); updateMapMarkers(); showModal('Sukses', '✓ Alamat berhasil disimpan!'); }
 }
 function showDuplicateModal(existing, newData) {
     document.getElementById('modal-content').innerHTML = `
@@ -991,16 +979,12 @@ async function mergeDuplicate() {
         if (merged.length > 0) { existing.photos = merged; existing.photo = merged[0]; }
     }
     await saveAddress(existing);
-    closeRecordSheet();
-    updateMapMarkers();
-    closeDuplicateModal();
+    closeRecordSheet(); updateMapMarkers(); closeDuplicateModal();
     showModal('Sukses', '✓ Digabungkan!');
 }
 async function saveDuplicateNew() {
     await saveAddress(window.duplicateNewData);
-    closeRecordSheet();
-    updateMapMarkers();
-    closeDuplicateModal();
+    closeRecordSheet(); updateMapMarkers(); closeDuplicateModal();
     showModal('Sukses', '✓ Alamat baru disimpan!');
 }
 function closeDuplicateModal() { document.getElementById('modal').classList.remove('active'); }
@@ -1024,7 +1008,7 @@ async function showAddressDetail(id) {
             <div style="display:flex;gap:6px;flex-wrap:wrap">
                 ${detailPhotos.map((p) => `<div style="width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--border);background:var(--bg-alt);flex-shrink:0"><img src="${p}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none"></div>`).join('')}
             </div>
-            <small style="color:var(--text-light);font-size:10px;margin-top:6px">Thumbnail saja (hemat penyimpanan)</small>
+            <small style="color:var(--text-light);font-size:10px;margin-top:6px">Thumbnail saja</small>
         </div>`;
     }
     if (address.recipients && address.recipients.length > 0) {
@@ -1033,62 +1017,31 @@ async function showAddressDetail(id) {
             const sc = rec.status === 'berhasil' ? '#10b981' : rec.status === 'belum selesai' ? '#f59e0b' : '#ef4444';
             const sl = rec.status === 'berhasil' ? 'Selesai' : rec.status === 'belum selesai' ? 'Belum Selesai' : 'Gagal';
             const en = rec.name.replace(/'/g, "\\'");
-            html += `
-                <div style="padding:8px;background:var(--bg-alt);border-radius:4px;margin-bottom:6px;display:flex;gap:8px;align-items:flex-start">
-                    ${rec.photo ? `<img src="${rec.photo}" style="width:36px;height:36px;border-radius:4px;object-fit:cover;flex-shrink:0;pointer-events:none">` : ''}
-                    <div style="flex:1">
-                        <strong>${rec.name}</strong><br>
-                        <span style="color:${sc};font-weight:600;font-size:12px;cursor:pointer;padding:2px 6px;border-radius:3px;display:inline-block;background:rgba(0,0,0,.05)" onclick="showRecipientStatusMenu('${address.id}', '${en}', '${rec.status}')">● ${sl}</span><br>
-                        <small style="color:var(--text-light)">Ditambah: ${formatDate(rec.added_at)}</small>
-                    </div>
-                    <div style="display:flex;gap:4px;flex-shrink:0">
-                        <button class="btn-secondary" style="padding:4px 8px;font-size:12px" onclick="showEditRecipientModal('${address.id}', '${en}', '${rec.status}')">✏️</button>
-                        <button class="btn-secondary" style="padding:4px 8px;font-size:12px;background:#ef4444;color:white" onclick="confirmDeleteRecipient('${address.id}', '${en}')">🗑️</button>
-                    </div>
-                </div>
-            `;
+            html += `<div style="padding:8px;background:var(--bg-alt);border-radius:4px;margin-bottom:6px;display:flex;gap:8px;align-items:flex-start">
+                ${rec.photo ? `<img src="${rec.photo}" style="width:36px;height:36px;border-radius:4px;object-fit:cover;flex-shrink:0;pointer-events:none">` : ''}
+                <div style="flex:1"><strong>${rec.name}</strong><br><span style="color:${sc};font-weight:600;font-size:12px;cursor:pointer;padding:2px 6px;border-radius:3px;display:inline-block;background:rgba(0,0,0,.05)" onclick="showRecipientStatusMenu('${address.id}', '${en}', '${rec.status}')">● ${sl}</span><br><small style="color:var(--text-light)">Ditambah: ${formatDate(rec.added_at)}</small></div>
+                <div style="display:flex;gap:4px;flex-shrink:0"><button class="btn-secondary" style="padding:4px 8px;font-size:12px" onclick="showEditRecipientModal('${address.id}', '${en}', '${rec.status}')">✏️</button><button class="btn-secondary" style="padding:4px 8px;font-size:12px;background:#ef4444;color:white" onclick="confirmDeleteRecipient('${address.id}', '${en}')">🗑️</button></div>
+            </div>`;
         });
-        html += `
-            <button class="btn-secondary" style="width:100%;padding:8px;margin-top:8px;font-size:13px" onclick="showAddRecipientModal('${address.id}')">➕ Tambah Penerima</button>
+        html += `<button class="btn-secondary" style="width:100%;padding:8px;margin-top:8px;font-size:13px" onclick="showAddRecipientModal('${address.id}')">➕ Tambah Penerima</button>
             ${address.recipients.length > 1 ? `<button class="btn-secondary" style="width:100%;padding:8px;margin-top:4px;font-size:13px;background:#f59e0b;color:white" onclick="showSplitRecipientModal('${address.id}')">🔀 Pisahkan Penerima</button>` : ''}
         </div></div>`;
     }
     if (address.problem_tags && address.problem_tags.length > 0) {
         html += `<div class="form-group"><label>Masalah</label><div>${address.problem_tags.map(t => `<span class="tag">${t}</span>`).join('')}</div></div>`;
     }
-    html += `
-        <div class="form-group"><label>Catatan</label><div style="white-space:pre-wrap;font-size:13px">${address.description || '-'}</div></div>
-        <div class="form-group"><label>Statistik</label><div style="font-size:13px;line-height:1.6">
-            <strong>Kunjungan:</strong> ${address.visit_count || 1}x<br>
-            <strong>Terakhir:</strong> ${formatDate(address.last_visit_at || address.created_at)}<br>
-            <strong>Dibuat:</strong> ${formatDate(address.created_at)}
-        </div></div>
-    `;
+    html += `<div class="form-group"><label>Catatan</label><div style="white-space:pre-wrap;font-size:13px">${address.description || '-'}</div></div>
+        <div class="form-group"><label>Statistik</label><div style="font-size:13px;line-height:1.6"><strong>Kunjungan:</strong> ${address.visit_count || 1}x<br><strong>Terakhir:</strong> ${formatDate(address.last_visit_at || address.created_at)}<br><strong>Dibuat:</strong> ${formatDate(address.created_at)}</div></div>`;
     if (address.history && address.history.length > 0) {
         html += '<div class="form-group"><label>Riwayat Kunjungan</label>';
         const latest = address.history[0];
-        html += `<div class="history-item">
-            <div class="history-date">📌 ${formatDate(latest.date)}</div>
-            <div class="history-details">
-                <span class="record-status success">${latest.status || 'berhasil'}</span>
-                ${latest.landmark ? `<br>Patokan: ${latest.landmark}` : ''}
-                ${latest.payment_status ? `<br>Bayar: ${formatPaymentStatus(latest.payment_status)}` : ''}
-                ${latest.notes ? `<br>Catatan: ${latest.notes}` : ''}
-            </div>
-        </div>`;
+        html += `<div class="history-item"><div class="history-date">📌 ${formatDate(latest.date)}</div><div class="history-details"><span class="record-status success">${latest.status || 'berhasil'}</span>${latest.landmark ? `<br>Patokan: ${latest.landmark}` : ''}${latest.payment_status ? `<br>Bayar: ${formatPaymentStatus(latest.payment_status)}` : ''}${latest.notes ? `<br>Catatan: ${latest.notes}` : ''}</div></div>`;
         if (address.history.length > 1) {
             const hid = 'history-' + address.id;
-            html += `<button class="btn-secondary" style="width:100%;padding:8px;margin-top:8px;font-size:12px" onclick="toggleHistoryDropdown('${hid}')">📂 Riwayat Lama (${address.history.length - 1})</button>
-                <div id="${hid}" style="display:none;margin-top:8px;padding:8px;background:var(--bg-alt);border-radius:4px;max-height:200px;overflow-y:auto">`;
+            html += `<button class="btn-secondary" style="width:100%;padding:8px;margin-top:8px;font-size:12px" onclick="toggleHistoryDropdown('${hid}')">📂 Riwayat Lama (${address.history.length - 1})</button><div id="${hid}" style="display:none;margin-top:8px;padding:8px;background:var(--bg-alt);border-radius:4px;max-height:200px;overflow-y:auto">`;
             for (let i = 1; i < address.history.length; i++) {
                 const h = address.history[i];
-                html += `<div style="padding:8px;border-bottom:1px solid var(--border);font-size:12px">
-                    <div style="font-weight:500;color:var(--text-light)">${formatDate(h.date)}</div>
-                    <span class="record-status" style="font-size:11px">${h.status || 'berhasil'}</span>
-                    ${h.landmark ? `<div style="font-size:11px;color:var(--text-light)">Patokan: ${h.landmark}</div>` : ''}
-                    ${h.payment_status ? `<div style="font-size:11px;color:var(--text-light)">Bayar: ${formatPaymentStatus(h.payment_status)}</div>` : ''}
-                    ${h.notes ? `<div style="font-size:11px;color:var(--text-light);margin-top:2px">💬 ${h.notes}</div>` : ''}
-                </div>`;
+                html += `<div style="padding:8px;border-bottom:1px solid var(--border);font-size:12px"><div style="font-weight:500;color:var(--text-light)">${formatDate(h.date)}</div><span class="record-status" style="font-size:11px">${h.status || 'berhasil'}</span>${h.landmark ? `<div style="font-size:11px;color:var(--text-light)">Patokan: ${h.landmark}</div>` : ''}${h.payment_status ? `<div style="font-size:11px;color:var(--text-light)">Bayar: ${formatPaymentStatus(h.payment_status)}</div>` : ''}${h.notes ? `<div style="font-size:11px;color:var(--text-light);margin-top:2px">💬 ${h.notes}</div>` : ''}</div>`;
             }
             html += '</div>';
         }
@@ -1109,7 +1062,7 @@ function toggleHistoryDropdown(hid) {
 }
 function closeModal() { document.getElementById('modal').classList.remove('active'); }
 
-// ============ EDIT RECIPIENT (dengan hapus foto) ============
+// ============ EDIT RECIPIENT ============
 async function showEditRecipientModal(addrId, recipientName, currentStatus) {
     const displayName = recipientName.replace(/\\'/g, "'");
     const addr = await getAddressById(addrId);
@@ -1118,9 +1071,7 @@ async function showEditRecipientModal(addrId, recipientName, currentStatus) {
     const html = `
         <div style="padding:16px">
             <h2 style="margin-bottom:16px;font-size:16px">Edit Penerima</h2>
-            <div class="form-group"><label>Nama Penerima</label>
-                <input type="text" id="edit-recipient-name" value="${displayName}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:13px;box-sizing:border-box">
-            </div>
+            <div class="form-group"><label>Nama Penerima</label><input type="text" id="edit-recipient-name" value="${displayName}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:13px;box-sizing:border-box"></div>
             <div class="form-group"><label>Foto Penerima 📸</label>
                 <div style="display:flex;gap:8px;margin-bottom:8px">
                     <input type="file" id="edit-recipient-photo-camera" accept="image/*" capture="environment" style="display:none">
@@ -1128,12 +1079,10 @@ async function showEditRecipientModal(addrId, recipientName, currentStatus) {
                     <button type="button" class="btn-primary" style="flex:1;padding:8px;font-size:13px" onclick="document.getElementById('edit-recipient-photo-camera').click()">📷 Ambil Foto</button>
                     <button type="button" class="btn-secondary" style="flex:1;padding:8px;font-size:13px" onclick="document.getElementById('edit-recipient-photo-gallery').click()">📁 Pilih File</button>
                 </div>
-                <div style="margin-top:8px;text-align:center">
-                    <div style="position:relative;display:inline-block">
-                        <img id="photo-preview" src="${currentPhoto || ''}" style="max-width:100px;max-height:100px;border-radius:6px;border:1px solid var(--border);display:${currentPhoto ? 'block' : 'none'}">
-                        <button type="button" id="delete-recipient-photo-btn" style="position:absolute;top:-8px;right:-8px;background:#ef4444;color:white;border:2px solid white;border-radius:50%;width:28px;height:28px;cursor:pointer;display:${currentPhoto ? 'flex' : 'none'};align-items:center;justify-content:center;font-size:18px;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,.3);line-height:1;padding:0">×</button>
-                    </div>
-                </div>
+                <div style="margin-top:8px;text-align:center"><div style="position:relative;display:inline-block">
+                    <img id="photo-preview" src="${currentPhoto || ''}" style="max-width:100px;max-height:100px;border-radius:6px;border:1px solid var(--border);display:${currentPhoto ? 'block' : 'none'}">
+                    <button type="button" id="delete-recipient-photo-btn" style="position:absolute;top:-8px;right:-8px;background:#ef4444;color:white;border:2px solid white;border-radius:50%;width:28px;height:28px;cursor:pointer;display:${currentPhoto ? 'flex' : 'none'};align-items:center;justify-content:center;font-size:18px;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,.3);line-height:1;padding:0">×</button>
+                </div></div>
             </div>
             <div class="form-group"><label>Status</label>
                 <div style="display:flex;flex-direction:column;gap:6px">
@@ -1157,6 +1106,7 @@ async function showEditRecipientModal(addrId, recipientName, currentStatus) {
             const file = e.target.files[0];
             if (file) {
                 compressImage(file, 100, 0.3).then((compressed) => {
+                    if (!compressed) return;
                     window.editRecipientData.photoData = compressed;
                     window.editRecipientData.removePhoto = false;
                     const preview = document.getElementById('photo-preview');
@@ -1165,11 +1115,12 @@ async function showEditRecipientModal(addrId, recipientName, currentStatus) {
                     if (delBtn) delBtn.style.display = 'flex';
                 });
             }
+            e.target.value = '';
         };
         const c = document.getElementById('edit-recipient-photo-camera');
         const g = document.getElementById('edit-recipient-photo-gallery');
-        if (c) c.addEventListener('change', handlePhotoChange);
-        if (g) g.addEventListener('change', handlePhotoChange);
+        if (c) c.onchange = handlePhotoChange;
+        if (g) g.onchange = handlePhotoChange;
         const delBtn = document.getElementById('delete-recipient-photo-btn');
         if (delBtn) {
             delBtn.onclick = () => {
@@ -1187,15 +1138,9 @@ async function showEditRecipientModal(addrId, recipientName, currentStatus) {
 function setEditRecipientStatus(status) {
     window.editRecipientData.selectedStatus = status;
     document.querySelectorAll('#modal-content .btn-secondary').forEach((btn) => {
-        if (btn.textContent.includes(status) ||
-            (status === 'tidak order' && btn.textContent.includes('Tidak Order')) ||
-            (status === 'belum selesai' && btn.textContent.includes('Belum Selesai'))) {
-            btn.style.background = 'var(--primary)';
-            btn.style.color = 'white';
-        } else {
-            btn.style.background = 'var(--bg-alt)';
-            btn.style.color = 'var(--text)';
-        }
+        if (btn.textContent.includes(status) || (status === 'tidak order' && btn.textContent.includes('Tidak Order')) || (status === 'belum selesai' && btn.textContent.includes('Belum Selesai'))) {
+            btn.style.background = 'var(--primary)'; btn.style.color = 'white';
+        } else { btn.style.background = 'var(--bg-alt)'; btn.style.color = 'var(--text)'; }
     });
 }
 async function saveEditedRecipient(addrId, oldName) {
@@ -1209,13 +1154,8 @@ async function saveEditedRecipient(addrId, oldName) {
         if (rec) {
             rec.name = newName;
             rec.status = newStatus;
-            if (window.editRecipientData.removePhoto) {
-                delete rec.photo;
-                delete rec.photo_ref;
-            } else if (window.editRecipientData.photoData) {
-                rec.photo = window.editRecipientData.photoData;
-                rec.photo_ref = generatePhotoFileName(newName);
-            }
+            if (window.editRecipientData.removePhoto) { delete rec.photo; delete rec.photo_ref; }
+            else if (window.editRecipientData.photoData) { rec.photo = window.editRecipientData.photoData; rec.photo_ref = generatePhotoFileName(newName); }
             rec.updated_at = new Date().toISOString();
             const statuses = addr.recipients.map(r => r.status);
             if (statuses.includes('tidak order')) addr.delivery_status = 'tidak order';
@@ -1243,9 +1183,7 @@ function showAddRecipientModal(addrId) {
     const html = `
         <div style="padding:16px">
             <h2 style="margin-bottom:16px;font-size:16px">Tambah Penerima Baru</h2>
-            <div class="form-group"><label>Nama Penerima</label>
-                <input type="text" id="new-recipient-name" placeholder="Nama penerima..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:13px;box-sizing:border-box">
-            </div>
+            <div class="form-group"><label>Nama Penerima</label><input type="text" id="new-recipient-name" placeholder="Nama penerima..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:13px;box-sizing:border-box"></div>
             <div class="form-group"><label>Foto Penerima 📸</label>
                 <div style="display:flex;gap:8px;margin-bottom:8px">
                     <input type="file" id="new-recipient-photo-camera" accept="image/*" capture="environment" style="display:none">
@@ -1253,12 +1191,10 @@ function showAddRecipientModal(addrId) {
                     <button type="button" class="btn-primary" style="flex:1;padding:8px;font-size:13px" onclick="document.getElementById('new-recipient-photo-camera').click()">📷 Ambil Foto</button>
                     <button type="button" class="btn-secondary" style="flex:1;padding:8px;font-size:13px" onclick="document.getElementById('new-recipient-photo-gallery').click()">📁 Pilih File</button>
                 </div>
-                <div style="margin-top:8px;text-align:center">
-                    <div style="position:relative;display:inline-block">
-                        <img id="photo-preview" style="max-width:100px;max-height:100px;border-radius:6px;border:1px solid var(--border);display:none">
-                        <button type="button" id="delete-new-photo-btn" style="position:absolute;top:-8px;right:-8px;background:#ef4444;color:white;border:2px solid white;border-radius:50%;width:28px;height:28px;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:18px;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,.3);line-height:1;padding:0">×</button>
-                    </div>
-                </div>
+                <div style="margin-top:8px;text-align:center"><div style="position:relative;display:inline-block">
+                    <img id="photo-preview" style="max-width:100px;max-height:100px;border-radius:6px;border:1px solid var(--border);display:none">
+                    <button type="button" id="delete-new-photo-btn" style="position:absolute;top:-8px;right:-8px;background:#ef4444;color:white;border:2px solid white;border-radius:50%;width:28px;height:28px;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:18px;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,.3);line-height:1;padding:0">×</button>
+                </div></div>
             </div>
             <div class="form-group"><label>Status</label>
                 <div style="display:flex;flex-direction:column;gap:6px">
@@ -1282,6 +1218,7 @@ function showAddRecipientModal(addrId) {
             const file = e.target.files[0];
             if (file) {
                 compressImage(file, 100, 0.3).then((compressed) => {
+                    if (!compressed) return;
                     window.newRecipientData.photoData = compressed;
                     const preview = document.getElementById('photo-preview');
                     const delBtn = document.getElementById('delete-new-photo-btn');
@@ -1289,11 +1226,12 @@ function showAddRecipientModal(addrId) {
                     if (delBtn) delBtn.style.display = 'flex';
                 });
             }
+            e.target.value = '';
         };
         const c = document.getElementById('new-recipient-photo-camera');
         const g = document.getElementById('new-recipient-photo-gallery');
-        if (c) c.addEventListener('change', handlePhotoChange);
-        if (g) g.addEventListener('change', handlePhotoChange);
+        if (c) c.onchange = handlePhotoChange;
+        if (g) g.onchange = handlePhotoChange;
         const delBtn = document.getElementById('delete-new-photo-btn');
         if (delBtn) {
             delBtn.onclick = () => {
@@ -1312,15 +1250,9 @@ function showAddRecipientModal(addrId) {
 function setNewRecipientStatus(status) {
     window.newRecipientData.selectedStatus = status;
     document.querySelectorAll('#modal-content .btn-secondary').forEach((btn) => {
-        if (btn.textContent.includes(status) ||
-            (status === 'tidak order' && btn.textContent.includes('Tidak Order')) ||
-            (status === 'belum selesai' && btn.textContent.includes('Belum Selesai'))) {
-            btn.style.background = 'var(--primary)';
-            btn.style.color = 'white';
-        } else {
-            btn.style.background = 'var(--bg-alt)';
-            btn.style.color = 'var(--text)';
-        }
+        if (btn.textContent.includes(status) || (status === 'tidak order' && btn.textContent.includes('Tidak Order')) || (status === 'belum selesai' && btn.textContent.includes('Belum Selesai'))) {
+            btn.style.background = 'var(--primary)'; btn.style.color = 'white';
+        } else { btn.style.background = 'var(--bg-alt)'; btn.style.color = 'var(--text)'; }
     });
 }
 async function saveAddRecipient(addrId) {
@@ -1331,10 +1263,7 @@ async function saveAddRecipient(addrId) {
     if (!addr.recipients) addr.recipients = [];
     if (addr.recipients.some(r => r.name.toLowerCase() === newName.toLowerCase())) { showModal('Error', '❌ Penerima sudah ada'); return; }
     const n = { name: newName, status: newStatus, added_at: new Date().toISOString() };
-    if (window.newRecipientData.photoData) {
-        n.photo = window.newRecipientData.photoData;
-        n.photo_ref = generatePhotoFileName(newName);
-    }
+    if (window.newRecipientData.photoData) { n.photo = window.newRecipientData.photoData; n.photo_ref = generatePhotoFileName(newName); }
     addr.recipients.push(n);
     const statuses = addr.recipients.map(r => r.status);
     if (statuses.includes('tidak order')) addr.delivery_status = 'tidak order';
@@ -1348,8 +1277,6 @@ async function saveAddRecipient(addrId) {
     setTimeout(() => { showAddressDetail(addrId); updateMapMarkers(); updateAddressList(); }, 100);
     showModal('Sukses', `✓ Penerima ${newName} ditambahkan!`);
 }
-
-// ============ DELETE RECIPIENT ============
 function confirmDeleteRecipient(addrId, recipientName) {
     const displayName = recipientName.replace(/\\'/g, "'");
     showConfirmModal('Hapus Penerima', `Yakin hapus penerima "${displayName}"?`, () => deleteRecipient(addrId, displayName));
@@ -1394,12 +1321,7 @@ function showSplitRecipientModal(addrId) {
                 ${r.photo ? `<img src="${r.photo}" style="width:30px;height:30px;border-radius:4px;object-fit:cover;flex-shrink:0;pointer-events:none">` : ''}
             </label>`;
         });
-        html += `</div>
-            <div style="display:flex;gap:8px;margin-top:16px">
-                <button class="btn-primary" style="flex:1;padding:10px" onclick="executeSplitRecipient('${addrId}')">✂️ Pisahkan</button>
-                <button class="btn-secondary" style="flex:1;padding:10px" onclick="closeModal()">Batal</button>
-            </div>
-        </div>`;
+        html += `</div><div style="display:flex;gap:8px;margin-top:16px"><button class="btn-primary" style="flex:1;padding:10px" onclick="executeSplitRecipient('${addrId}')">✂️ Pisahkan</button><button class="btn-secondary" style="flex:1;padding:10px" onclick="closeModal()">Batal</button></div></div>`;
         document.getElementById('modal-content').innerHTML = html;
         document.getElementById('modal').classList.add('active');
     };
@@ -1411,12 +1333,7 @@ async function executeSplitRecipient(addrId) {
     const addr = await getAddressById(addrId);
     const namesToSplit = Array.from(checkboxes).map(cb => cb.dataset.name);
     const willRemain = addr.recipients.filter(r => !namesToSplit.includes(r.name));
-    let confirmMsg = '';
-    if (willRemain.length === 0) {
-        confirmMsg = `Semua ${namesToSplit.length} penerima akan dipisahkan.\n\n⚠️ Record asal akan dihapus.\n\nLanjutkan?`;
-    } else {
-        confirmMsg = `${namesToSplit.length} penerima akan dipisahkan.\n\n📍 Titik: ${addr.gang || 'Gang'} No.${addr.house_number || '?'}\n👤 Sisa: ${willRemain.length} (${willRemain.map(r => r.name).join(', ')})\n\nLanjutkan?`;
-    }
+    let confirmMsg = willRemain.length === 0 ? `Semua ${namesToSplit.length} penerima akan dipisahkan.\n\n⚠️ Record asal akan dihapus.\n\nLanjutkan?` : `${namesToSplit.length} penerima akan dipisahkan.\n\n📍 Titik: ${addr.gang || 'Gang'} No.${addr.house_number || '?'}\n👤 Sisa: ${willRemain.length} (${willRemain.map(r => r.name).join(', ')})\n\nLanjutkan?`;
     showConfirmModal('✂️ Pisahkan', confirmMsg, async () => {
         let splitCount = 0;
         const addrPhotos = extractAddressPhotos(addr);
@@ -1429,8 +1346,7 @@ async function executeSplitRecipient(addrId) {
                 latitude: addr.latitude, longitude: addr.longitude,
                 address: addr.address || '', gang: addr.gang || '', house_number: addr.house_number || '',
                 landmark: addr.landmark || '', description: addr.description || '',
-                payment_status: addr.payment_status || 'belum',
-                location_type: addr.location_type || 'jelas',
+                payment_status: addr.payment_status || 'belum', location_type: addr.location_type || 'jelas',
                 problem_tags: [...(addr.problem_tags || [])],
                 recipient_name: rec.name,
                 recipients: [{ name: rec.name, status: rec.status || 'berhasil', photo: rec.photo || null, photo_ref: rec.photo_ref || null, added_at: rec.added_at || new Date().toISOString() }],
@@ -1487,14 +1403,9 @@ function showMergeRecipientsModal() {
             <small style="color:var(--text-light);display:block;margin-bottom:12px">Semua penerima dari record dengan titik & alamat sama digabung jadi 1.</small>
             <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;max-height:350px;overflow-y:auto">`;
         mergeable.forEach(g => {
-            html += `<button class="btn-secondary" style="padding:12px;text-align:left;cursor:pointer;line-height:1.5" onclick="executeMergeRecipients('${g.key}')">
-                <strong style="font-size:14px">📍 ${g.label}</strong><br>
-                <small style="color:var(--text-light)">${g.recordCount} record → 1 record · ${g.recipientCount} total penerima</small>
-            </button>`;
+            html += `<button class="btn-secondary" style="padding:12px;text-align:left;cursor:pointer;line-height:1.5" onclick="executeMergeRecipients('${g.key}')"><strong style="font-size:14px">📍 ${g.label}</strong><br><small style="color:var(--text-light)">${g.recordCount} record → 1 record · ${g.recipientCount} total penerima</small></button>`;
         });
-        html += `</div>
-            <button class="btn-secondary" style="width:100%;padding:10px;margin-top:12px" onclick="closeModal()">Batal</button>
-        </div>`;
+        html += `</div><button class="btn-secondary" style="width:100%;padding:10px;margin-top:12px" onclick="closeModal()">Batal</button></div>`;
         document.getElementById('modal-content').innerHTML = html;
         document.getElementById('modal').classList.add('active');
     };
@@ -1557,14 +1468,7 @@ async function calculateDistance(lat1, lon1, lat2, lon2) {
     if (ORS_CONFIG.apiKey && ORS_CONFIG.apiKey !== 'YOUR_ORS_API_KEY_HERE') {
         try {
             const r = await fetch(`${ORS_CONFIG.apiUrl}?api_key=${ORS_CONFIG.apiKey}&coordinates=${lon1},${lat1};${lon2},${lat2}&format=json`);
-            if (r.ok) {
-                const d = await r.json();
-                if (d.routes && d.routes[0]) {
-                    const km = d.routes[0].summary.distance / 1000;
-                    distanceCache[k] = km;
-                    return km;
-                }
-            }
+            if (r.ok) { const d = await r.json(); if (d.routes && d.routes[0]) { const km = d.routes[0].summary.distance / 1000; distanceCache[k] = km; return km; } }
         } catch (e) {}
     }
     const d = calculateDistanceHaversine(lat1, lon1, lat2, lon2);
@@ -1575,15 +1479,7 @@ async function showOptimizeRouteModal() {
     const all = await getAllAddresses();
     const pending = all.filter(a => a.delivery_status === 'belum selesai');
     if (pending.length === 0) { showModal('Info', 'Tidak ada alamat "Belum Selesai"'); return; }
-    const html = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">Optimasi Rute - Pilih Titik Awal</h2>
-        <small style="color:var(--text-light);display:block;margin-bottom:8px">${pending.length} alamat akan dioptimasi.</small>
-        <div id="route-start-map" style="width:100%;height:300px;border:1px solid var(--border);border-radius:4px;margin-bottom:12px"></div>
-        <div style="display:flex;gap:8px">
-            <button class="btn-primary" style="flex:1;padding:10px" onclick="executeRouteOptimization()">🗺️ Mulai</button>
-            <button class="btn-secondary" style="flex:1;padding:10px" onclick="closeModal()">Batal</button>
-        </div>
-    </div>`;
-    document.getElementById('modal-content').innerHTML = html;
+    document.getElementById('modal-content').innerHTML = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">Optimasi Rute</h2><small style="color:var(--text-light);display:block;margin-bottom:8px">${pending.length} alamat akan dioptimasi.</small><div id="route-start-map" style="width:100%;height:300px;border:1px solid var(--border);border-radius:4px;margin-bottom:12px"></div><div style="display:flex;gap:8px"><button class="btn-primary" style="flex:1;padding:10px" onclick="executeRouteOptimization()">🗺️ Mulai</button><button class="btn-secondary" style="flex:1;padding:10px" onclick="closeModal()">Batal</button></div></div>`;
     document.getElementById('modal').classList.add('active');
     setTimeout(() => {
         const mc = document.getElementById('route-start-map');
@@ -1623,9 +1519,7 @@ async function executeRouteOptimization() {
     } catch (err) { showModal('Error', `❌ ${err.message}`); }
 }
 async function displayRouteList(route, totalDistance) {
-    let html = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">Rute Optimal - ${route.length} Lokasi</h2>
-        <div style="background:var(--bg-alt);padding:8px;border-radius:4px;margin-bottom:12px;font-size:13px"><strong>Total Jarak:</strong> ${totalDistance.toFixed(2)} km</div>
-        <div style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:8px">`;
+    let html = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">Rute Optimal - ${route.length} Lokasi</h2><div style="background:var(--bg-alt);padding:8px;border-radius:4px;margin-bottom:12px;font-size:13px"><strong>Total Jarak:</strong> ${totalDistance.toFixed(2)} km</div><div style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:8px">`;
     let cum = 0;
     for (let i = 0; i < route.length; i++) {
         const a = route[i];
@@ -1653,7 +1547,6 @@ function displayRouteOnMap(route, totalDistance) {
     });
     map.fitBounds(window.routePolyline.getBounds().pad(0.1));
 }
-
 async function updateRecipientStatus(addrId, recName, newStatus) {
     const n = recName.replace(/\\'/g, "'");
     const addr = await getAddressById(addrId);
@@ -1684,9 +1577,7 @@ function showRecipientStatusMenu(addrId, recName, curStatus) {
         { l: '❌ Gagal', v: 'gagal', a: curStatus === 'gagal' }
     ];
     let html = `<div style="padding:16px;text-align:center"><div style="font-size:14px;margin-bottom:16px;font-weight:600">Update Status: <strong>${n}</strong></div><div style="display:flex;flex-direction:column;gap:8px">`;
-    opts.forEach(o => {
-        html += `<button style="padding:10px;background:${o.a ? '#2563eb' : '#f3f4f6'};color:${o.a ? '#fff' : '#000'};border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px" onclick="updateRecipientStatus('${addrId}', '${recName}', '${o.v}')">${o.l}</button>`;
-    });
+    opts.forEach(o => { html += `<button style="padding:10px;background:${o.a ? '#2563eb' : '#f3f4f6'};color:${o.a ? '#fff' : '#000'};border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px" onclick="updateRecipientStatus('${addrId}', '${recName}', '${o.v}')">${o.l}</button>`; });
     html += `</div></div>`;
     document.getElementById('modal-content').innerHTML = html;
     document.getElementById('modal').classList.add('active');
@@ -1735,34 +1626,23 @@ async function updateAddress() {
     address.payment_status = document.getElementById('form-payment').value;
     address.location_type = document.getElementById('form-location-type').value;
     if (currentLocation) { address.latitude = currentLocation.latitude; address.longitude = currentLocation.longitude; }
-    if (address.recipients && address.recipients.length > 0) {
-        address.recipients[0].name = newName;
-        address.recipients[0].updated_at = new Date().toISOString();
-    }
+    if (address.recipients && address.recipients.length > 0) { address.recipients[0].name = newName; address.recipients[0].updated_at = new Date().toISOString(); }
     const problems = [];
     document.querySelectorAll('#problems-group .checkbox-item.checked').forEach(item => problems.push(item.textContent.trim()));
     address.problem_tags = problems;
     const validPhotos = getValidAddressPhotos();
-    if (validPhotos.length > 0) {
-        address.photos = validPhotos;
-        address.photo = validPhotos[0];
-        address.photo_ref = address.photo_ref || generatePhotoFileName(newName);
-    } else {
-        delete address.photos; delete address.photo; delete address.photo_ref;
-    }
+    if (validPhotos.length > 0) { address.photos = validPhotos; address.photo = validPhotos[0]; address.photo_ref = address.photo_ref || generatePhotoFileName(newName); }
+    else { delete address.photos; delete address.photo; delete address.photo_ref; }
     address.updated_at = new Date().toISOString();
     await saveAddress(address);
-    closeRecordSheet();
-    updateMapMarkers();
-    updateAddressList();
+    closeRecordSheet(); updateMapMarkers(); updateAddressList();
     showModal('Sukses', '✓ Alamat diperbarui!');
 }
 async function deleteCurrentAddress() {
     showConfirmModal('Hapus Alamat', 'Yakin hapus alamat ini?', async () => {
         await deleteAddress(currentDetailId);
         document.getElementById('detail-sheet').classList.remove('active');
-        updateMapMarkers();
-        updateAddressList();
+        updateMapMarkers(); updateAddressList();
         showModal('Sukses', '✓ Alamat dihapus!');
     });
 }
@@ -1799,12 +1679,9 @@ async function shareAddress() {
     const lat = address.latitude, lon = address.longitude;
     const name = address.recipient_name || 'Alamat';
     const detail = [address.gang, address.house_number, address.landmark].filter(Boolean).join(' · ');
-    const html = `
+    document.getElementById('modal-content').innerHTML = `
         <h2>📤 Bagikan Lokasi</h2>
-        <div class="info-box" style="margin:12px 0">
-            <strong>${name}</strong><br>${detail || '-'}<br>
-            <small style="color:var(--text-light);font-family:monospace">${lat.toFixed(6)}, ${lon.toFixed(6)}</small>
-        </div>
+        <div class="info-box" style="margin:12px 0"><strong>${name}</strong><br>${detail || '-'}<br><small style="color:var(--text-light);font-family:monospace">${lat.toFixed(6)}, ${lon.toFixed(6)}</small></div>
         <div style="display:flex;flex-direction:column;gap:8px">
             <button class="btn-primary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('native')">📱 Bagikan (Semua App)</button>
             <button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('gmaps')">🗺️ Google Maps</button>
@@ -1816,7 +1693,6 @@ async function shareAddress() {
         </div>
         <div class="modal-buttons" style="margin-top:12px"><button class="btn-secondary" onclick="closeModal()" style="flex:1">Tutup</button></div>
     `;
-    document.getElementById('modal-content').innerHTML = html;
     document.getElementById('modal').classList.add('active');
 }
 async function doShare(type) {
@@ -1832,14 +1708,9 @@ async function doShare(type) {
     switch (type) {
         case 'native':
             if (navigator.share) {
-                try {
-                    await navigator.share({ title: `Lokasi ${name}`, text: `${detail}\n${coordsText}`, url: gmapsUrl });
-                    closeModal();
-                } catch (err) { if (err.name !== 'AbortError') console.warn(err); }
-            } else {
-                window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
-                closeModal();
-            }
+                try { await navigator.share({ title: `Lokasi ${name}`, text: `${detail}\n${coordsText}`, url: gmapsUrl }); closeModal(); }
+                catch (err) { if (err.name !== 'AbortError') console.warn(err); }
+            } else { window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank'); closeModal(); }
             break;
         case 'gmaps': window.open(gmapsUrl, '_blank'); closeModal(); break;
         case 'waze': window.open(wazeUrl, '_blank'); closeModal(); break;
@@ -1847,13 +1718,11 @@ async function doShare(type) {
         case 'telegram': window.open(`https://t.me/share/url?url=${encodeURIComponent(gmapsUrl)}&text=${encodeURIComponent(name + ' - ' + detail)}`, '_blank'); closeModal(); break;
         case 'copy_coords':
             try { await navigator.clipboard.writeText(coordsText); } catch (e) {}
-            closeModal();
-            showModal('Sukses', `✓ Koordinat disalin:\n${coordsText}`);
+            closeModal(); showModal('Sukses', `✓ Koordinat disalin:\n${coordsText}`);
             break;
         case 'copy_link':
             try { await navigator.clipboard.writeText(gmapsUrl); } catch (e) {}
-            closeModal();
-            showModal('Sukses', `✓ Link disalin`);
+            closeModal(); showModal('Sukses', '✓ Link disalin');
             break;
     }
 }
@@ -1874,11 +1743,7 @@ async function updateCacheInfo() {
                 const sample = Math.min(20, reqs.length);
                 let sampleBytes = 0;
                 for (let i = 0; i < sample; i++) {
-                    try {
-                        const r = reqs[Math.floor(Math.random() * reqs.length)];
-                        const resp = await cache.match(r);
-                        if (resp) { const b = await resp.clone().blob(); sampleBytes += b.size; }
-                    } catch (e) {}
+                    try { const r = reqs[Math.floor(Math.random() * reqs.length)]; const resp = await cache.match(r); if (resp) { const b = await resp.clone().blob(); sampleBytes += b.size; } } catch (e) {}
                 }
                 if (sample > 0) totalSize += (sampleBytes / sample) * reqs.length;
             }
@@ -1889,21 +1754,15 @@ async function updateCacheInfo() {
         }
         const sizeMB = (totalSize / 1024 / 1024).toFixed(2);
         const sizeKB = (totalSize / 1024).toFixed(0);
-        let html = `<div style="margin-bottom:6px"><strong>📦 Cache:</strong> ${totalItems} file</div>
-            <div style="margin-bottom:6px"><strong>💾 Ukuran:</strong> ${totalSize < 1024 * 1024 ? sizeKB + ' KB' : sizeMB + ' MB'}</div>`;
+        let html = `<div style="margin-bottom:6px"><strong>📦 Cache:</strong> ${totalItems} file</div><div style="margin-bottom:6px"><strong>💾 Ukuran:</strong> ${totalSize < 1024 * 1024 ? sizeKB + ' KB' : sizeMB + ' MB'}</div>`;
         if (storageInfo && storageInfo.usage > 0) {
             const uMB = (storageInfo.usage / 1024 / 1024).toFixed(1);
             const qMB = (storageInfo.quota / 1024 / 1024).toFixed(0);
             const pct = ((storageInfo.usage / storageInfo.quota) * 100).toFixed(1);
-            html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--text-light)">
-                <div><strong>Total app:</strong> ${uMB} MB / ${qMB} MB (${pct}%)</div>
-                <div style="margin-top:4px;background:var(--bg);height:6px;border-radius:3px;overflow:hidden"><div style="width:${Math.min(100, pct)}%;height:100%;background:${pct > 80 ? 'var(--danger)' : pct > 50 ? 'var(--warning)' : 'var(--secondary)'}"></div></div>
-            </div>`;
+            html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--text-light)"><div><strong>Total app:</strong> ${uMB} MB / ${qMB} MB (${pct}%)</div><div style="margin-top:4px;background:var(--bg);height:6px;border-radius:3px;overflow:hidden"><div style="width:${Math.min(100, pct)}%;height:100%;background:${pct > 80 ? 'var(--danger)' : pct > 50 ? 'var(--warning)' : 'var(--secondary)'}"></div></div></div>`;
         }
         content.innerHTML = html;
-    } catch (err) {
-        content.innerHTML = `<span style="color:var(--danger)">❌ ${err.message}</span>`;
-    }
+    } catch (err) { content.innerHTML = `<span style="color:var(--danger)">❌ ${err.message}</span>`; }
 }
 async function clearTileCache() {
     showConfirmModal('🗑️ Hapus Cache Peta', 'Cache peta akan dihapus. Data alamat & foto tidak terhapus.\n\nLanjutkan?', async () => {
@@ -1914,9 +1773,7 @@ async function clearTileCache() {
                 for (const name of names) { if (await caches.delete(name)) cleared++; }
                 updateCacheInfo();
                 showModal('Sukses', `✓ ${cleared} cache dihapus!`);
-            } else {
-                showModal('Info', 'Browser tidak support Cache API.');
-            }
+            } else showModal('Info', 'Browser tidak support Cache API.');
         } catch (err) { showModal('Error', `❌ ${err.message}`); }
     });
 }
@@ -1931,19 +1788,10 @@ async function refreshTileCache() {
     } catch (err) { showModal('Error', `❌ ${err.message}`); }
 }
 
-// ============ OFFLINE MAP DOWNLOAD ============
+// ============ OFFLINE MAP ============
 let offlineDownloaderMap = null;
 function openOfflineMapDownloader() {
-    const html = `
-        <div>
-            <h2 style="margin-bottom:8px;font-size:16px">📥 Download Peta Offline</h2>
-            <div style="font-size:12px;color:var(--text-light);margin-bottom:10px;line-height:1.5">Geser & zoom peta ke area yang mau di-download.</div>
-            <div id="offline-map" style="width:100%;height:320px;border-radius:8px;border:1px solid var(--border);margin-bottom:10px;background:#e5e7eb"></div>
-            <button class="btn-primary" id="select-offline-area-btn" style="width:100%;padding:12px;font-size:14px;font-weight:600">📥 Download Area Ini</button>
-            <button class="btn-secondary" onclick="closeModal(); cleanupOfflineMap();" style="width:100%;padding:10px;margin-top:8px;font-size:13px">Tutup</button>
-        </div>
-    `;
-    document.getElementById('modal-content').innerHTML = html;
+    document.getElementById('modal-content').innerHTML = `<div><h2 style="margin-bottom:8px;font-size:16px">📥 Download Peta Offline</h2><div style="font-size:12px;color:var(--text-light);margin-bottom:10px;line-height:1.5">Geser & zoom peta ke area yang mau di-download.</div><div id="offline-map" style="width:100%;height:320px;border-radius:8px;border:1px solid var(--border);margin-bottom:10px;background:#e5e7eb"></div><button class="btn-primary" id="select-offline-area-btn" style="width:100%;padding:12px;font-size:14px;font-weight:600">📥 Download Area Ini</button><button class="btn-secondary" onclick="closeModal(); cleanupOfflineMap();" style="width:100%;padding:10px;margin-top:8px;font-size:13px">Tutup</button></div>`;
     document.getElementById('modal').classList.add('active');
     setTimeout(() => {
         const el = document.getElementById('offline-map');
@@ -1955,19 +1803,13 @@ function openOfflineMapDownloader() {
         document.getElementById('select-offline-area-btn').onclick = selectOfflineArea;
     }, 150);
 }
-function cleanupOfflineMap() {
-    if (offlineDownloaderMap) { try { offlineDownloaderMap.remove(); } catch (e) {} offlineDownloaderMap = null; }
-}
+function cleanupOfflineMap() { if (offlineDownloaderMap) { try { offlineDownloaderMap.remove(); } catch (e) {} offlineDownloaderMap = null; } }
 function getTileCount(bounds, zoom) {
     const n = Math.pow(2, zoom);
     const minLon = bounds.getWest(), maxLon = bounds.getEast();
     const minLat = bounds.getSouth(), maxLat = bounds.getNorth();
-    const minX = Math.floor((minLon + 180) / 360 * n);
-    const maxX = Math.floor((maxLon + 180) / 360 * n);
-    const lat2y = (lat) => {
-        const rad = Math.max(-85, Math.min(85, lat)) * Math.PI / 180;
-        return Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n);
-    };
+    const minX = Math.floor((minLon + 180) / 360 * n), maxX = Math.floor((maxLon + 180) / 360 * n);
+    const lat2y = (lat) => { const rad = Math.max(-85, Math.min(85, lat)) * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n); };
     const minY = lat2y(maxLat), maxY = lat2y(minLat);
     return Math.max(0, maxX - minX + 1) * Math.max(0, maxY - minY + 1);
 }
@@ -1979,44 +1821,29 @@ async function selectOfflineArea() {
     const minZ = Math.max(13, zoom - 1), maxZ = Math.min(17, zoom + 1);
     const estimates = {};
     for (let z = 13; z <= 17; z++) estimates[z] = getTileCount(bounds, z);
-    const html = `
-        <div>
-            <h2 style="margin-bottom:8px;font-size:16px">📥 Konfirmasi Download</h2>
-            <div class="info-box" style="font-size:12px;line-height:1.6">
-                <strong>📍 Pusat:</strong> ${center.lat.toFixed(5)}, ${center.lng.toFixed(5)}<br>
-                <strong>Zoom saat ini:</strong> ${zoom}
-            </div>
+    document.getElementById('modal-content').innerHTML = `
+        <div><h2 style="margin-bottom:8px;font-size:16px">📥 Konfirmasi Download</h2>
+            <div class="info-box" style="font-size:12px;line-height:1.6"><strong>📍 Pusat:</strong> ${center.lat.toFixed(5)}, ${center.lng.toFixed(5)}<br><strong>Zoom:</strong> ${zoom}</div>
             <div style="font-size:12px;margin-bottom:12px;line-height:1.8">
                 <div style="font-weight:600;margin-bottom:6px;color:var(--text-light)">PILIH LEVEL ZOOM:</div>
                 ${[13, 14, 15, 16, 17].map(z => {
-                    const count = estimates[z];
-                    const mb = (count * 20 / 1024).toFixed(1);
+                    const c = estimates[z], mb = (c * 20 / 1024).toFixed(1);
                     const checked = (z >= minZ && z <= maxZ) ? 'checked' : '';
-                    return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer">
-                        <input type="checkbox" class="zoom-level-cb" value="${z}" ${checked} style="cursor:pointer;width:18px;height:18px">
-                        <span style="flex:1"><strong>Zoom ${z}</strong>${z <= 14 ? ' (jauh)' : z >= 17 ? ' (detail)' : ''}<br><small style="color:var(--text-light)">${count.toLocaleString()} tile · ~${mb} MB</small></span>
-                    </label>`;
+                    return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer"><input type="checkbox" class="zoom-level-cb" value="${z}" ${checked} style="cursor:pointer;width:18px;height:18px"><span style="flex:1"><strong>Zoom ${z}</strong><br><small style="color:var(--text-light)">${c.toLocaleString()} tile · ~${mb} MB</small></span></label>`;
                 }).join('')}
             </div>
             <div id="total-estimate" style="background:var(--bg-alt);padding:10px;border-radius:6px;font-size:13px;margin-bottom:12px;line-height:1.5">Menghitung...</div>
-            <div style="background:#fef3c7;color:#92400e;padding:8px;border-radius:4px;font-size:11px;margin-bottom:12px;line-height:1.5">⚠️ Proses download bisa 1-5 menit. Jangan tutup app.</div>
-            <div style="display:flex;gap:8px">
-                <button class="btn-primary" id="start-offline-download-btn" style="flex:1;padding:12px;font-size:14px;font-weight:600">📥 Mulai Download</button>
-                <button class="btn-secondary" onclick="openOfflineMapDownloader()" style="flex:1;padding:12px;font-size:13px">← Kembali</button>
-            </div>
+            <div style="background:#fef3c7;color:#92400e;padding:8px;border-radius:4px;font-size:11px;margin-bottom:12px;line-height:1.5">⚠️ Download bisa 1-5 menit. Jangan tutup app.</div>
+            <div style="display:flex;gap:8px"><button class="btn-primary" id="start-offline-download-btn" style="flex:1;padding:12px;font-size:14px;font-weight:600">📥 Mulai</button><button class="btn-secondary" onclick="openOfflineMapDownloader()" style="flex:1;padding:12px;font-size:13px">← Kembali</button></div>
         </div>
     `;
-    document.getElementById('modal-content').innerHTML = html;
     const updateTotal = () => {
         const checked = document.querySelectorAll('.zoom-level-cb:checked');
         let total = 0;
         checked.forEach(cb => total += estimates[parseInt(cb.value)]);
         const mb = (total * 20 / 1024).toFixed(1);
         const el = document.getElementById('total-estimate');
-        if (el) {
-            if (total === 0) el.innerHTML = '<span style="color:var(--danger)">❌ Pilih minimal 1 zoom</span>';
-            else el.innerHTML = `<strong>📊 Total:</strong> ${total.toLocaleString()} tile<br><strong>💾 Estimasi:</strong> ~${mb} MB<br><strong>⏱️ Waktu:</strong> ~${Math.ceil(total * 0.25 / 60)} menit`;
-        }
+        if (el) el.innerHTML = total === 0 ? '<span style="color:var(--danger)">❌ Pilih minimal 1 zoom</span>' : `<strong>📊 Total:</strong> ${total.toLocaleString()} tile<br><strong>💾 Estimasi:</strong> ~${mb} MB<br><strong>⏱️ Waktu:</strong> ~${Math.ceil(total * 0.25 / 60)} menit`;
     };
     document.querySelectorAll('.zoom-level-cb').forEach(cb => cb.addEventListener('change', updateTotal));
     updateTotal();
@@ -2027,12 +1854,7 @@ async function selectOfflineArea() {
     };
 }
 async function downloadOfflineArea(bounds, zoomLevels) {
-    document.getElementById('modal-content').innerHTML = `
-        <h2 style="margin-bottom:12px">📥 Mengunduh...</h2>
-        <div id="dl-progress-text" style="font-size:14px;color:var(--text-light);margin-bottom:12px">Menyiapkan...</div>
-        <div style="background:var(--bg-alt);height:14px;border-radius:7px;overflow:hidden;margin-bottom:12px"><div id="dl-progress-bar" style="width:0%;height:100%;background:var(--primary);transition:width .3s"></div></div>
-        <div id="dl-stats" style="font-size:12px;color:var(--text-light);line-height:1.6">Mohon tunggu...</div>
-    `;
+    document.getElementById('modal-content').innerHTML = `<h2 style="margin-bottom:12px">📥 Mengunduh...</h2><div id="dl-progress-text" style="font-size:14px;color:var(--text-light);margin-bottom:12px">Menyiapkan...</div><div style="background:var(--bg-alt);height:14px;border-radius:7px;overflow:hidden;margin-bottom:12px"><div id="dl-progress-bar" style="width:0%;height:100%;background:var(--primary);transition:width .3s"></div></div><div id="dl-stats" style="font-size:12px;color:var(--text-light);line-height:1.6">Mohon tunggu...</div>`;
     const tiles = [];
     for (const zoom of zoomLevels) {
         const n = Math.pow(2, zoom);
@@ -2040,16 +1862,11 @@ async function downloadOfflineArea(bounds, zoomLevels) {
         const minLat = bounds.getSouth(), maxLat = bounds.getNorth();
         const minX = Math.max(0, Math.floor((minLon + 180) / 360 * n));
         const maxX = Math.min(n - 1, Math.floor((maxLon + 180) / 360 * n));
-        const lat2y = (lat) => {
-            const rad = Math.max(-85, Math.min(85, lat)) * Math.PI / 180;
-            return Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n);
-        };
+        const lat2y = (lat) => { const rad = Math.max(-85, Math.min(85, lat)) * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n); };
         const minY = Math.max(0, lat2y(maxLat)), maxY = Math.min(n - 1, lat2y(minLat));
-        for (let x = minX; x <= maxX; x++) {
-            for (let y = minY; y <= maxY; y++) {
-                const sd = ['a', 'b', 'c'][(x + y) % 3];
-                tiles.push(`https://${sd}.tile.openstreetmap.org/${zoom}/${x}/${y}.png`);
-            }
+        for (let x = minX; x <= maxX; x++) for (let y = minY; y <= maxY; y++) {
+            const sd = ['a', 'b', 'c'][(x + y) % 3];
+            tiles.push(`https://${sd}.tile.openstreetmap.org/${zoom}/${x}/${y}.png`);
         }
     }
     const total = tiles.length;
@@ -2071,30 +1888,14 @@ async function downloadOfflineArea(bounds, zoomLevels) {
                 const cached = await cache.match(url);
                 if (cached) { fromCache++; downloaded++; if (downloaded % 10 === 0) updateUI(); continue; }
                 const resp = await fetch(url, { mode: 'cors' });
-                if (resp.ok) {
-                    const blob = await resp.blob();
-                    bytes += blob.size;
-                    await cache.put(url, new Response(blob, { headers: resp.headers }));
-                } else failed++;
+                if (resp.ok) { const blob = await resp.blob(); bytes += blob.size; await cache.put(url, new Response(blob, { headers: resp.headers })); } else failed++;
             } catch (e) { failed++; }
             downloaded++;
             if (downloaded % 10 === 0) updateUI();
             await new Promise(r => setTimeout(r, 150));
         }
         updateUI();
-        document.getElementById('modal-content').innerHTML = `
-            <h2 style="margin-bottom:12px">✅ Selesai!</h2>
-            <div style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.8;margin-bottom:16px">
-                ✅ Berhasil: <strong>${downloaded - failed}</strong><br>
-                ⏭️ Sudah ada: <strong>${fromCache}</strong><br>
-                ❌ Gagal: <strong>${failed}</strong><br>
-                💾 Total: <strong>${(bytes / 1024 / 1024).toFixed(2)} MB</strong>
-            </div>
-            <div style="display:flex;gap:8px">
-                <button class="btn-primary" onclick="closeModal(); cleanupOfflineMap();" style="flex:1;padding:12px">Selesai</button>
-                <button class="btn-secondary" onclick="openOfflineMapDownloader();" style="flex:1;padding:12px;font-size:13px">Download Lagi</button>
-            </div>
-        `;
+        document.getElementById('modal-content').innerHTML = `<h2 style="margin-bottom:12px">✅ Selesai!</h2><div style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.8;margin-bottom:16px">✅ Berhasil: <strong>${downloaded - failed}</strong><br>⏭️ Sudah ada: <strong>${fromCache}</strong><br>❌ Gagal: <strong>${failed}</strong><br>💾 Total: <strong>${(bytes / 1024 / 1024).toFixed(2)} MB</strong></div><div style="display:flex;gap:8px"><button class="btn-primary" onclick="closeModal(); cleanupOfflineMap();" style="flex:1;padding:12px">Selesai</button><button class="btn-secondary" onclick="openOfflineMapDownloader();" style="flex:1;padding:12px;font-size:13px">Download Lagi</button></div>`;
         updateCacheInfo();
     } catch (err) {
         document.getElementById('modal-content').innerHTML = `<h2>❌ Error</h2><p>${err.message}</p><div class="modal-buttons"><button class="btn-primary" onclick="closeModal(); cleanupOfflineMap();" style="flex:1">Tutup</button></div>`;
@@ -2135,13 +1936,7 @@ async function updateAddressList() {
     const searchText = document.getElementById('list-search-input').value.toLowerCase();
     if (searchText) {
         filtered = filtered.filter((addr) => {
-            const basicMatch = (
-                (addr.recipient_name || '').toLowerCase().includes(searchText) ||
-                (addr.gang || '').toLowerCase().includes(searchText) ||
-                (addr.house_number || '').toLowerCase().includes(searchText) ||
-                (addr.landmark || '').toLowerCase().includes(searchText) ||
-                (addr.address || '').toLowerCase().includes(searchText)
-            );
+            const basicMatch = ((addr.recipient_name || '').toLowerCase().includes(searchText) || (addr.gang || '').toLowerCase().includes(searchText) || (addr.house_number || '').toLowerCase().includes(searchText) || (addr.landmark || '').toLowerCase().includes(searchText) || (addr.address || '').toLowerCase().includes(searchText));
             const recMatch = addr.recipients && addr.recipients.some(r => (r.name || '').toLowerCase().includes(searchText));
             return basicMatch || recMatch;
         });
@@ -2149,10 +1944,7 @@ async function updateAddressList() {
     filtered = sortAddresses(filtered, currentSort);
     currentAddresses = filtered;
     const list = document.getElementById('address-list');
-    if (filtered.length === 0) {
-        list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>Tidak ada alamat</div></div>';
-        return;
-    }
+    if (filtered.length === 0) { list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>Tidak ada alamat</div></div>'; return; }
     list.innerHTML = filtered.map((addr) => {
         let sc = '#10b981', sl = '✓ Selesai';
         if (addr.delivery_status === 'tidak order') { sc = '#6366f1'; sl = '❌ Tidak Order'; }
@@ -2161,20 +1953,18 @@ async function updateAddressList() {
         const isChecked = bulkSelectedIds.has(addr.id);
         const addrPhotos = extractAddressPhotos(addr);
         const thumb = addrPhotos.length > 0 ? addrPhotos[0] : null;
-        return `
-            <div class="address-item" data-addr-id="${addr.id}" onclick="showAddressDetail('${addr.id}')">
-                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px">
-                    <div style="display:flex;align-items:center;flex:1;gap:8px">
-                        <input type="checkbox" class="address-item-checkbox" data-addr-id="${addr.id}" ${isChecked ? 'checked' : ''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${addr.id}')">
-                        ${thumb ? `<img src="${thumb}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">` : ''}
-                        <div class="address-item-name">${addr.recipient_name}</div>
-                    </div>
-                    <span style="color:${sc};font-weight:600;font-size:12px">${sl}</span>
+        return `<div class="address-item" data-addr-id="${addr.id}" onclick="showAddressDetail('${addr.id}')">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px">
+                <div style="display:flex;align-items:center;flex:1;gap:8px">
+                    <input type="checkbox" class="address-item-checkbox" data-addr-id="${addr.id}" ${isChecked ? 'checked' : ''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${addr.id}')">
+                    ${thumb ? `<img src="${thumb}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">` : ''}
+                    <div class="address-item-name">${addr.recipient_name}</div>
                 </div>
-                <div class="address-item-details">${addr.gang || ''} ${addr.house_number || ''}<br>${addr.landmark || addr.address || ''}</div>
-                <div class="address-item-meta">📍 ${formatDate(addr.last_visit_at || addr.created_at)} · ${addr.visit_count || 1}x · ${rc} penerima${addrPhotos.length > 1 ? ` · ${addrPhotos.length} foto` : ''}</div>
+                <span style="color:${sc};font-weight:600;font-size:12px">${sl}</span>
             </div>
-        `;
+            <div class="address-item-details">${addr.gang || ''} ${addr.house_number || ''}<br>${addr.landmark || addr.address || ''}</div>
+            <div class="address-item-meta">📍 ${formatDate(addr.last_visit_at || addr.created_at)} · ${addr.visit_count || 1}x · ${rc} penerima${addrPhotos.length > 1 ? ` · ${addrPhotos.length} foto` : ''}</div>
+        </div>`;
     }).join('');
 }
 
@@ -2243,16 +2033,14 @@ async function exportShortCSV() {
 }
 function exportCSVTemplate() {
     const t = `nama,gang,nomor,alamat,latitude,longitude,patokan,status_pembayaran,masalah,tipe_lokasi,catatan
-Pak Budi,Gang 4,27,Jl. Raya No. 10,-6.2088,106.8650,Pagar hitam,cod-transfer,Sulit dihubungi,-,COD minta transfer
-Bu Siti,Gang 2,15,Jl. Makmur No. 5,-6.2100,106.8700,Sebelah toko roti,cod,,jelas,
-Pak Ahmad,Gang 5,8,Jl. Tengah No. 20,-6.2050,106.8600,Rumah hijau,transfer,Sulit ditemukan,sulit,Alamat sulit dicari`;
+Pak Budi,Gang 4,27,Jl. Raya No. 10,-6.2088,106.8650,Pagar hitam,cod-transfer,Sulit dihubungi,-,COD minta transfer`;
     const url = URL.createObjectURL(new Blob([t], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');
     link.href = url;
     link.download = `kurir-q-template.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    showModal('Template CSV', 'Minimal cukup kolom "nama".\n\nImport akan otomatis ubah status jadi "Belum Selesai".');
+    showModal('Template CSV', 'Minimal cukup kolom "nama".\n\nImport otomatis ubah status jadi "Belum Selesai".');
 }
 
 // ============ BULK ============
@@ -2277,10 +2065,7 @@ function updateBulkUI() {
         cs.textContent = bulkSelectedIds.size;
         sa.checked = false;
         document.querySelectorAll('.address-item-checkbox').forEach(cb => { cb.checked = bulkSelectedIds.has(cb.dataset.addrId); });
-    } else {
-        bs.style.display = 'none';
-        sa.checked = false;
-    }
+    } else { bs.style.display = 'none'; sa.checked = false; }
 }
 async function bulkUpdateStatus(newStatus) {
     if (bulkSelectedIds.size === 0) return;
@@ -2372,8 +2157,7 @@ document.getElementById('file-import-csv').addEventListener('change', (e) => {
                     recipients: ur,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
-                    history: [],
-                    raw_voice_note: ''
+                    history: [], raw_voice_note: ''
                 });
             }
             if (addresses.length === 0) { showModal('Error', '❌ Tidak ada data valid'); return; }
@@ -2397,28 +2181,9 @@ function parseCSVLine(line) {
 async function showImportModal(newAddresses, type) {
     const isJSON = type === 'json';
     if (isJSON) {
-        document.getElementById('modal-content').innerHTML = `
-            <h2>🔄 Full Restore</h2>
-            <div class="info-box" style="background:#fef3c7;color:#92400e;margin:16px 0">⚠️ Semua data sekarang akan <strong>DIHAPUS</strong> diganti dengan backup.</div>
-            <p>Ditemukan <strong>${newAddresses.length}</strong> alamat.</p>
-            <div class="modal-buttons">
-                <button class="btn-secondary" onclick="closeModal()">Batal</button>
-                <button class="btn-danger" onclick="confirmImport('json', ${newAddresses.length})">🔄 Restore Sekarang</button>
-            </div>
-        `;
+        document.getElementById('modal-content').innerHTML = `<h2>🔄 Full Restore</h2><div class="info-box" style="background:#fef3c7;color:#92400e;margin:16px 0">⚠️ Semua data sekarang akan <strong>DIHAPUS</strong> diganti dengan backup.</div><p>Ditemukan <strong>${newAddresses.length}</strong> alamat.</p><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-danger" onclick="confirmImport('json', ${newAddresses.length})">🔄 Restore</button></div>`;
     } else {
-        document.getElementById('modal-content').innerHTML = `
-            <h2>📤 Import CSV</h2>
-            <p>Ditemukan <strong>${newAddresses.length}</strong> baris.</p>
-            <div class="info-box" style="background:#dbeafe;color:#1e40af;font-size:13px;line-height:1.6">
-                • Data existing (nama sama) → status jadi <strong>🔔 Belum Selesai</strong><br>
-                • Data baru → ditambah <strong>🔔 Belum Selesai</strong>
-            </div>
-            <div class="modal-buttons">
-                <button class="btn-secondary" onclick="closeModal()">Batal</button>
-                <button class="btn-primary" onclick="confirmImport('csv', ${newAddresses.length})">📤 Import</button>
-            </div>
-        `;
+        document.getElementById('modal-content').innerHTML = `<h2>📤 Import CSV</h2><p>Ditemukan <strong>${newAddresses.length}</strong> baris.</p><div class="info-box" style="background:#dbeafe;color:#1e40af;font-size:13px;line-height:1.6">• Data existing (nama sama) → status jadi <strong>🔔 Belum Selesai</strong><br>• Data baru → ditambah <strong>🔔 Belum Selesai</strong></div><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-primary" onclick="confirmImport('csv', ${newAddresses.length})">📤 Import</button></div>`;
     }
     window.importNewAddresses = newAddresses;
     document.getElementById('modal').classList.add('active');
@@ -2438,9 +2203,7 @@ async function confirmImport(type, count) {
             updateMapMarkers(); updateAddressList();
             showModal('Sukses', `✓ ${count} alamat direstore!`);
         });
-    } else {
-        await processCSVImport(count);
-    }
+    } else await processCSVImport(count);
 }
 async function processCSVImport(count) {
     document.getElementById('modal-content').innerHTML = `<div style="padding:40px;text-align:center"><h2 style="margin-bottom:20px">⏳ Memproses ${count}...</h2><div style="width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto"></div></div>`;
@@ -2488,7 +2251,7 @@ async function processCSVImport(count) {
     showModal('Sukses', `✓ Import CSV selesai!\n\n🔔 Status diubah: ${upd}\n➕ Data baru: ${add}`);
 }
 
-// ============ KOMPRES FOTO ============
+// ============ KOMPRES FOTO LAMA ============
 async function openCompressPhotosModal() {
     if (isCompressing) { showModal('Sedang Proses', '⏳ Kompresi masih berjalan'); return; }
     const addresses = await getAllAddresses();
@@ -2504,20 +2267,7 @@ async function openCompressPhotosModal() {
     if (needCompress === 0) { showModal('Info', '✅ Semua foto sudah optimal!'); return; }
     const sizeKB = (totalSize / 1024).toFixed(1);
     const sizeMB = (totalSize / 1024 / 1024).toFixed(2);
-    document.getElementById('modal-content').innerHTML = `
-        <h2>🗜️ Kompres Foto Lama</h2>
-        <div class="info-box" style="margin:16px 0;line-height:1.7">
-            📊 Total alamat: <strong>${addresses.length}</strong><br>
-            📷 Total foto: <strong>${totalPhotos}</strong><br>
-            🎯 Perlu dikompres: <strong>${needCompress}</strong><br>
-            💾 Ukuran: <strong>${sizeKB < 1024 ? sizeKB + ' KB' : sizeMB + ' MB'}</strong>
-        </div>
-        <div style="background:#dbeafe;color:#1e40af;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:16px">💡 Foto akan dikompres ulang jadi thumbnail kecil (~5-8KB).</div>
-        <div class="modal-buttons">
-            <button class="btn-secondary" onclick="closeModal()">Batal</button>
-            <button class="btn-primary" id="start-compress-btn" onclick="compressAllPhotos()">🗜️ Mulai Kompres</button>
-        </div>
-    `;
+    document.getElementById('modal-content').innerHTML = `<h2>🗜️ Kompres Foto Lama</h2><div class="info-box" style="margin:16px 0;line-height:1.7">📊 Total alamat: <strong>${addresses.length}</strong><br>📷 Total foto: <strong>${totalPhotos}</strong><br>🎯 Perlu dikompres: <strong>${needCompress}</strong><br>💾 Ukuran: <strong>${sizeKB < 1024 ? sizeKB + ' KB' : sizeMB + ' MB'}</strong></div><div style="background:#dbeafe;color:#1e40af;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:16px">💡 Foto akan dikompres ulang jadi thumbnail kecil (~5-8KB).</div><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-primary" id="start-compress-btn" onclick="compressAllPhotos()">🗜️ Mulai Kompres</button></div>`;
     document.getElementById('modal').classList.add('active');
 }
 async function compressAllPhotos() {
@@ -2526,12 +2276,7 @@ async function compressAllPhotos() {
     const sb = document.getElementById('start-compress-btn');
     if (sb) { sb.disabled = true; sb.style.opacity = '0.5'; sb.textContent = '⏳ Sedang Jalan...'; }
     const mc = document.getElementById('modal-content');
-    mc.innerHTML = `
-        <h2 style="margin-bottom:12px">🗜️ Mengompres...</h2>
-        <div id="compress-progress" style="font-size:14px;color:var(--text-light);margin-bottom:12px">Menyiapkan...</div>
-        <div style="background:var(--bg-alt);height:12px;border-radius:6px;overflow:hidden;margin-bottom:12px"><div id="compress-bar" style="width:0%;height:100%;background:var(--primary);transition:width .3s"></div></div>
-        <div id="compress-stats" style="font-size:12px;color:var(--text-light);line-height:1.6">Mohon tunggu...</div>
-    `;
+    mc.innerHTML = `<h2 style="margin-bottom:12px">🗜️ Mengompres...</h2><div id="compress-progress" style="font-size:14px;color:var(--text-light);margin-bottom:12px">Menyiapkan...</div><div style="background:var(--bg-alt);height:12px;border-radius:6px;overflow:hidden;margin-bottom:12px"><div id="compress-bar" style="width:0%;height:100%;background:var(--primary);transition:width .3s"></div></div><div id="compress-stats" style="font-size:12px;color:var(--text-light);line-height:1.6">Mohon tunggu...</div>`;
     const allAddresses = await getAllAddresses();
     const totalRecords = allAddresses.length;
     let pr = 0, cc = 0, sk = 0, tb = 0, ta = 0;
@@ -2541,8 +2286,9 @@ async function compressAllPhotos() {
         if (url.length < 5000 && mw < 150) { res(url); return; }
         const img = new Image();
         img.onload = () => {
+            let c = null;
             try {
-                const c = document.createElement('canvas');
+                c = document.createElement('canvas');
                 const ctx = c.getContext('2d');
                 let { width, height } = img;
                 if (width > mw) { height = Math.round((height * mw) / width); width = mw; }
@@ -2552,8 +2298,9 @@ async function compressAllPhotos() {
                 try { const w = c.toDataURL('image/webp', q); if (w.startsWith('data:image/webp') && w.length < 50000) { res(w); return; } } catch (e) {}
                 res(c.toDataURL('image/jpeg', q));
             } catch (e) { res(url); }
+            finally { if (c) { c.width = 0; c.height = 0; c = null; } img.src = ''; img.onload = null; }
         };
-        img.onerror = () => res(url);
+        img.onerror = () => { img.src = ''; res(url); };
         img.src = url;
     });
     const updateProgress = () => {
@@ -2606,17 +2353,7 @@ async function compressAllPhotos() {
         const kbB = (tb / 1024).toFixed(1), kbA = (ta / 1024).toFixed(1);
         const kbS = ((tb - ta) / 1024).toFixed(1);
         const pctS = tb > 0 ? ((1 - ta / tb) * 100).toFixed(1) : 0;
-        mc.innerHTML = `
-            <h2 style="margin-bottom:16px">✅ Selesai!</h2>
-            <div style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.8;margin-bottom:16px">
-                ✅ Dikompres: <strong>${cc}</strong><br>
-                ⏭️ Dilewati: <strong>${sk}</strong><br><br>
-                📦 Sebelum: <strong>${kbB} KB</strong><br>
-                📦 Sesudah: <strong>${kbA} KB</strong><br>
-                💾 Hemat: <strong style="color:var(--secondary)">${kbS} KB (${pctS}%)</strong>
-            </div>
-            <div class="modal-buttons"><button class="btn-primary" onclick="location.reload()" style="flex:1">Selesai & Refresh</button></div>
-        `;
+        mc.innerHTML = `<h2 style="margin-bottom:16px">✅ Selesai!</h2><div style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.8;margin-bottom:16px">✅ Dikompres: <strong>${cc}</strong><br>⏭️ Dilewati: <strong>${sk}</strong><br><br>📦 Sebelum: <strong>${kbB} KB</strong><br>📦 Sesudah: <strong>${kbA} KB</strong><br>💾 Hemat: <strong style="color:var(--secondary)">${kbS} KB (${pctS}%)</strong></div><div class="modal-buttons"><button class="btn-primary" onclick="location.reload()" style="flex:1">Selesai & Refresh</button></div>`;
         try { updateMapMarkers(); updateAddressList(); } catch (e) {}
     } catch (err) {
         mc.innerHTML = `<h2>❌ Error</h2><p>${err.message}</p><div class="modal-buttons"><button class="btn-primary" onclick="closeModal()" style="flex:1">Tutup</button></div>`;
@@ -2646,11 +2383,8 @@ function showPage(pageId) {
     document.getElementById(pageId).classList.add('active');
     closeSidebar();
     if (pageId === 'list-page') updateAddressList();
-    else if (pageId === 'map-page') {
-        setTimeout(() => { if (map) { map.invalidateSize(); updateMapMarkers(); } }, 100);
-    } else if (pageId === 'settings-page') {
-        setTimeout(updateCacheInfo, 200);
-    }
+    else if (pageId === 'map-page') { setTimeout(() => { if (map) { map.invalidateSize(); updateMapMarkers(); } }, 100); }
+    else if (pageId === 'settings-page') { setTimeout(updateCacheInfo, 200); }
 }
 function showSidebar() { document.getElementById('sidebar').classList.add('active'); document.getElementById('menu-overlay').classList.add('active'); }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('active'); document.getElementById('menu-overlay').classList.remove('active'); }
@@ -2662,11 +2396,7 @@ function closeRecordSheet() {
     if (adjustmentMap) { adjustmentMap.off(); adjustmentMap.remove(); adjustmentMap = null; adjustmentMarker = null; }
 }
 function showModal(title, message) {
-    document.getElementById('modal-content').innerHTML = `
-        <h2>${title}</h2>
-        <p style="white-space:pre-line">${message}</p>
-        <div class="modal-buttons"><button class="btn-primary" onclick="closeModal()" style="flex:1">OK</button></div>
-    `;
+    document.getElementById('modal-content').innerHTML = `<h2>${title}</h2><p style="white-space:pre-line">${message}</p><div class="modal-buttons"><button class="btn-primary" onclick="closeModal()" style="flex:1">OK</button></div>`;
     document.getElementById('modal').classList.add('active');
 }
 function showConfirmModal(title, message, onConfirm) {
@@ -2681,10 +2411,7 @@ function showConfirmModal(title, message, onConfirm) {
     const kb = document.createElement('button');
     kb.className = 'btn-danger';
     kb.textContent = 'Lanjutkan';
-    kb.onclick = async () => {
-        try { await onConfirm(); } catch (e) { console.error(e); }
-        closeModal();
-    };
+    kb.onclick = async () => { try { await onConfirm(); } catch (e) { console.error(e); } closeModal(); };
     buttons.appendChild(cb);
     buttons.appendChild(kb);
     modal.appendChild(buttons);
@@ -2813,7 +2540,6 @@ document.getElementById('search-btn').addEventListener('click', () => updateMapM
 document.getElementById('search-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') updateMapMarkers(document.getElementById('search-input').value.toLowerCase().trim()); });
 document.getElementById('list-search-btn').addEventListener('click', () => { const t = document.getElementById('list-search-input').value.toLowerCase().trim(); updateAddressList(); updateMapMarkers(t); });
 document.getElementById('list-search-input').addEventListener('input', () => { const t = document.getElementById('list-search-input').value.toLowerCase().trim(); updateAddressList(); updateMapMarkers(t); });
-document.getElementById('list-search-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') { const t = document.getElementById('list-search-input').value.toLowerCase().trim(); updateAddressList(); updateMapMarkers(t); } });
 document.getElementById('voice-search-btn').addEventListener('click', startVoiceSearch);
 document.getElementById('sort-select').addEventListener('change', (e) => { currentSort = e.target.value; updateAddressList(); });
 document.querySelectorAll('[data-filter]').forEach(btn => btn.addEventListener('click', () => {
@@ -2853,11 +2579,13 @@ document.getElementById('download-offline-map-btn').addEventListener('click', op
 
 // ============ PHOTO HANDLERS ============
 function attachAddressPhotoHandlers() {
+    if (_photoHandlersAttached) return;
+    _photoHandlersAttached = true;
     for (let slot = 1; slot <= 2; slot++) {
         const h = async (e) => {
             const f = e.target.files[0];
             if (f) {
-                try { const c = await compressImage(f); setAddressPhoto(slot, c); } catch (er) {}
+                try { const c = await compressImage(f); if (c) setAddressPhoto(slot, c); } catch (er) {}
             }
             e.target.value = '';
         };
@@ -2878,6 +2606,7 @@ function attachAddressPhotoHandlers() {
 async function init() {
     try {
         await initDB();
+        const restored = restoreAppState();
         initMap();
         registerServiceWorker();
         initProblemTags();
@@ -2892,14 +2621,20 @@ async function init() {
             for (const a of demo) await saveAddress(a);
         }
         updateMapMarkers();
-        showModal('Selamat Datang', '👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Default filter: Belum Selesai\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Edit penerima: bisa hapus foto\n• Share lokasi ke Maps/Waze/WA\n• Download peta offline di Pengaturan\n• Backup JSON rutin!');
+        if (window._pendingActivePage) {
+            const ap = window._pendingActivePage;
+            window._pendingActivePage = null;
+            setTimeout(() => showPage(ap), 300);
+        }
+        if (!sessionStorage.getItem('kurirq_welcomed')) {
+            sessionStorage.setItem('kurirq_welcomed', '1');
+            showModal('Selamat Datang', '👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n💾 Auto-save state (anti reload)\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Share lokasi ke Maps/Waze/WA\n• Download peta offline di Pengaturan\n• Backup JSON rutin!');
+        }
     } catch (err) {
         console.error('Init error:', err);
         showModal('Error', 'Gagal inisialisasi: ' + err.message);
     }
 }
-
-setTimeout(attachAddressPhotoHandlers, 100);
 window.addEventListener('load', () => setTimeout(init, 1000));
 </script>
 </body>
