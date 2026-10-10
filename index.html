@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--primary:#2563eb;--primary-dark:#1d4ed8;--secondary:#10b981;--danger:#ef4444;--warning:#f59e0b;--bg:#fff;--bg-alt:#f3f4f6;--text:#1f2937;--text-light:#6b7280;--border:#d1d5db}
+:root{--primary:#2563eb;--primary-dark:#1d4ed8;--secondary:#10b981;--danger:#ef4444;--warning:#f59e0b;--bg:#fff;--bg-alt:#f3f4f6;--text:#1f2937;--text-light:#6b7280;--border:#d1d5db;--wa:#25D366}
 @media(prefers-color-scheme:dark){:root{--bg:#1f2937;--bg-alt:#111827;--text:#f3f4f6;--text-light:#d1d5db;--border:#4b5563}}
 html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
 body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);display:flex;flex-direction:column}
@@ -63,6 +63,7 @@ main{flex:1;display:flex;overflow:hidden}
 .btn-primary{background:var(--primary);color:#fff}
 .btn-secondary{background:var(--bg-alt);color:var(--text);border:1px solid var(--border)}
 .btn-danger{background:var(--danger);color:#fff}
+.btn-wa{background:var(--wa);color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600}
 .address-list{display:flex;flex-direction:column;gap:0}
 .address-item{padding:12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .2s}
 .address-item:active{background:var(--bg-alt)}
@@ -108,7 +109,7 @@ input[type=number]{-moz-appearance:textfield}
 <header><h1>📦 Kurir-Q</h1><button class="menu-btn" id="menu-btn">☰</button></header>
 <main>
 <div class="page active" id="map-page">
-<div class="search-bar"><input type="text" id="search-input" placeholder="Cari nama / gang / nomor / patokan"><button id="search-btn">Cari</button></div>
+<div class="search-bar"><input type="text" id="search-input" placeholder="Cari nama / wa / alamat / patokan"><button id="search-btn">Cari</button></div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-map-filter="belum">🔔 Belum Selesai</button>
 <button class="filter-btn" data-map-filter="semua">Semua</button>
@@ -125,7 +126,7 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 
 <div class="page" id="list-page">
-<div class="search-bar"><input type="text" id="list-search-input" placeholder="Cari alamat..."><button id="list-search-btn">Cari</button><button id="voice-search-btn" title="Voice search" style="padding:8px 12px;background:var(--secondary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">🎤</button></div>
+<div class="search-bar"><input type="text" id="list-search-input" placeholder="Cari nama / wa / alamat..."><button id="list-search-btn">Cari</button><button id="voice-search-btn" title="Voice search" style="padding:8px 12px;background:var(--secondary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">🎤</button></div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-filter="semua">Semua</button>
 <button class="filter-btn" data-filter="tidak-order">Tidak Order</button>
@@ -207,7 +208,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="info-box"><strong>Kurir-Q v1.0</strong><br>Buku alamat pribadi kurir berbasis GPS + peta.<br><br><strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.</div>
 <h3 style="margin-bottom:12px;margin-top:20px">Fitur</h3>
 <div style="font-size:13px;color:var(--text-light);line-height:1.8">
-✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ 2 foto alamat<br>✓ Foto penerima bisa dihapus<br>✓ Auto-save state (anti reload)<br>✓ Routing dari lokasi saat ini<br>✓ Multi-provider routing<br>✓ API key tersimpan lokal<br>✓ Export rute: GMap/KML/GPX<br>✓ Share ke map lain<br>✓ Peta offline per-area<br>✓ Backup/restore<br>✓ PWA Android
+✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WhatsApp + tombol chat<br>✓ 2 foto alamat<br>✓ Auto-save state (anti reload)<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (update by nama/WA)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline per-area<br>✓ Backup/restore
 </div>
 </div>
 </div>
@@ -218,10 +219,11 @@ input[type=number]{-moz-appearance:textfield}
 <div class="sidebar" id="sidebar">
 <div class="sidebar-header"><h2>Menu</h2><button class="close-btn" id="close-sidebar">×</button></div>
 <div class="sidebar-menu">
-<button data-page="map-page">🗺️ Peta</button>
-<button data-page="list-page">📋 Daftar Alamat</button>
-<button data-page="backup-page">💾 Backup</button>
-<button data-page="settings-page">⚙️ Pengaturan</button>
+    <button data-page="map-page">🗺️ Peta</button>
+    <button data-page="list-page">📋 Daftar Alamat</button>
+    <button data-page="backup-page">💾 Backup</button>
+    <button data-page="settings-page">⚙️ Pengaturan</button>
+    <button onclick="window.location.href='ocr.html'" style="color: var(--primary); font-weight: 700; border-top: 2px solid var(--primary);">📷 OCR Order → CSV</button>
 </div>
 </div>
 
@@ -239,10 +241,11 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 <div id="voice-result" style="display:none"><div class="form-group"><label>Catatan Voice (Mentah)</label><textarea id="voice-transcript" readonly></textarea></div></div>
 <div id="manual-form" style="display:none">
-<div class="form-group"><label>Nama Penerima</label><input type="text" id="form-name" placeholder="Contoh: Pak Budi"></div>
+<div class="form-group"><label>Nama Penerima</label><input type="text" id="form-name" placeholder="Contoh: Yeyen"></div>
+<div class="form-group"><label>No. WhatsApp</label><input type="tel" id="form-whatsapp" placeholder="085156395041 atau (+62)..." inputmode="tel" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px"><small style="color:var(--text-light);font-size:10px;margin-top:4px">Otomatis format 62... (opsional)</small></div>
 <div class="form-group"><label>Gang</label><input type="text" id="form-gang" placeholder="Contoh: Gang 4"></div>
 <div class="form-group"><label>Nomor Rumah</label><input type="text" id="form-house-number" placeholder="Contoh: 27"></div>
-<div class="form-group"><label>Alamat Lengkap</label><input type="text" id="form-address" placeholder="Contoh: Jl. Raya No. 10"></div>
+<div class="form-group"><label>Alamat Lengkap</label><textarea id="form-address" placeholder="Contoh: Jalan Aselih No.52, RT.016/RW.1, Cipedak, Jakarta Selatan" style="min-height:70px"></textarea></div>
 <div class="form-group"><label>Patokan/Landmark</label><input type="text" id="form-landmark" placeholder="Contoh: Pagar hitam"></div>
 <div class="form-group"><label>Status Pembayaran</label><select id="form-payment"><option value="belum">Belum diketahui</option><option value="cod">COD normal</option><option value="cod-transfer">COD minta transfer</option><option value="transfer">Transfer</option><option value="other">Minta metode lain</option></select></div>
 <div class="form-group"><label>Tipe Lokasi</label><select id="form-location-type"><option value="jelas">Alamat jelas</option><option value="nitip">Alamat nitip</option><option value="sulit">Sulit ditemukan</option><option value="patokan">Butuh patokan</option></select></div>
@@ -322,7 +325,7 @@ let _photoHandlersAttached = false;
 window.addressPhotos = [null, null];
 window._mapInitiallyCentered = false;
 
-// ============ ROUTING PROVIDERS (API key dari IndexedDB) ============
+// ============ ROUTING PROVIDERS ============
 let ROUTING_PROVIDERS = [
     { name: 'OpenRouteService', id: 'ors', apiKey: '', url: 'https://api.openrouteservice.org/v2/directions/driving-car', type: 'ors', freeTier: '2000 req/hari', signUpUrl: 'https://openrouteservice.org/dev/#/signup' },
     { name: 'GraphHopper', id: 'gh', apiKey: '', url: 'https://graphhopper.com/api/1/route', type: 'gh', freeTier: '500 req/hari', signUpUrl: 'https://graphhopper.com/dashboard/#/register' },
@@ -330,30 +333,26 @@ let ROUTING_PROVIDERS = [
 ];
 let distanceCache = {};
 
-// ============ API KEY MANAGEMENT (IndexedDB) ============
+// ============ API KEY MANAGEMENT ============
 async function loadRoutingApiKeys() {
     return new Promise((resolve) => {
         try {
             const req = indexedDB.open('PetaKurir', 3);
             req.onupgradeneeded = (e) => {
                 const database = e.target.result;
-                if (!database.objectStoreNames.contains('settings')) {
-                    database.createObjectStore('settings', { keyPath: 'key' });
-                }
+                if (!database.objectStoreNames.contains('settings')) database.createObjectStore('settings', { keyPath: 'key' });
             };
             req.onsuccess = () => {
                 const database = req.result;
                 if (!database.objectStoreNames.contains('settings')) { database.close(); resolve(); return; }
                 const tx = database.transaction('settings', 'readonly');
-                const store = tx.objectStore('settings');
-                const get = store.get('routing_api_keys');
+                const get = tx.objectStore('settings').get('routing_api_keys');
                 get.onsuccess = () => {
                     if (get.result && get.result.value) {
                         const keys = get.result.value;
                         ROUTING_PROVIDERS.forEach(p => { if (keys[p.id]) p.apiKey = keys[p.id]; });
                     }
-                    database.close();
-                    resolve();
+                    database.close(); resolve();
                 };
                 get.onerror = () => { database.close(); resolve(); };
             };
@@ -361,16 +360,13 @@ async function loadRoutingApiKeys() {
         } catch (e) { resolve(); }
     });
 }
-
 async function saveRoutingApiKeys() {
     return new Promise((resolve) => {
         try {
             const req = indexedDB.open('PetaKurir', 3);
             req.onupgradeneeded = (e) => {
                 const database = e.target.result;
-                if (!database.objectStoreNames.contains('settings')) {
-                    database.createObjectStore('settings', { keyPath: 'key' });
-                }
+                if (!database.objectStoreNames.contains('settings')) database.createObjectStore('settings', { keyPath: 'key' });
             };
             req.onsuccess = () => {
                 const database = req.result;
@@ -386,38 +382,10 @@ async function saveRoutingApiKeys() {
         } catch (e) { resolve(); }
     });
 }
-
 function showApiKeySettingsModal() {
-    const html = `
-        <h2 style="margin-bottom:12px">🔑 Atur API Key Routing</h2>
-        <div style="background:#dbeafe;color:#1e40af;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:16px">
-            💡 API key disimpan <strong>lokal di perangkat ini</strong> (IndexedDB). Tidak ada di kode HTML.<br>
-            Daftar gratis di provider, lalu paste di bawah.
-        </div>
-        ${ROUTING_PROVIDERS.map(p => `
-            <div class="form-group" style="margin-bottom:14px">
-                <label style="font-size:12px;display:flex;justify-content:space-between;align-items:center">
-                    <span>${p.name}</span>
-                    <small style="color:var(--text-light);font-weight:400">${p.freeTier}</small>
-                </label>
-                <input type="text" id="apikey-${p.id}" value="${p.apiKey || ''}" placeholder="Paste API key..."
-                    style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:monospace;box-sizing:border-box">
-                <a href="${p.signUpUrl}" target="_blank" style="font-size:11px;color:var(--primary);margin-top:4px;text-decoration:none">🔗 Daftar gratis di ${p.name}</a>
-            </div>
-        `).join('')}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;margin-bottom:8px">
-            <button class="btn-secondary" style="padding:10px;font-size:12px" onclick="exportApiKeys()">📥 Export Key</button>
-            <button class="btn-secondary" style="padding:10px;font-size:12px" onclick="triggerImportApiKeys()">📤 Import Key</button>
-        </div>
-        <div style="display:flex;gap:8px">
-            <button class="btn-primary" style="flex:1;padding:10px" onclick="saveApiKeysFromForm()">💾 Simpan</button>
-            <button class="btn-secondary" style="flex:1;padding:10px" onclick="closeModal()">Batal</button>
-        </div>
-    `;
-    document.getElementById('modal-content').innerHTML = html;
+    document.getElementById('modal-content').innerHTML = `<h2 style="margin-bottom:12px">🔑 Atur API Key Routing</h2><div style="background:#dbeafe;color:#1e40af;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:16px">💡 API key disimpan <strong>lokal di perangkat ini</strong> (IndexedDB). Tidak ada di kode HTML.<br>Daftar gratis di provider, lalu paste di bawah.</div>${ROUTING_PROVIDERS.map(p => `<div class="form-group" style="margin-bottom:14px"><label style="font-size:12px;display:flex;justify-content:space-between;align-items:center"><span>${p.name}</span><small style="color:var(--text-light);font-weight:400">${p.freeTier}</small></label><input type="text" id="apikey-${p.id}" value="${p.apiKey || ''}" placeholder="Paste API key..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:monospace;box-sizing:border-box"><a href="${p.signUpUrl}" target="_blank" style="font-size:11px;color:var(--primary);margin-top:4px;text-decoration:none">🔗 Daftar gratis di ${p.name}</a></div>`).join('')}<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;margin-bottom:8px"><button class="btn-secondary" style="padding:10px;font-size:12px" onclick="exportApiKeys()">📥 Export Key</button><button class="btn-secondary" style="padding:10px;font-size:12px" onclick="triggerImportApiKeys()">📤 Import Key</button></div><div style="display:flex;gap:8px"><button class="btn-primary" style="flex:1;padding:10px" onclick="saveApiKeysFromForm()">💾 Simpan</button><button class="btn-secondary" style="flex:1;padding:10px" onclick="closeModal()">Batal</button></div>`;
     document.getElementById('modal').classList.add('active');
 }
-
 async function saveApiKeysFromForm() {
     for (const p of ROUTING_PROVIDERS) {
         const input = document.getElementById(`apikey-${p.id}`);
@@ -426,48 +394,41 @@ async function saveApiKeysFromForm() {
     await saveRoutingApiKeys();
     closeModal();
     const active = ROUTING_PROVIDERS.filter(p => p.apiKey && p.apiKey.length > 0).length;
-    showModal('Sukses', `✓ API key disimpan.\n\nAktif: ${active} dari ${ROUTING_PROVIDERS.length} provider.\n\nTidak ada key di kode HTML.`);
+    showModal('Sukses', `✓ API key disimpan.\n\nAktif: ${active} dari ${ROUTING_PROVIDERS.length} provider.`);
 }
-
 async function exportApiKeys() {
     for (const p of ROUTING_PROVIDERS) {
         const input = document.getElementById(`apikey-${p.id}`);
         if (input) p.apiKey = input.value.trim();
     }
     const active = ROUTING_PROVIDERS.filter(p => p.apiKey && p.apiKey.length > 0);
-    if (active.length === 0) { showModal('Info', '📭 Tidak ada API key yang terisi.\n\nIsi minimal 1 provider dulu.'); return; }
+    if (active.length === 0) { showModal('Info', '📭 Tidak ada API key yang terisi.'); return; }
     const data = { type: 'kurirq-apikeys', version: '1.0', exported_at: new Date().toISOString(), keys: {} };
     ROUTING_PROVIDERS.forEach(p => { if (p.apiKey && p.apiKey.length > 0) data.keys[p.id] = p.apiKey; });
     const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
     link.download = `kurir-q-apikeys-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    showModal('Sukses', `✓ Export ${active.length} API key.\n\n⚠️ Simpan file ini dengan aman!\n\nJangan dibagikan ke orang lain.`);
+    showModal('Sukses', `✓ Export ${active.length} API key.\n\n⚠️ Simpan file ini dengan aman!`);
 }
-
-function triggerImportApiKeys() {
-    document.getElementById('file-import-apikeys').click();
-}
-
+function triggerImportApiKeys() { document.getElementById('file-import-apikeys').click(); }
 document.getElementById('file-import-apikeys').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = async (event) => {
         try {
             const data = JSON.parse(event.target.result);
-            if (!data.keys || typeof data.keys !== 'object') { showModal('Error', '❌ File tidak valid.\n\nField "keys" tidak ditemukan.'); return; }
+            if (!data.keys || typeof data.keys !== 'object') { showModal('Error', '❌ File tidak valid.'); return; }
             const validIds = ROUTING_PROVIDERS.map(p => p.id);
             const foundKeys = Object.keys(data.keys).filter(id => validIds.includes(id));
             if (foundKeys.length === 0) { showModal('Error', '❌ File tidak punya API key yang dikenali.'); return; }
             ROUTING_PROVIDERS.forEach(p => { if (data.keys[p.id]) p.apiKey = data.keys[p.id]; });
             await saveRoutingApiKeys();
             if (document.getElementById('modal').classList.contains('active')) showApiKeySettingsModal();
-            showModal('Sukses', `✓ Import ${foundKeys.length} API key berhasil!\n\nProvider: ${foundKeys.join(', ')}\n\nKey tersimpan di perangkat ini.`);
+            showModal('Sukses', `✓ Import ${foundKeys.length} API key!\n\nProvider: ${foundKeys.join(', ')}`);
         } catch (err) { showModal('Error', `❌ File tidak valid: ${err.message}`); }
     };
     reader.readAsText(file);
@@ -522,9 +483,7 @@ function initDB() {
                 const store = database.createObjectStore('addresses', { keyPath: 'id' });
                 store.createIndex('created_at', 'created_at');
             }
-            if (!database.objectStoreNames.contains('settings')) {
-                database.createObjectStore('settings', { keyPath: 'key' });
-            }
+            if (!database.objectStoreNames.contains('settings')) database.createObjectStore('settings', { keyPath: 'key' });
         };
     });
 }
@@ -589,7 +548,6 @@ function initMap() {
         if (mc) mc.innerHTML = '<div style="text-align:center;color:#999;padding:20px">⚠️ Peta tidak tersedia.</div>';
     }
 }
-
 function zoomToCurrentLocation() {
     if (!map) { showModal('Error', '❌ Peta belum siap'); return; }
     const btn = document.getElementById('zoom-to-location-btn');
@@ -614,7 +572,6 @@ function zoomToCurrentLocation() {
         );
     } else { showModal('Error', '❌ Browser tidak support Geolocation'); if (btn) btn.style.opacity = '0.9'; }
 }
-
 async function updateMapMarkers(searchText = '') {
     if (!map || !addressMarkersLayer) return;
     addressMarkersLayer.clearLayers();
@@ -628,7 +585,7 @@ async function updateMapMarkers(searchText = '') {
     const isSearching = searchText && searchText.length > 0;
     addresses.forEach((addr) => {
         if (isSearching) {
-            const basicMatch = ((addr.recipient_name || '').toLowerCase().includes(searchText) || (addr.gang || '').toLowerCase().includes(searchText) || (addr.house_number || '').toLowerCase().includes(searchText) || (addr.landmark || '').toLowerCase().includes(searchText) || (addr.address || '').toLowerCase().includes(searchText));
+            const basicMatch = ((addr.recipient_name || '').toLowerCase().includes(searchText) || (addr.whatsapp || '').includes(searchText) || (addr.gang || '').toLowerCase().includes(searchText) || (addr.house_number || '').toLowerCase().includes(searchText) || (addr.landmark || '').toLowerCase().includes(searchText) || (addr.address || '').toLowerCase().includes(searchText));
             const recMatch = addr.recipients && addr.recipients.some(r => (r.name || '').toLowerCase().includes(searchText));
             if (!basicMatch && !recMatch) return;
             if (!firstSearchResult) firstSearchResult = addr;
@@ -654,14 +611,12 @@ async function updateMapMarkers(searchText = '') {
         const borderWidth = isSearching ? '4px' : '3px';
         const borderColor = isSearching ? '#fbbf24' : 'white';
         const boxShadow = isSearching ? '0 0 0 2px #fbbf24, 0 2px 8px rgba(0,0,0,.3)' : '0 2px 4px rgba(0,0,0,.2)';
-        const icon = L.divIcon({
-            html: `<div style="background:${markerColor};color:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;border:${borderWidth} solid ${borderColor};box-shadow:${boxShadow};cursor:pointer">${markerIcon}</div>`,
-            className: 'custom-marker', iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -20]
-        });
+        const icon = L.divIcon({ html: `<div style="background:${markerColor};color:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;border:${borderWidth} solid ${borderColor};box-shadow:${boxShadow};cursor:pointer">${markerIcon}</div>`, className: 'custom-marker', iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -20] });
         const marker = L.marker([addr.latitude, addr.longitude], { icon }).addTo(addressMarkersLayer);
         const pt = addr.problem_tags && addr.problem_tags.length > 0 ? `<div style="color:#ef4444;font-size:11px;margin-top:4px">⚠️ ${addr.problem_tags.join(', ')}</div>` : '';
         const pb = addr.payment_status ? `<div style="display:inline-block;background:#e5e7eb;padding:2px 6px;border-radius:3px;font-size:10px;margin-top:4px">${formatPaymentStatus(addr.payment_status)}</div>` : '';
-        marker.bindPopup(`<div style="font-size:13px;min-width:150px"><strong>${addr.recipient_name}</strong><br>${addr.gang || ''} ${addr.house_number || ''}<br><small style="color:#666">${addr.landmark || addr.address || ''}</small>${pb}${pt}<div style="margin-top:6px;font-size:11px;color:#999">Kunjungan: ${addr.visit_count || 1}x</div><div style="margin-top:6px;text-align:center;font-size:12px"><strong style="color:#2563eb;cursor:pointer" onclick="showAddressDetail('${addr.id}')">👉 Lihat Detail</strong></div></div>`);
+        const waBadge = addr.whatsapp ? `<div style="margin-top:4px;font-size:11px;color:#25D366">📱 ${formatWhatsAppDisplay(addr.whatsapp)}</div>` : '';
+        marker.bindPopup(`<div style="font-size:13px;min-width:150px"><strong>${addr.recipient_name}</strong><br>${addr.gang || ''} ${addr.house_number || ''}<br><small style="color:#666">${addr.landmark || addr.address || ''}</small>${waBadge}${pb}${pt}<div style="margin-top:6px;font-size:11px;color:#999">Kunjungan: ${addr.visit_count || 1}x</div><div style="margin-top:6px;text-align:center;font-size:12px"><strong style="color:#2563eb;cursor:pointer" onclick="showAddressDetail('${addr.id}')">👉 Lihat Detail</strong></div></div>`);
         marker.on('click', () => showAddressDetail(addr.id));
     });
     if (isSearching && firstSearchResult) map.flyTo([firstSearchResult.latitude, firstSearchResult.longitude], 16, { duration: 0.8 });
@@ -731,6 +686,26 @@ async function checkDuplicate(latitude, longitude, newAddress) {
     return null;
 }
 
+// ============ WHATSAPP HELPERS ============
+function normalizeWhatsApp(input) {
+    if (!input) return '';
+    let digits = String(input).replace(/\D/g, '');
+    if (!digits) return '';
+    // Handle "(+62)0xxx" → "620xxx" yang salah
+    if (digits.startsWith('620') && digits.length > 11) digits = '62' + digits.substring(3);
+    if (digits.startsWith('0062')) digits = digits.substring(2);
+    if (digits.startsWith('0')) digits = '62' + digits.substring(1);
+    else if (digits.startsWith('8')) digits = '62' + digits;
+    else if (!digits.startsWith('62')) digits = '62' + digits;
+    return digits;
+}
+function formatWhatsAppDisplay(wa) {
+    if (!wa || wa.length < 10) return wa || '-';
+    const rest = wa.substring(2);
+    if (rest.length >= 9) return `+62 ${rest.substring(0, 3)}-${rest.substring(3, 7)}-${rest.substring(7)}`;
+    return '+' + wa;
+}
+
 // ============ FOTO ============
 function compressImage(file, maxWidth = 150, quality = 0.35) {
     return new Promise((resolve) => {
@@ -774,15 +749,8 @@ function updatePhotoSlotUI(slot) {
     const box = document.getElementById(`photo-slot-box-${slot}`);
     const photo = window.addressPhotos[i];
     if (!preview || !placeholder) return;
-    if (photo) {
-        preview.src = photo; preview.style.display = 'block'; placeholder.style.display = 'none';
-        if (deleteBtn) deleteBtn.style.display = 'flex';
-        if (box) box.classList.add('filled');
-    } else {
-        preview.src = ''; preview.style.display = 'none'; placeholder.style.display = 'flex';
-        if (deleteBtn) deleteBtn.style.display = 'none';
-        if (box) box.classList.remove('filled');
-    }
+    if (photo) { preview.src = photo; preview.style.display = 'block'; placeholder.style.display = 'none'; if (deleteBtn) deleteBtn.style.display = 'flex'; if (box) box.classList.add('filled'); }
+    else { preview.src = ''; preview.style.display = 'none'; placeholder.style.display = 'flex'; if (deleteBtn) deleteBtn.style.display = 'none'; if (box) box.classList.remove('filled'); }
 }
 function setAddressPhoto(slot, url) { window.addressPhotos[slot - 1] = url; updatePhotoSlotUI(slot); }
 function removeAddressPhoto(slot) { window.addressPhotos[slot - 1] = null; updatePhotoSlotUI(slot); }
@@ -854,18 +822,7 @@ function initLocationAdjustment() {
     if (!adjustmentMap) {
         if (!currentLocation) currentLocation = { latitude: -6.2088, longitude: 106.8650 };
         const lv = currentLocation.latitude.toFixed(6), ov = currentLocation.longitude.toFixed(6);
-        container.innerHTML = `
-            <div style="margin:-16px -16px 10px;height:200px;background:#f3f4f6" id="adjustment-map"></div>
-            <div style="text-align:center;font-size:12px;color:var(--text-light);margin-bottom:10px">Geser pin, tap peta, atau ketik manual di bawah</div>
-            <div style="display:flex;gap:8px;margin-bottom:6px">
-                <div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LATITUDE</label><input type="number" id="edit-lat" step="0.000001" inputmode="decimal" value="${lv}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>
-                <div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LONGITUDE</label><input type="number" id="edit-lon" step="0.000001" inputmode="decimal" value="${ov}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>
-            </div>
-            <div style="display:flex;gap:6px;margin-bottom:10px">
-                <button type="button" class="btn-primary" style="flex:1;padding:9px;font-size:12px" onclick="useCurrentLocationInForm()">🎯 Lokasi Sekarang</button>
-                <button type="button" class="btn-secondary" style="flex:1;padding:9px;font-size:12px" onclick="applyManualCoordsInForm()">✓ Terapkan</button>
-            </div>
-        `;
+        container.innerHTML = `<div style="margin:-16px -16px 10px;height:200px;background:#f3f4f6" id="adjustment-map"></div><div style="text-align:center;font-size:12px;color:var(--text-light);margin-bottom:10px">Geser pin, tap peta, atau ketik manual di bawah</div><div style="display:flex;gap:8px;margin-bottom:6px"><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LATITUDE</label><input type="number" id="edit-lat" step="0.000001" inputmode="decimal" value="${lv}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LONGITUDE</label><input type="number" id="edit-lon" step="0.000001" inputmode="decimal" value="${ov}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div></div><div style="display:flex;gap:6px;margin-bottom:10px"><button type="button" class="btn-primary" style="flex:1;padding:9px;font-size:12px" onclick="useCurrentLocationInForm()">🎯 Lokasi Sekarang</button><button type="button" class="btn-secondary" style="flex:1;padding:9px;font-size:12px" onclick="applyManualCoordsInForm()">✓ Terapkan</button></div>`;
         try {
             adjustmentMap = L.map('adjustment-map', { dragging: true, touchZoom: true, tap: true, zoomControl: true }).setView([currentLocation.latitude, currentLocation.longitude], 16);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM', maxZoom: 19 }).addTo(adjustmentMap);
@@ -920,17 +877,7 @@ function useCurrentLocationInForm() {
 function initManualLocationInput() {
     const c = document.getElementById('gps-status');
     if (!currentLocation) currentLocation = { latitude: -6.2088, longitude: 106.8650 };
-    c.innerHTML = `
-        <div style="padding:8px 0">
-            <div style="background:#fef3c7;color:#92400e;padding:10px;border-radius:6px;font-size:12px;margin-bottom:12px;line-height:1.5">⚠️ GPS tidak tersedia. Ketik manual atau tap tombol.</div>
-            <button type="button" class="btn-primary" id="retry-gps-btn" style="width:100%;padding:10px;font-size:13px;margin-bottom:12px">🎯 Coba Ambil Lokasi GPS</button>
-            <div style="display:flex;gap:8px;margin-bottom:6px">
-                <div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LATITUDE</label><input type="number" id="edit-lat" step="0.000001" inputmode="decimal" value="${currentLocation.latitude.toFixed(6)}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>
-                <div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LONGITUDE</label><input type="number" id="edit-lon" step="0.000001" inputmode="decimal" value="${currentLocation.longitude.toFixed(6)}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>
-            </div>
-            <button type="button" class="btn-secondary" style="width:100%;padding:9px;font-size:13px" onclick="applyManualCoordsInForm()">✓ Terapkan</button>
-        </div>
-    `;
+    c.innerHTML = `<div style="padding:8px 0"><div style="background:#fef3c7;color:#92400e;padding:10px;border-radius:6px;font-size:12px;margin-bottom:12px;line-height:1.5">⚠️ GPS tidak tersedia. Ketik manual atau tap tombol.</div><button type="button" class="btn-primary" id="retry-gps-btn" style="width:100%;padding:10px;font-size:13px;margin-bottom:12px">🎯 Coba Ambil Lokasi GPS</button><div style="display:flex;gap:8px;margin-bottom:6px"><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LATITUDE</label><input type="number" id="edit-lat" step="0.000001" inputmode="decimal" value="${currentLocation.latitude.toFixed(6)}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LONGITUDE</label><input type="number" id="edit-lon" step="0.000001" inputmode="decimal" value="${currentLocation.longitude.toFixed(6)}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div></div><button type="button" class="btn-secondary" style="width:100%;padding:9px;font-size:13px" onclick="applyManualCoordsInForm()">✓ Terapkan</button></div>`;
     const rb = document.getElementById('retry-gps-btn');
     if (rb) rb.onclick = () => {
         if (!navigator.geolocation) { showModal('Error', 'Browser tidak support'); return; }
@@ -950,6 +897,7 @@ function resetRecordForm() {
     document.getElementById('voice-status').innerHTML = '';
     document.getElementById('voice-transcript').value = '';
     document.getElementById('form-name').value = '';
+    document.getElementById('form-whatsapp').value = '';
     document.getElementById('form-gang').value = '';
     document.getElementById('form-house-number').value = '';
     document.getElementById('form-address').value = '';
@@ -970,10 +918,12 @@ async function saveRecord() {
     if (!currentLocation || currentLocation.latitude === undefined) { showModal('Error', '❌ Lokasi belum diset'); return; }
     const name = document.getElementById('form-name').value.trim();
     if (!name) { showModal('Error', 'Nama penerima harus diisi'); return; }
+    const waRaw = document.getElementById('form-whatsapp').value.trim();
     const problems = [];
     document.querySelectorAll('#problems-group .checkbox-item.checked').forEach((item) => problems.push(item.textContent.trim()));
     const na = {
         recipient_name: name, latitude: currentLocation.latitude, longitude: currentLocation.longitude,
+        whatsapp: waRaw ? normalizeWhatsApp(waRaw) : '',
         address: document.getElementById('form-address').value, gang: document.getElementById('form-gang').value,
         house_number: document.getElementById('form-house-number').value,
         landmark: document.getElementById('form-landmark').value,
@@ -1005,6 +955,7 @@ async function mergeDuplicate() {
     if (!ex.history) ex.history = [];
     ex.history.push({ date: new Date().toISOString(), status: 'belum selesai', payment_status: nd.payment_status, landmark: nd.landmark, notes: `${nd.recipients.map(r => r.name).join(', ')} - ${nd.description}` });
     if (nd.landmark) ex.landmark = nd.landmark;
+    if (nd.whatsapp) ex.whatsapp = nd.whatsapp;
     if (nd.payment_status) ex.payment_status = nd.payment_status;
     if (nd.problem_tags.length > 0) ex.problem_tags = nd.problem_tags;
     if (nd.description) ex.description = nd.description;
@@ -1020,7 +971,11 @@ async function showAddressDetail(id) {
     const address = await getAddressById(id);
     currentDetailId = id;
     const dc = document.getElementById('detail-content');
-    let html = `<div class="form-group"><label>Gang</label><div>${address.gang || '-'}</div></div><div class="form-group"><label>Nomor Rumah</label><div>${address.house_number || '-'}</div></div><div class="form-group"><label>Alamat</label><div>${address.address || '-'}</div></div><div class="form-group"><label>Patokan/Landmark</label><div>${address.landmark || '-'}</div></div><div class="form-group"><label>Status Pembayaran</label><div><span class="tag">${formatPaymentStatus(address.payment_status)}</span></div></div><div class="form-group"><label>Tipe Lokasi</label><div><span class="tag">${formatLocationType(address.location_type)}</span></div></div>`;
+    let html = '';
+    if (address.whatsapp) {
+        html += `<div class="form-group"><label>📱 WhatsApp</label><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-family:monospace;font-weight:600">${formatWhatsAppDisplay(address.whatsapp)}</span><a href="https://wa.me/${address.whatsapp}" target="_blank" class="btn-wa">💬 Chat WA</a></div></div>`;
+    }
+    html += `<div class="form-group"><label>Gang</label><div>${address.gang || '-'}</div></div><div class="form-group"><label>Nomor Rumah</label><div>${address.house_number || '-'}</div></div><div class="form-group"><label>Alamat Lengkap</label><div style="white-space:pre-wrap;font-size:13px">${address.address || '-'}</div></div><div class="form-group"><label>Patokan/Landmark</label><div>${address.landmark || '-'}</div></div><div class="form-group"><label>Status Pembayaran</label><div><span class="tag">${formatPaymentStatus(address.payment_status)}</span></div></div><div class="form-group"><label>Tipe Lokasi</label><div><span class="tag">${formatLocationType(address.location_type)}</span></div></div>`;
     const dp = extractAddressPhotos(address);
     if (dp.length > 0) html += `<div class="form-group"><label>📸 Foto Alamat (${dp.length})</label><div style="display:flex;gap:6px;flex-wrap:wrap">${dp.map((p) => `<div style="width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--border);background:var(--bg-alt);flex-shrink:0"><img src="${p}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none"></div>`).join('')}</div><small style="color:var(--text-light);font-size:10px;margin-top:6px">Thumbnail saja</small></div>`;
     if (address.recipients && address.recipients.length > 0) {
@@ -1068,7 +1023,7 @@ async function showEditRecipientModal(addrId, recipientName, currentStatus) {
         const ci = document.getElementById('edit-recipient-photo-camera'), gi = document.getElementById('edit-recipient-photo-gallery');
         if (ci) ci.onchange = hp; if (gi) gi.onchange = hp;
         const db = document.getElementById('delete-recipient-photo-btn');
-        if (db) db.onclick = () => { if (confirm('⚠️ Hapus foto penerima ini?\n\nFoto akan dihapus saat Anda klik Simpan.')) { window.editRecipientData.photoData = null; window.editRecipientData.removePhoto = true; const p = document.getElementById('photo-preview'); if (p) { p.src = ''; p.style.display = 'none'; } db.style.display = 'none'; } };
+        if (db) db.onclick = () => { if (confirm('⚠️ Hapus foto penerima ini?')) { window.editRecipientData.photoData = null; window.editRecipientData.removePhoto = true; const p = document.getElementById('photo-preview'); if (p) { p.src = ''; p.style.display = 'none'; } db.style.display = 'none'; } };
     }, 50);
 }
 function setEditRecipientStatus(status) { window.editRecipientData.selectedStatus = status; document.querySelectorAll('#modal-content .btn-secondary').forEach((btn) => { if (btn.textContent.includes(status) || (status === 'tidak order' && btn.textContent.includes('Tidak Order')) || (status === 'belum selesai' && btn.textContent.includes('Belum Selesai'))) { btn.style.background = 'var(--primary)'; btn.style.color = 'white'; } else { btn.style.background = 'var(--bg-alt)'; btn.style.color = 'var(--text)'; } }); }
@@ -1186,7 +1141,7 @@ async function executeSplitRecipient(addrId) {
             const rec = addr.recipients.find(r => r.name === name);
             if (!rec) continue;
             const now = Date.now() + Math.floor(Math.random() * 1000);
-            const na = { id: 'addr_' + now + '_' + Math.random().toString(36).substr(2, 9), latitude: addr.latitude, longitude: addr.longitude, address: addr.address || '', gang: addr.gang || '', house_number: addr.house_number || '', landmark: addr.landmark || '', description: addr.description || '', payment_status: addr.payment_status || 'belum', location_type: addr.location_type || 'jelas', problem_tags: [...(addr.problem_tags || [])], recipient_name: rec.name, recipients: [{ name: rec.name, status: rec.status || 'berhasil', photo: rec.photo || null, photo_ref: rec.photo_ref || null, added_at: rec.added_at || new Date().toISOString() }], delivery_status: rec.status || 'berhasil', photos: [...ap], photo: ap[0] || null, photo_ref: ap.length > 0 ? `addr-${now}.jpg` : null, visit_count: 0, last_visit_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), history: [{ date: new Date().toISOString(), status: 'split', notes: `✂️ Dipisahkan dari: ${addr.recipient_name || '?'}` }], raw_voice_note: '' };
+            const na = { id: 'addr_' + now + '_' + Math.random().toString(36).substr(2, 9), latitude: addr.latitude, longitude: addr.longitude, address: addr.address || '', gang: addr.gang || '', house_number: addr.house_number || '', landmark: addr.landmark || '', description: addr.description || '', whatsapp: addr.whatsapp || '', payment_status: addr.payment_status || 'belum', location_type: addr.location_type || 'jelas', problem_tags: [...(addr.problem_tags || [])], recipient_name: rec.name, recipients: [{ name: rec.name, status: rec.status || 'berhasil', photo: rec.photo || null, photo_ref: rec.photo_ref || null, added_at: rec.added_at || new Date().toISOString() }], delivery_status: rec.status || 'berhasil', photos: [...ap], photo: ap[0] || null, photo_ref: ap.length > 0 ? `addr-${now}.jpg` : null, visit_count: 0, last_visit_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), history: [{ date: new Date().toISOString(), status: 'split', notes: `✂️ Dipisahkan dari: ${addr.recipient_name || '?'}` }], raw_voice_note: '' };
             await saveAddress(na);
             sc++;
         }
@@ -1253,7 +1208,6 @@ function calculateDistanceHaversine(lat1, lon1, lat2, lon2) {
     const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-
 async function calculateDistanceReal(lat1, lon1, lat2, lon2) {
     const key = `${lat1.toFixed(4)},${lon1.toFixed(4)}-${lat2.toFixed(4)},${lon2.toFixed(4)}`;
     if (distanceCache[key]) return distanceCache[key];
@@ -1279,7 +1233,6 @@ async function calculateDistanceReal(lat1, lon1, lat2, lon2) {
     distanceCache[key] = d;
     return d;
 }
-
 async function calculateDistance(lat1, lon1, lat2, lon2) { return calculateDistanceReal(lat1, lon1, lat2, lon2); }
 
 async function showOptimizeRouteModal() {
@@ -1300,39 +1253,12 @@ async function showOptimizeRouteModal() {
     window.pendingAddressesForRoute = pending;
     showStartPointConfirmation(startPoint, pending);
 }
-
 function showStartPointConfirmation(startPoint, pending) {
-    document.getElementById('modal-content').innerHTML = `
-        <div style="padding:16px">
-            <h2 style="margin-bottom:8px;font-size:16px">🗺️ Optimasi Rute</h2>
-            <div class="info-box" style="font-size:13px;line-height:1.7;margin-bottom:12px">
-                📍 <strong>Titik awal:</strong><br>
-                <span style="font-family:monospace;font-size:12px">${startPoint.latitude.toFixed(6)}, ${startPoint.longitude.toFixed(6)}</span><br>
-                <small style="color:var(--text-light)">Lokasi saat ini</small>
-            </div>
-            <div style="background:#dbeafe;color:#1e40af;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:12px">
-                🎯 <strong>${pending.length}</strong> alamat "Belum Selesai" akan dioptimasi dari lokasi Anda sekarang.
-            </div>
-            <button class="btn-primary" style="width:100%;padding:12px;font-size:14px;font-weight:600;margin-bottom:8px" onclick="executeRouteOptimizationFromCurrent(${startPoint.latitude}, ${startPoint.longitude})">🗺️ Mulai Optimasi</button>
-            <button class="btn-secondary" style="width:100%;padding:10px;font-size:13px;margin-bottom:6px" onclick="openManualStartPointModal(window.pendingAddressesForRoute)">📍 Ubah Titik Awal Manual</button>
-            <button class="btn-secondary" style="width:100%;padding:10px;font-size:13px" onclick="closeModal()">Batal</button>
-        </div>
-    `;
+    document.getElementById('modal-content').innerHTML = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">🗺️ Optimasi Rute</h2><div class="info-box" style="font-size:13px;line-height:1.7;margin-bottom:12px">📍 <strong>Titik awal:</strong><br><span style="font-family:monospace;font-size:12px">${startPoint.latitude.toFixed(6)}, ${startPoint.longitude.toFixed(6)}</span><br><small style="color:var(--text-light)">Lokasi saat ini</small></div><div style="background:#dbeafe;color:#1e40af;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:12px">🎯 <strong>${pending.length}</strong> alamat "Belum Selesai" akan dioptimasi dari lokasi Anda sekarang.</div><button class="btn-primary" style="width:100%;padding:12px;font-size:14px;font-weight:600;margin-bottom:8px" onclick="executeRouteOptimizationFromCurrent(${startPoint.latitude}, ${startPoint.longitude})">🗺️ Mulai Optimasi</button><button class="btn-secondary" style="width:100%;padding:10px;font-size:13px;margin-bottom:6px" onclick="openManualStartPointModal(window.pendingAddressesForRoute)">📍 Ubah Titik Awal Manual</button><button class="btn-secondary" style="width:100%;padding:10px;font-size:13px" onclick="closeModal()">Batal</button></div>`;
     document.getElementById('modal').classList.add('active');
 }
-
 function openManualStartPointModal(pending) {
-    document.getElementById('modal-content').innerHTML = `
-        <div style="padding:16px">
-            <h2 style="margin-bottom:8px;font-size:16px">📍 Pilih Titik Awal</h2>
-            <small style="color:var(--text-light);display:block;margin-bottom:8px">Geser pin atau tap peta.</small>
-            <div id="route-start-map" style="width:100%;height:300px;border:1px solid var(--border);border-radius:4px;margin-bottom:12px"></div>
-            <div style="display:flex;gap:8px">
-                <button class="btn-primary" style="flex:1;padding:10px" onclick="executeRouteOptimizationFromMap()">🗺️ Mulai</button>
-                <button class="btn-secondary" style="flex:1;padding:10px" onclick="closeModal()">Batal</button>
-            </div>
-        </div>
-    `;
+    document.getElementById('modal-content').innerHTML = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">📍 Pilih Titik Awal</h2><small style="color:var(--text-light);display:block;margin-bottom:8px">Geser pin atau tap peta.</small><div id="route-start-map" style="width:100%;height:300px;border:1px solid var(--border);border-radius:4px;margin-bottom:12px"></div><div style="display:flex;gap:8px"><button class="btn-primary" style="flex:1;padding:10px" onclick="executeRouteOptimizationFromMap()">🗺️ Mulai</button><button class="btn-secondary" style="flex:1;padding:10px" onclick="closeModal()">Batal</button></div></div>`;
     document.getElementById('modal').classList.add('active');
     setTimeout(() => {
         const mc = document.getElementById('route-start-map');
@@ -1347,7 +1273,6 @@ function openManualStartPointModal(pending) {
     }, 100);
     window.pendingAddressesForRoute = pending;
 }
-
 async function executeRouteOptimizationFromCurrent(lat, lon) {
     const startPoint = { latitude: lat, longitude: lon };
     const pending = window.pendingAddressesForRoute || (await getAllAddresses()).filter(a => a.delivery_status === 'belum selesai');
@@ -1361,7 +1286,6 @@ async function executeRouteOptimizationFromCurrent(lat, lon) {
         displayRouteOnMap(route, totalDistance);
     } catch (err) { showModal('Error', `❌ ${err.message}`); }
 }
-
 async function executeRouteOptimizationFromMap() {
     if (!window.routeStartPoint || !window.pendingAddressesForRoute) { showModal('Error', 'Data tidak ditemukan'); return; }
     closeModal();
@@ -1374,7 +1298,6 @@ async function executeRouteOptimizationFromMap() {
         displayRouteOnMap(route, totalDistance);
     } catch (err) { showModal('Error', `❌ ${err.message}`); }
 }
-
 async function calculateNearestNeighbor(start, addresses) {
     const rem = [...addresses];
     const route = [start];
@@ -1389,7 +1312,6 @@ async function calculateNearestNeighbor(start, addresses) {
     }
     return { route, totalDistance: total };
 }
-
 async function displayRouteList(route, totalDistance) {
     let html = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">Rute Optimal - ${route.length} Lokasi</h2><div style="background:var(--bg-alt);padding:8px;border-radius:4px;margin-bottom:12px;font-size:13px"><strong>Total Jarak:</strong> ${totalDistance.toFixed(2)} km</div><div style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:8px">`;
     let cum = 0;
@@ -1398,22 +1320,12 @@ async function displayRouteList(route, totalDistance) {
         if (i === 0) html += `<div style="padding:8px;background:#06b6d4;color:white;border-radius:4px;margin-bottom:6px;font-weight:600">📍 START: ${a.recipient_name || 'Titik Awal'}</div>`;
         else { const d = await calculateDistance(route[i - 1].latitude, route[i - 1].longitude, a.latitude, a.longitude); cum += d; html += `<div style="padding:8px;background:var(--bg-alt);border-radius:4px;margin-bottom:6px;border-left:4px solid #06b6d4"><strong style="color:#06b6d4">🔹 ${i}</strong> ${a.recipient_name || 'Alamat'}<br><small style="color:var(--text-light)">Jarak: ${d.toFixed(2)} km | Kumulatif: ${cum.toFixed(2)} km</small></div>`; }
     }
-    html += `
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
-            <button class="btn-primary" style="padding:10px;font-size:13px;font-weight:600" onclick="openRouteInGoogleMaps()">🗺️ Buka di GMap</button>
-            <button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600" onclick="exportRouteKML()">📥 KML</button>
-            <button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600" onclick="exportRouteGPX()">📥 GPX</button>
-            <button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600" onclick="copyRouteCoords()">📋 Copy</button>
-            <button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600;grid-column:span 2" onclick="closeModal()">Tutup</button>
-        </div>
-    </div>`;
+    html += `</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><button class="btn-primary" style="padding:10px;font-size:13px;font-weight:600" onclick="openRouteInGoogleMaps()">🗺️ Buka di GMap</button><button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600" onclick="exportRouteKML()">📥 KML</button><button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600" onclick="exportRouteGPX()">📥 GPX</button><button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600" onclick="copyRouteCoords()">📋 Copy</button><button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600;grid-column:span 2" onclick="closeModal()">Tutup</button></div></div>`;
     document.getElementById('modal-content').innerHTML = html;
     document.getElementById('modal').classList.add('active');
     window.currentRoute = route;
     window.currentRouteTotalDistance = totalDistance;
 }
-
 function displayRouteOnMap(route, totalDistance) {
     if (!map) return;
     if (window.routePolyline) map.removeLayer(window.routePolyline);
@@ -1438,16 +1350,9 @@ async function openRouteInGoogleMaps() {
     const bs = MW + 2;
     const batches = [];
     let i = 0;
-    while (i < route.length - 1) {
-        const end = Math.min(i + bs - 1, route.length - 1);
-        batches.push({ start: i, end });
-        i = end;
-        if (i === route.length - 1) break;
-    }
+    while (i < route.length - 1) { const end = Math.min(i + bs - 1, route.length - 1); batches.push({ start: i, end }); i = end; if (i === route.length - 1) break; }
     let html = `<h2>🗺️ Buka di Google Maps</h2><div style="background:#fef3c7;color:#92400e;padding:10px;border-radius:6px;font-size:12px;margin:16px 0;line-height:1.6">⚠️ GMap Android max <strong>~10 titik per URL</strong>.<br>Rute <strong>${total} titik</strong> → <strong>${batches.length} link</strong>.<br>Tap satu per satu untuk selesaikan rute.</div><div style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">`;
-    batches.forEach((b, idx) => {
-        html += `<button class="btn-secondary" style="padding:10px;text-align:left;font-size:13px;line-height:1.5" onclick="openGmapsBatch(${b.start}, ${b.end})"><strong>🗺️ Bagian ${idx + 1}</strong> · ${b.end - b.start + 1} titik<br><small style="color:var(--text-light)">${route[b.start].recipient_name || 'Start'} → ${route[b.end].recipient_name || 'End'}</small></button>`;
-    });
+    batches.forEach((b, idx) => { html += `<button class="btn-secondary" style="padding:10px;text-align:left;font-size:13px;line-height:1.5" onclick="openGmapsBatch(${b.start}, ${b.end})"><strong>🗺️ Bagian ${idx + 1}</strong> · ${b.end - b.start + 1} titik<br><small style="color:var(--text-light)">${route[b.start].recipient_name || 'Start'} → ${route[b.end].recipient_name || 'End'}</small></button>`; });
     html += `</div><div class="modal-buttons" style="margin-top:12px"><button class="btn-secondary" onclick="closeModal()" style="flex:1">Tutup</button></div>`;
     document.getElementById('modal-content').innerHTML = html;
     document.getElementById('modal').classList.add('active');
@@ -1474,19 +1379,18 @@ function exportRouteKML() {
         kml += `<Placemark><name>${nm} - ${rec}</name><description>${det}</description><styleUrl>#${st}</styleUrl><Point><coordinates>${addr.longitude},${addr.latitude},0</coordinates></Point></Placemark>\n`;
     });
     kml += `<Placemark><name>Jalur</name><styleUrl>#r</styleUrl><LineString><tessellate>1</tessellate><coordinates>${route.map(a => `${a.longitude},${a.latitude},0`).join(' ')}</coordinates></LineString></Placemark>\n</Document>\n</kml>`;
-    const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' }));
     const link = document.createElement('a');
     link.href = url;
     link.download = `kurir-q-route-${new Date().toISOString().split('T')[0]}.kml`;
     link.click();
     URL.revokeObjectURL(url);
-    showModal('Sukses', `✓ Export KML: ${route.length} titik!\n\n📱 Buka dengan:\n• Google Earth (Android)\n• Google My Maps\n• OsmAnd`);
+    showModal('Sukses', `✓ Export KML: ${route.length} titik!\n\n📱 Buka dengan Google Earth / My Maps / OsmAnd`);
 }
 function exportRouteGPX() {
     const route = window.currentRoute;
     if (!route || route.length < 2) { showModal('Error', 'Rute kosong'); return; }
-    let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Kurir-Q" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>Rute Kurir-Q - ${new Date().toLocaleString('id-ID')}</name></metadata>\n<trk><name>Rute Kurir</name><trkseg>\n`;
+    let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Kurir-Q" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>Rute Kurir-Q</name></metadata>\n<trk><name>Rute Kurir</name><trkseg>\n`;
     route.forEach(a => { gpx += `<trkpt lat="${a.latitude}" lon="${a.longitude}"></trkpt>\n`; });
     gpx += `</trkseg></trk>\n`;
     route.forEach((a, i) => {
@@ -1495,14 +1399,13 @@ function exportRouteGPX() {
         gpx += `<wpt lat="${a.latitude}" lon="${a.longitude}"><name>${nm}</name><desc>${det}</desc></wpt>\n`;
     });
     gpx += `</gpx>`;
-    const blob = new Blob([gpx], { type: 'application/gpx+xml' });
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(new Blob([gpx], { type: 'application/gpx+xml' }));
     const link = document.createElement('a');
     link.href = url;
     link.download = `kurir-q-route-${new Date().toISOString().split('T')[0]}.gpx`;
     link.click();
     URL.revokeObjectURL(url);
-    showModal('Sukses', `✓ Export GPX: ${route.length} titik!\n\n📱 Buka dengan:\n• OsmAnd\n• Locus Map\n• Komoot`);
+    showModal('Sukses', `✓ Export GPX: ${route.length} titik!\n\n📱 Buka dengan OsmAnd / Locus / Komoot`);
 }
 async function copyRouteCoords() {
     const route = window.currentRoute;
@@ -1514,9 +1417,7 @@ async function copyRouteCoords() {
         text += `${lb}. ${a.recipient_name || 'Alamat'}${det ? ' (' + det + ')' : ''}\n   ${a.latitude.toFixed(6)}, ${a.longitude.toFixed(6)}\n`;
     });
     try { await navigator.clipboard.writeText(text); showModal('Sukses', `✓ ${route.length} koordinat disalin!`); }
-    catch (err) {
-        document.getElementById('modal-content').innerHTML = `<h2>📋 Copy Manual</h2><p>Tekan lama → Copy:</p><textarea readonly style="width:100%;height:300px;font-family:monospace;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:4px;box-sizing:border-box">${text}</textarea><div class="modal-buttons" style="margin-top:12px"><button class="btn-primary" onclick="closeModal()" style="flex:1">Tutup</button></div>`;
-    }
+    catch (err) { document.getElementById('modal-content').innerHTML = `<h2>📋 Copy Manual</h2><p>Tekan lama → Copy:</p><textarea readonly style="width:100%;height:300px;font-family:monospace;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:4px;box-sizing:border-box">${text}</textarea><div class="modal-buttons" style="margin-top:12px"><button class="btn-primary" onclick="closeModal()" style="flex:1">Tutup</button></div>`; }
 }
 
 async function updateRecipientStatus(addrId, recName, newStatus) {
@@ -1560,6 +1461,7 @@ async function editAddress() {
     currentLocation = { latitude: address.latitude, longitude: address.longitude };
     setTimeout(() => { initLocationAdjustment(); }, 150);
     document.getElementById('form-name').value = address.recipient_name;
+    document.getElementById('form-whatsapp').value = address.whatsapp || '';
     document.getElementById('form-gang').value = address.gang || '';
     document.getElementById('form-house-number').value = address.house_number || '';
     document.getElementById('form-address').value = address.address || '';
@@ -1575,7 +1477,9 @@ async function editAddress() {
 async function updateAddress() {
     const address = await getAddressById(currentDetailId);
     const newName = document.getElementById('form-name').value;
+    const waRaw = document.getElementById('form-whatsapp').value.trim();
     address.recipient_name = newName;
+    address.whatsapp = waRaw ? normalizeWhatsApp(waRaw) : '';
     address.gang = document.getElementById('form-gang').value;
     address.house_number = document.getElementById('form-house-number').value;
     address.address = document.getElementById('form-address').value;
@@ -1613,7 +1517,7 @@ async function shareAddress() {
     if (!a) return;
     const lat = a.latitude, lon = a.longitude, name = a.recipient_name || 'Alamat';
     const det = [a.gang, a.house_number, a.landmark].filter(Boolean).join(' · ');
-    document.getElementById('modal-content').innerHTML = `<h2>📤 Bagikan Lokasi</h2><div class="info-box" style="margin:12px 0"><strong>${name}</strong><br>${det || '-'}<br><small style="color:var(--text-light);font-family:monospace">${lat.toFixed(6)}, ${lon.toFixed(6)}</small></div><div style="display:flex;flex-direction:column;gap:8px"><button class="btn-primary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('native')">📱 Bagikan (Semua App)</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('gmaps')">🗺️ Google Maps</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('waze')">🚗 Waze</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('whatsapp')">💬 WhatsApp</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('telegram')">✈️ Telegram</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('copy_coords')">📋 Copy Koordinat</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('copy_link')">🔗 Copy Link Google Maps</button></div><div class="modal-buttons" style="margin-top:12px"><button class="btn-secondary" onclick="closeModal()" style="flex:1">Tutup</button></div>`;
+    document.getElementById('modal-content').innerHTML = `<h2>📤 Bagikan Lokasi</h2><div class="info-box" style="margin:12px 0"><strong>${name}</strong><br>${det || '-'}<br>${a.whatsapp ? '📱 ' + formatWhatsAppDisplay(a.whatsapp) + '<br>' : ''}<small style="color:var(--text-light);font-family:monospace">${lat.toFixed(6)}, ${lon.toFixed(6)}</small></div><div style="display:flex;flex-direction:column;gap:8px"><button class="btn-primary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('native')">📱 Bagikan (Semua App)</button>${a.whatsapp ? `<button class="btn-wa" style="padding:12px;text-align:left;font-size:14px;width:100%" onclick="doShare('wa_direct')">💬 Chat WA Langsung</button>` : ''}<button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('gmaps')">🗺️ Google Maps</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('waze')">🚗 Waze</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('whatsapp')">💬 Share ke WhatsApp</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('telegram')">✈️ Telegram</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('copy_coords')">📋 Copy Koordinat</button></div><div class="modal-buttons" style="margin-top:12px"><button class="btn-secondary" onclick="closeModal()" style="flex:1">Tutup</button></div>`;
     document.getElementById('modal').classList.add('active');
 }
 async function doShare(type) {
@@ -1627,12 +1531,12 @@ async function doShare(type) {
     const st = `📍 ${name}\n${det}\n${gm}`;
     switch (type) {
         case 'native': if (navigator.share) { try { await navigator.share({ title: `Lokasi ${name}`, text: `${det}\n${ct}`, url: gm }); closeModal(); } catch (err) { if (err.name !== 'AbortError') console.warn(err); } } else { window.open(`https://wa.me/?text=${encodeURIComponent(st)}`, '_blank'); closeModal(); } break;
+        case 'wa_direct': window.open(`https://wa.me/${a.whatsapp}`, '_blank'); closeModal(); break;
         case 'gmaps': window.open(gm, '_blank'); closeModal(); break;
         case 'waze': window.open(wz, '_blank'); closeModal(); break;
         case 'whatsapp': window.open(`https://wa.me/?text=${encodeURIComponent(st)}`, '_blank'); closeModal(); break;
         case 'telegram': window.open(`https://t.me/share/url?url=${encodeURIComponent(gm)}&text=${encodeURIComponent(name + ' - ' + det)}`, '_blank'); closeModal(); break;
         case 'copy_coords': try { await navigator.clipboard.writeText(ct); } catch (e) {} closeModal(); showModal('Sukses', `✓ Koordinat disalin:\n${ct}`); break;
-        case 'copy_link': try { await navigator.clipboard.writeText(gm); } catch (e) {} closeModal(); showModal('Sukses', '✓ Link disalin'); break;
     }
 }
 
@@ -1674,7 +1578,7 @@ async function refreshTileCache() {
 
 // ============ ROUTING STATUS ============
 function showRoutingProviderStatus() {
-    document.getElementById('modal-content').innerHTML = `<h2>🗺️ Status Routing Provider</h2><div style="font-size:13px;line-height:1.7;margin-bottom:16px">${ROUTING_PROVIDERS.map(p => { const hk = p.apiKey && p.apiKey.length > 0; const st = hk ? '✅ Aktif' : '⚪ Belum diatur'; return `<div style="padding:10px;background:var(--bg-alt);border-radius:6px;margin-bottom:8px"><strong>${p.name}</strong> — ${st}<br><small style="color:var(--text-light)">Free tier: ${p.freeTier}</small>${!hk ? `<br><a href="${p.signUpUrl}" target="_blank" style="color:var(--primary);font-size:12px">Daftar gratis →</a>` : ''}</div>`; }).join('')}</div><div style="background:#dbeafe;color:#1e40af;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:16px">💡 Sistem coba provider berurutan. Jika satu limit/gagal, otomatis pindah berikutnya. Fallback: Haversine.</div><div class="modal-buttons"><button class="btn-primary" onclick="closeModal()" style="flex:1">Tutup</button></div>`;
+    document.getElementById('modal-content').innerHTML = `<h2>🗺️ Status Routing Provider</h2><div style="font-size:13px;line-height:1.7;margin-bottom:16px">${ROUTING_PROVIDERS.map(p => { const hk = p.apiKey && p.apiKey.length > 0; const st = hk ? '✅ Aktif' : '⚪ Belum diatur'; return `<div style="padding:10px;background:var(--bg-alt);border-radius:6px;margin-bottom:8px"><strong>${p.name}</strong> — ${st}<br><small style="color:var(--text-light)">Free tier: ${p.freeTier}</small>${!hk ? `<br><a href="${p.signUpUrl}" target="_blank" style="color:var(--primary);font-size:12px">Daftar gratis →</a>` : ''}</div>`; }).join('')}</div><div style="background:#dbeafe;color:#1e40af;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:16px">💡 Sistem coba provider berurutan. Fallback: Haversine.</div><div class="modal-buttons"><button class="btn-primary" onclick="closeModal()" style="flex:1">Tutup</button></div>`;
     document.getElementById('modal').classList.add('active');
 }
 
@@ -1709,14 +1613,7 @@ async function selectOfflineArea() {
     const est = {};
     for (let i = 13; i <= 17; i++) est[i] = getTileCount(b, i);
     document.getElementById('modal-content').innerHTML = `<div><h2 style="margin-bottom:8px;font-size:16px">📥 Konfirmasi Download</h2><div class="info-box" style="font-size:12px;line-height:1.6"><strong>📍 Pusat:</strong> ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}<br><strong>Zoom:</strong> ${z}</div><div style="font-size:12px;margin-bottom:12px;line-height:1.8"><div style="font-weight:600;margin-bottom:6px;color:var(--text-light)">PILIH LEVEL ZOOM:</div>${[13, 14, 15, 16, 17].map(zz => { const cc = est[zz], mb = (cc * 20 / 1024).toFixed(1); const ch = (zz >= mnZ && zz <= mxZ) ? 'checked' : ''; return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer"><input type="checkbox" class="zoom-level-cb" value="${zz}" ${ch} style="cursor:pointer;width:18px;height:18px"><span style="flex:1"><strong>Zoom ${zz}</strong><br><small style="color:var(--text-light)">${cc.toLocaleString()} tile · ~${mb} MB</small></span></label>`; }).join('')}</div><div id="total-estimate" style="background:var(--bg-alt);padding:10px;border-radius:6px;font-size:13px;margin-bottom:12px;line-height:1.5">Menghitung...</div><div style="background:#fef3c7;color:#92400e;padding:8px;border-radius:4px;font-size:11px;margin-bottom:12px;line-height:1.5">⚠️ Download bisa 1-5 menit. Jangan tutup app.</div><div style="display:flex;gap:8px"><button class="btn-primary" id="start-offline-download-btn" style="flex:1;padding:12px;font-size:14px;font-weight:600">📥 Mulai</button><button class="btn-secondary" onclick="openOfflineMapDownloader()" style="flex:1;padding:12px;font-size:13px">← Kembali</button></div></div>`;
-    const ut = () => {
-        const cc = document.querySelectorAll('.zoom-level-cb:checked');
-        let t = 0;
-        cc.forEach(cb => t += est[parseInt(cb.value)]);
-        const mb = (t * 20 / 1024).toFixed(1);
-        const e = document.getElementById('total-estimate');
-        if (e) e.innerHTML = t === 0 ? '<span style="color:var(--danger)">❌ Pilih minimal 1 zoom</span>' : `<strong>📊 Total:</strong> ${t.toLocaleString()} tile<br><strong>💾 Estimasi:</strong> ~${mb} MB<br><strong>⏱️ Waktu:</strong> ~${Math.ceil(t * 0.25 / 60)} menit`;
-    };
+    const ut = () => { const cc = document.querySelectorAll('.zoom-level-cb:checked'); let t = 0; cc.forEach(cb => t += est[parseInt(cb.value)]); const mb = (t * 20 / 1024).toFixed(1); const e = document.getElementById('total-estimate'); if (e) e.innerHTML = t === 0 ? '<span style="color:var(--danger)">❌ Pilih minimal 1 zoom</span>' : `<strong>📊 Total:</strong> ${t.toLocaleString()} tile<br><strong>💾 Estimasi:</strong> ~${mb} MB<br><strong>⏱️ Waktu:</strong> ~${Math.ceil(t * 0.25 / 60)} menit`; };
     document.querySelectorAll('.zoom-level-cb').forEach(cb => cb.addEventListener('change', ut));
     ut();
     document.getElementById('start-offline-download-btn').onclick = async () => {
@@ -1749,22 +1646,13 @@ async function downloadOfflineArea(b, zl) {
             if (s1) s1.innerHTML = `✅ Sukses: <strong>${dl - fl}</strong><br>⏭️ Sudah ada: <strong>${fc}</strong><br>❌ Gagal: <strong>${fl}</strong><br>💾 ${(by / 1024 / 1024).toFixed(2)} MB`;
         };
         for (const url of tiles) {
-            try {
-                const ch = await cache.match(url);
-                if (ch) { fc++; dl++; if (dl % 10 === 0) uu(); continue; }
-                const resp = await fetch(url, { mode: 'cors' });
-                if (resp.ok) { const blb = await resp.blob(); by += blb.size; await cache.put(url, new Response(blb, { headers: resp.headers })); } else fl++;
-            } catch (e) { fl++; }
-            dl++;
-            if (dl % 10 === 0) uu();
-            await new Promise(r => setTimeout(r, 150));
+            try { const ch = await cache.match(url); if (ch) { fc++; dl++; if (dl % 10 === 0) uu(); continue; } const resp = await fetch(url, { mode: 'cors' }); if (resp.ok) { const blb = await resp.blob(); by += blb.size; await cache.put(url, new Response(blb, { headers: resp.headers })); } else fl++; } catch (e) { fl++; }
+            dl++; if (dl % 10 === 0) uu(); await new Promise(r => setTimeout(r, 150));
         }
         uu();
         document.getElementById('modal-content').innerHTML = `<h2 style="margin-bottom:12px">✅ Selesai!</h2><div style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.8;margin-bottom:16px">✅ Berhasil: <strong>${dl - fl}</strong><br>⏭️ Sudah ada: <strong>${fc}</strong><br>❌ Gagal: <strong>${fl}</strong><br>💾 Total: <strong>${(by / 1024 / 1024).toFixed(2)} MB</strong></div><div style="display:flex;gap:8px"><button class="btn-primary" onclick="closeModal(); cleanupOfflineMap();" style="flex:1;padding:12px">Selesai</button><button class="btn-secondary" onclick="openOfflineMapDownloader();" style="flex:1;padding:12px;font-size:13px">Download Lagi</button></div>`;
         updateCacheInfo();
-    } catch (err) {
-        document.getElementById('modal-content').innerHTML = `<h2>❌ Error</h2><p>${err.message}</p><div class="modal-buttons"><button class="btn-primary" onclick="closeModal(); cleanupOfflineMap();" style="flex:1">Tutup</button></div>`;
-    }
+    } catch (err) { document.getElementById('modal-content').innerHTML = `<h2>❌ Error</h2><p>${err.message}</p><div class="modal-buttons"><button class="btn-primary" onclick="closeModal(); cleanupOfflineMap();" style="flex:1">Tutup</button></div>`; }
 }
 
 // ============ SORT ============
@@ -1801,7 +1689,7 @@ async function updateAddressList() {
     const st = document.getElementById('list-search-input').value.toLowerCase();
     if (st) {
         fl = fl.filter((a) => {
-            const bm = ((a.recipient_name || '').toLowerCase().includes(st) || (a.gang || '').toLowerCase().includes(st) || (a.house_number || '').toLowerCase().includes(st) || (a.landmark || '').toLowerCase().includes(st) || (a.address || '').toLowerCase().includes(st));
+            const bm = ((a.recipient_name || '').toLowerCase().includes(st) || (a.whatsapp || '').includes(st) || (a.gang || '').toLowerCase().includes(st) || (a.house_number || '').toLowerCase().includes(st) || (a.landmark || '').toLowerCase().includes(st) || (a.address || '').toLowerCase().includes(st));
             const rm = a.recipients && a.recipients.some(r => (r.name || '').toLowerCase().includes(st));
             return bm || rm;
         });
@@ -1818,7 +1706,8 @@ async function updateAddressList() {
         const ck = bulkSelectedIds.has(a.id);
         const ap = extractAddressPhotos(a);
         const th = ap.length > 0 ? ap[0] : null;
-        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck ? 'checked' : ''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th ? `<img src="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">` : ''}<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang || ''} ${a.house_number || ''}<br>${a.landmark || a.address || ''}</div><div class="address-item-meta">📍 ${formatDate(a.last_visit_at || a.created_at)} · ${a.visit_count || 1}x · ${rc} penerima${ap.length > 1 ? ` · ${ap.length} foto` : ''}</div></div>`;
+        const waLine = a.whatsapp ? `<div style="color:#25D366;margin-top:2px">📱 ${formatWhatsAppDisplay(a.whatsapp)}</div>` : '';
+        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck ? 'checked' : ''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th ? `<img src="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">` : ''}<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang || ''} ${a.house_number || ''}${a.gang || a.house_number ? '<br>' : ''}${a.landmark || a.address || ''}</div>${waLine}<div class="address-item-meta">📍 ${formatDate(a.last_visit_at || a.created_at)} · ${a.visit_count || 1}x · ${rc} penerima${ap.length > 1 ? ` · ${ap.length} foto` : ''}</div></div>`;
     }).join('');
 }
 
@@ -1836,8 +1725,8 @@ async function exportJSON() {
 async function exportCSV() {
     const addresses = await getAllAddresses();
     if (addresses.length === 0) { showModal('Info', '⚠️ Tidak ada data'); return; }
-    const h = ['id', 'nama', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan', 'delivery_status', 'penerima_lain'];
-    const rows = addresses.map(a => [a.id, a.recipient_name, a.gang, a.house_number, a.address, a.latitude, a.longitude, a.landmark, a.payment_status, (a.problem_tags || []).join('; '), a.location_type, a.visit_count || 1, formatDate(a.last_visit_at || a.created_at), a.description, a.delivery_status, (a.recipients || []).filter(r => r.name !== a.recipient_name).map(r => `${r.name}:${r.status}`).join('; ')]);
+    const h = ['id', 'nama', 'no_wa', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan', 'delivery_status', 'penerima_lain'];
+    const rows = addresses.map(a => [a.id, a.recipient_name, a.whatsapp || '', a.gang, a.house_number, a.address, a.latitude, a.longitude, a.landmark, a.payment_status, (a.problem_tags || []).join('; '), a.location_type, a.visit_count || 1, formatDate(a.last_visit_at || a.created_at), a.description, a.delivery_status, (a.recipients || []).filter(r => r.name !== a.recipient_name).map(r => `${r.name}:${r.status}`).join('; ')]);
     let csv = h.join(',') + '\n';
     rows.forEach(r => { csv += r.map(c => (typeof c === 'string' && (c.includes(',') || c.includes('"') || c.includes('\n'))) ? '"' + c.replace(/"/g, '""') + '"' : (c || '')).join(',') + '\n'; });
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
@@ -1851,13 +1740,13 @@ async function exportShortCSV() {
     const de = document.getElementById('short-export-date-end').value;
     const addresses = await getAllAddresses();
     let fl = addresses.filter(a => {
-        if (nf) { const nm = (a.recipient_name || '').toLowerCase().includes(nf) || (a.recipients || []).some(r => r.name.toLowerCase().includes(nf)); if (!nm) return false; }
+        if (nf) { const nm = (a.recipient_name || '').toLowerCase().includes(nf) || (a.whatsapp || '').includes(nf) || (a.recipients || []).some(r => r.name.toLowerCase().includes(nf)); if (!nm) return false; }
         if (ds || de) { const vd = a.last_visit_at || a.created_at; if (ds && vd < ds + 'T00:00:00') return false; if (de && vd > de + 'T23:59:59') return false; }
         return true;
     });
     if (fl.length === 0) { showModal('Info', '⚠️ Tidak ada data'); return; }
-    const h = ['id', 'nama', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan'];
-    const rows = fl.map(a => [a.id, a.recipient_name, a.gang, a.house_number, a.address, a.latitude, a.longitude, a.landmark, a.payment_status, (a.problem_tags || []).join('; '), a.location_type, a.visit_count || 1, formatDate(a.last_visit_at || a.created_at), a.description]);
+    const h = ['id', 'nama', 'no_wa', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan'];
+    const rows = fl.map(a => [a.id, a.recipient_name, a.whatsapp || '', a.gang, a.house_number, a.address, a.latitude, a.longitude, a.landmark, a.payment_status, (a.problem_tags || []).join('; '), a.location_type, a.visit_count || 1, formatDate(a.last_visit_at || a.created_at), a.description]);
     let csv = h.join(',') + '\n';
     rows.forEach(r => { csv += r.map(c => (typeof c === 'string' && (c.includes(',') || c.includes('"'))) ? '"' + c.replace(/"/g, '""') + '"' : (c || '')).join(',') + '\n'; });
     let fn = 'kurir-q-export';
@@ -1870,12 +1759,31 @@ async function exportShortCSV() {
     showModal('Sukses', `✓ ${fl.length} data diexport`);
 }
 function exportCSVTemplate() {
-    const t = `nama,gang,nomor,alamat,latitude,longitude,patokan,status_pembayaran,masalah,tipe_lokasi,catatan
-Pak Budi,Gang 4,27,Jl. Raya No. 10,-6.2088,106.8650,Pagar hitam,cod-transfer,Sulit dihubungi,-,COD minta transfer`;
+    const t = `nama,no_wa,gang,nomor,alamat,patokan,status_pembayaran,tipe_lokasi,catatan
+Yeyen,(+62)085156395041,,,"Jalan Aselih No.52, RT.016/RW.1, Cipedak, Jakarta Selatan",,,,Sedang diproses
+Pak Budi,628123456789,Gang 4,27,"Gang 4 No.27 Cipedak",Pagar hitam,cod,,COD normal
+Bu Siti,08123456789,Gang 2,15,"Gang 2 No.15 Cipedak",Sebelah toko roti,transfer,jelas,`;
     const url = URL.createObjectURL(new Blob([t], { type: 'text/csv;charset=utf-8;' }));
     const l = document.createElement('a'); l.href = url; l.download = `kurir-q-template.csv`; l.click();
     URL.revokeObjectURL(url);
-    showModal('Template CSV', 'Minimal cukup kolom "nama".');
+    showModal('Template CSV', `📝 Format CSV yang didukung:
+
+Kolom WAJIB:
+• nama (minimal ini saja cukup)
+
+Kolom OPSIONAL:
+• no_wa — 08xxx / 62xxx / +62xxx / (+62)xxx (auto-normalize)
+• gang, nomor — dipisah (opsional)
+• alamat — alamat lengkap (bisa panjang)
+• patokan — patokan/landmark
+• status_pembayaran — cod / transfer / belum
+• tipe_lokasi — jelas / nitip / sulit / patokan
+• catatan — catatan tambahan
+
+📌 Deteksi duplikat:
+Data dengan NAMA sama ATAU NO. WA sama akan di-update statusnya jadi "Belum Selesai".
+
+Data baru akan ditambahkan sebagai record baru.`);
 }
 
 // ============ BULK ============
@@ -1940,12 +1848,34 @@ document.getElementById('file-import-csv').addEventListener('change', (e) => {
                 const g = (h, d) => { const idx = headers.findIndex(x => x.includes(h)); return v[idx >= 0 ? idx : d] || ''; };
                 const nm = g('nama', 1) || g('recipient', 1) || g('penerima', 1);
                 if (!nm.trim()) continue;
+                const waRaw = g('no_wa', 2) || g('whatsapp', 2) || g('wa', 2) || '';
                 const rl = g('penerima_lain', 15) || g('recipients', 15) || '';
                 const ar = rl.split(';').map(x => x.trim()).filter(x => x).map(x => { const p = x.split(':'); return { name: p[0].trim(), status: (p[1] || 'belum selesai').trim(), added_at: new Date().toISOString() }; });
                 const recs = [{ name: nm, status: 'belum selesai', added_at: new Date().toISOString() }, ...ar];
                 const ur = [], seen = new Set();
                 recs.forEach(x => { if (!seen.has(x.name.toLowerCase())) { seen.add(x.name.toLowerCase()); ur.push(x); } });
-                addresses.push({ id: g('id', 0) || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9), recipient_name: nm, gang: g('gang', 2), house_number: g('nomor', 3) || g('house', 3), address: g('alamat', 4) || g('address', 4), latitude: parseFloat(g('latitude', 5)) || 0, longitude: parseFloat(g('longitude', 6)) || 0, landmark: g('patokan', 7) || g('landmark', 7), payment_status: g('status_pembayaran', 8) || g('payment', 8) || 'belum', problem_tags: (g('masalah', 9) || '').split(';').map(t => t.trim()).filter(t => t), location_type: g('tipe_lokasi', 10) || g('type', 10) || 'jelas', visit_count: 1, description: g('catatan', 13) || g('description', 13) || '', delivery_status: 'belum selesai', recipients: ur, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), history: [], raw_voice_note: '' });
+                addresses.push({
+                    id: g('id', 0) || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    recipient_name: nm,
+                    whatsapp: waRaw ? normalizeWhatsApp(waRaw) : '',
+                    gang: g('gang', 3),
+                    house_number: g('nomor', 4) || g('house', 4),
+                    address: g('alamat', 5) || g('address', 5),
+                    latitude: parseFloat(g('latitude', 6)) || 0,
+                    longitude: parseFloat(g('longitude', 7)) || 0,
+                    landmark: g('patokan', 8) || g('landmark', 8),
+                    payment_status: g('status_pembayaran', 9) || g('payment', 9) || 'belum',
+                    problem_tags: (g('masalah', 10) || '').split(';').map(t => t.trim()).filter(t => t),
+                    location_type: g('tipe_lokasi', 11) || g('type', 11) || 'jelas',
+                    visit_count: 1,
+                    description: g('catatan', 14) || g('description', 14) || '',
+                    delivery_status: 'belum selesai',
+                    recipients: ur,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    history: [],
+                    raw_voice_note: ''
+                });
             }
             if (addresses.length === 0) { showModal('Error', '❌ Tidak ada data valid'); return; }
             showImportModal(addresses, 'csv');
@@ -1962,7 +1892,7 @@ async function showImportModal(newAddresses, type) {
     if (type === 'json') {
         document.getElementById('modal-content').innerHTML = `<h2>🔄 Full Restore</h2><div class="info-box" style="background:#fef3c7;color:#92400e;margin:16px 0">⚠️ Semua data sekarang akan DIHAPUS diganti dengan backup.</div><p>Ditemukan <strong>${newAddresses.length}</strong> alamat.</p><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-danger" onclick="confirmImport('json', ${newAddresses.length})">🔄 Restore</button></div>`;
     } else {
-        document.getElementById('modal-content').innerHTML = `<h2>📤 Import CSV</h2><p>Ditemukan <strong>${newAddresses.length}</strong> baris.</p><div class="info-box" style="background:#dbeafe;color:#1e40af;font-size:13px;line-height:1.6">• Data existing (nama sama) → status jadi 🔔 Belum Selesai<br>• Data baru → ditambah 🔔 Belum Selesai</div><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-primary" onclick="confirmImport('csv', ${newAddresses.length})">📤 Import</button></div>`;
+        document.getElementById('modal-content').innerHTML = `<h2>📤 Import CSV</h2><p>Ditemukan <strong>${newAddresses.length}</strong> baris.</p><div class="info-box" style="background:#dbeafe;color:#1e40af;font-size:13px;line-height:1.6"><strong>📌 Deteksi duplikat:</strong><br>• Nama sama ATAU<br>• No. WA sama<br><br>→ status di-update jadi "🔔 Belum Selesai"<br>→ Data baru akan ditambahkan</div><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-primary" onclick="confirmImport('csv', ${newAddresses.length})">📤 Import</button></div>`;
     }
     window.importNewAddresses = newAddresses;
     document.getElementById('modal').classList.add('active');
@@ -1984,28 +1914,57 @@ async function processCSVImport(count) {
     document.getElementById('modal').classList.add('active');
     const ex = await getAllAddresses();
     let up = 0, add = 0;
+    const upReasons = { nama: 0, wa: 0 };
     for (const na of window.importNewAddresses) {
         const nm = (na.recipient_name || '').trim();
         if (!nm) continue;
+        
+        // ============================================
+        // DETEKSI DUPLIKAT: Nama ATAU No. WA
+        // ============================================
         let e = null;
-        if (na.latitude && na.longitude && (na.latitude !== 0 || na.longitude !== 0)) e = ex.find(a => Math.abs(a.latitude - na.latitude) < 0.00005 && Math.abs(a.longitude - na.longitude) < 0.00005);
-        if (!e) { const nl = nm.toLowerCase(); e = ex.find(a => (a.recipient_name || '').toLowerCase().trim() === nl || (a.recipients && a.recipients.some(r => (r.name || '').toLowerCase().trim() === nl))); }
+        let matchReason = '';
+        
+        // 1. Cek by NAMA
+        const nl = nm.toLowerCase();
+        e = ex.find(a => 
+            (a.recipient_name || '').toLowerCase().trim() === nl || 
+            (a.recipients && a.recipients.some(r => (r.name || '').toLowerCase().trim() === nl))
+        );
+        if (e) matchReason = 'nama';
+        
+        // 2. Cek by NO. WA (kalau nama tidak ketemu)
+        if (!e && na.whatsapp && na.whatsapp.length > 5) {
+            e = ex.find(a => {
+                if (a.whatsapp && a.whatsapp === na.whatsapp) return true;
+                if (a.recipients && a.recipients.some(r => r.whatsapp && r.whatsapp === na.whatsapp)) return true;
+                return false;
+            });
+            if (e) matchReason = 'wa';
+        }
+        
         if (e) {
+            // UPDATE existing — status jadi "belum selesai"
             e.delivery_status = 'belum selesai';
             if (e.recipients && e.recipients.length > 0) e.recipients.forEach(r => { r.status = 'belum selesai'; r.updated_at = new Date().toISOString(); });
             else e.recipients = [{ name: e.recipient_name, status: 'belum selesai', added_at: e.created_at || new Date().toISOString() }];
+            // Update field tambahan kalau CSV punya nilai
             if (na.gang) e.gang = na.gang;
             if (na.house_number) e.house_number = na.house_number;
             if (na.address) e.address = na.address;
             if (na.landmark) e.landmark = na.landmark;
+            if (na.whatsapp) e.whatsapp = na.whatsapp;
             if (na.payment_status && na.payment_status !== 'belum') e.payment_status = na.payment_status;
             if (na.location_type && na.location_type !== 'jelas') e.location_type = na.location_type;
             if (na.description) e.description = na.description;
             if (na.latitude && na.longitude && (na.latitude !== 0 || na.longitude !== 0)) { e.latitude = na.latitude; e.longitude = na.longitude; }
             if (!e.history) e.history = [];
-            e.history.push({ date: new Date().toISOString(), status: 'belum selesai', notes: 'CSV import: status diubah ke belum selesai' });
-            await saveAddress(e); up++;
+            e.history.push({ date: new Date().toISOString(), status: 'belum selesai', notes: `CSV import: status diubah (match by ${matchReason})` });
+            await saveAddress(e);
+            up++;
+            upReasons[matchReason]++;
         } else {
+            // TAMBAH baru
             const ca = { ...na, id: na.id || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), delivery_status: 'belum selesai', recipients: (na.recipients || []).map(r => ({ name: r.name, status: 'belum selesai', added_at: r.added_at || new Date().toISOString() })), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), visit_count: 0, last_visit_at: null, history: [{ date: new Date().toISOString(), status: 'belum selesai', notes: 'Import dari CSV' }] };
             if (ca.recipients.length === 0) ca.recipients = [{ name: nm, status: 'belum selesai', added_at: new Date().toISOString() }];
             ca.recipient_name = nm;
@@ -2014,7 +1973,7 @@ async function processCSVImport(count) {
     }
     updateMapMarkers(); updateAddressList();
     closeModal();
-    showModal('Sukses', `✓ Import CSV!\n\n🔔 Status diubah: ${up}\n➕ Data baru: ${add}`);
+    showModal('Sukses', `✓ Import CSV selesai!\n\n🔔 Status diubah: ${up}\n   • by nama: ${upReasons.nama}\n   • by WA: ${upReasons.wa}\n➕ Data baru: ${add}\n\n📌 Semua berstatus "Belum Selesai"`);
 }
 
 // ============ KOMPRES FOTO ============
@@ -2226,7 +2185,7 @@ function attachAddressPhotoHandlers() {
         const db = document.getElementById(`address-photo-delete-${slot}`);
         if (ci) ci.onchange = h;
         if (gi) gi.onchange = h;
-        if (db) db.onclick = (e) => { e.preventDefault(); e.stopPropagation(); if (confirm('⚠️ Hapus foto ini?\n\nFoto akan dihapus dari preview.\nKlik "Batal" jika tidak yakin.')) removeAddressPhoto(slot); };
+        if (db) db.onclick = (e) => { e.preventDefault(); e.stopPropagation(); if (confirm('⚠️ Hapus foto ini?')) removeAddressPhoto(slot); };
     }
 }
 
@@ -2243,9 +2202,9 @@ async function init() {
         const addresses = await getAllAddresses();
         if (addresses.length === 0) {
             const demo = [
-                { recipient_name: 'Pak Budi', gang: 'Gang 4', house_number: '27', landmark: 'Pagar hitam', latitude: -6.2088, longitude: 106.8650, payment_status: 'cod', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Pak Budi', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
-                { recipient_name: 'Bu Siti', gang: 'Gang 2', house_number: '15', landmark: 'Sebelah toko roti', latitude: -6.2100, longitude: 106.8700, payment_status: 'cod-transfer', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Bu Siti', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
-                { recipient_name: 'Pak Ahmad', gang: 'Gang 5', house_number: '8', landmark: 'Rumah hijau', latitude: -6.2050, longitude: 106.8600, payment_status: 'transfer', location_type: 'sulit', problem_tags: ['Sulit ditemukan'], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Pak Ahmad', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] }
+                { recipient_name: 'Pak Budi', gang: 'Gang 4', house_number: '27', landmark: 'Pagar hitam', latitude: -6.2088, longitude: 106.8650, whatsapp: '628123456789', payment_status: 'cod', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Pak Budi', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
+                { recipient_name: 'Bu Siti', gang: 'Gang 2', house_number: '15', landmark: 'Sebelah toko roti', latitude: -6.2100, longitude: 106.8700, whatsapp: '628987654321', payment_status: 'cod-transfer', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Bu Siti', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
+                { recipient_name: 'Pak Ahmad', gang: 'Gang 5', house_number: '8', landmark: 'Rumah hijau', latitude: -6.2050, longitude: 106.8600, whatsapp: '628555555555', payment_status: 'transfer', location_type: 'sulit', problem_tags: ['Sulit ditemukan'], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Pak Ahmad', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] }
             ];
             for (const a of demo) await saveAddress(a);
         }
@@ -2253,7 +2212,7 @@ async function init() {
         if (window._pendingActivePage) { const ap = window._pendingActivePage; window._pendingActivePage = null; setTimeout(() => showPage(ap), 300); }
         if (!sessionStorage.getItem('kurirq_welcomed')) {
             sessionStorage.setItem('kurirq_welcomed', '1');
-            showModal('Selamat Datang', '👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n💾 Auto-save state\n🔑 API key routing bisa diatur di Pengaturan\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Share lokasi ke Maps/Waze/WA\n• Backup JSON rutin!');
+            showModal('Selamat Datang', '👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n📱 No. WA + tombol chat\n📤 Import CSV: update by nama/WA\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Backup JSON rutin!');
         }
     } catch (err) {
         console.error('Init error:', err);
