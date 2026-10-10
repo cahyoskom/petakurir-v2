@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>OCR Order → CSV · Kurir-Q</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#2563eb;--primary-dark:#1d4ed8;--secondary:#10b981;--danger:#ef4444;--warning:#f59e0b;--bg:#fff;--bg-alt:#f3f4f6;--text:#1f2937;--text-light:#6b7280;--border:#d1d5db;--wa:#25D366}
+@media(prefers-color-scheme:dark){:root{--bg:#1f2937;--bg-alt:#111827;--text:#f3f4f6;--text-light:#d1d5db;--border:#4b5563}}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);display:flex;flex-direction:column;height:100%;overflow:hidden}
+header{background:var(--primary);color:#fff;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top,0px));display:flex;align-items:center;gap:10px;box-shadow:0 2px 4px rgba(0,0,0,.1);flex-shrink:0}
+header h1{font-size:16px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.back-btn{display:flex;align-items:center;gap:4px;color:#fff;font-size:14px;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,.15);font-weight:600;text-decoration:none;flex-shrink:0}
+.back-btn:active{background:rgba(255,255,255,.3)}
+.back-btn .arrow{font-size:18px;line-height:1}
+main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
+.card{background:var(--bg-alt);border-radius:10px;padding:16px;margin-bottom:12px;border:1px solid var(--border)}
+.upload-zone{border:2px dashed var(--border);border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg)}
+.upload-zone:active{background:var(--bg-alt);border-color:var(--primary)}
+.upload-zone-icon{font-size:48px;margin-bottom:8px}
+.upload-zone-title{font-weight:600;font-size:15px;margin-bottom:4px}
+.upload-zone-hint{font-size:12px;color:var(--text-light);line-height:1.6}
+.format-badge{display:inline-block;background:var(--bg-alt);color:var(--text-light);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin:2px 2px 0 0;border:1px solid var(--border)}
+.preview-container{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:#000;margin-bottom:12px;display:none}
+.preview-container img{display:block;width:100%;max-height:260px;object-fit:contain}
+.preview-container iframe{width:100%;height:260px;border:none;background:#fff}
+.preview-remove{position:absolute;top:8px;right:8px;background:rgba(239,68,68,.95);color:#fff;border:2px solid #fff;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:20px;font-weight:bold;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;z-index:10}
+.preview-info{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.7);color:#fff;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;z-index:10}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;transition:opacity .2s;font-family:inherit}
+.btn:active{opacity:.8}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-secondary{background:var(--bg);color:var(--text);border:1px solid var(--border)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-success{background:var(--secondary);color:#fff}
+.btn-block{width:100%}
+.btn-lg{padding:14px 20px;font-size:15px}
+.row{display:flex;gap:8px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;resize:vertical}
+.form-group input:focus,.form-group textarea:focus{outline:2px solid var(--primary);outline-offset:-1px;border-color:transparent}
+.form-group textarea{min-height:70px}
+.form-group .hint{font-size:11px;color:var(--text-light);margin-top:4px}
+.progress-wrap{display:none;padding:16px;text-align:center}
+.progress-wrap.active{display:block}
+.progress-bar{background:var(--border);height:8px;border-radius:4px;overflow:hidden;margin:12px 0}
+.progress-fill{height:100%;background:var(--primary);width:0%;transition:width .3s;border-radius:4px}
+.progress-text{font-size:13px;color:var(--text-light)}
+.section-title{font-size:13px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin:20px 0 10px;display:flex;align-items:center;justify-content:space-between}
+.items-list{display:flex;flex-direction:column;gap:8px}
+.item-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;position:relative}
+.item-num{display:inline-block;background:var(--primary);color:#fff;border-radius:50%;width:22px;height:22px;line-height:22px;text-align:center;font-size:12px;font-weight:700;margin-right:6px}
+.item-name{font-weight:600;font-size:14px}
+.item-row{font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.5}
+.item-row strong{color:var(--text);font-weight:500}
+.item-actions{display:flex;gap:6px;margin-top:10px;justify-content:flex-end}
+.item-actions button{padding:4px 10px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-alt);color:var(--text);cursor:pointer;font-weight:600}
+.item-actions .del{background:#fee;color:#991b1b;border-color:#fecaca}
+@media(prefers-color-scheme:dark){.item-actions .del{background:#7f1d1d;color:#fecaca;border-color:#991b1b}}
+.empty-state{text-align:center;padding:32px 16px;color:var(--text-light);font-size:13px}
+.empty-state-icon{font-size:40px;margin-bottom:8px}
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.active{display:flex}
+.modal{background:var(--bg);border-radius:12px;padding:20px;max-width:400px;width:100%;box-shadow:0 10px 25px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+.modal h2{margin-bottom:12px;font-size:16px}
+.sticky-actions{position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-top:1px solid var(--border);padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom,12px));display:flex;gap:8px;z-index:50;box-shadow:0 -2px 8px rgba(0,0,0,.08)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.alert{padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.6;margin-bottom:12px}
+.alert-info{background:#dbeafe;color:#1e40af}
+.alert-warn{background:#fef3c7;color:#92400e}
+.alert-success{background:#d1fae5;color:#065f46}
+@media(prefers-color-scheme:dark){
+.alert-info{background:#1e3a8a;color:#bfdbfe}
+.alert-warn{background:#78350f;color:#fde68a}
+.alert-success{background:#064e3b;color:#a7f3d0}
+}
+.wa-badge{display:inline-block;background:var(--wa);color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.page-info{font-size:12px;color:var(--text-light);text-align:center;margin:8px 0;padding:6px;background:var(--bg-alt);border-radius:6px}
+.status-badge{display:inline-block;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-left:4px}
+@media(prefers-color-scheme:dark){.status-badge{background:#1e3a8a;color:#bfdbfe}}
+</style>
+</head>
+<body>
+<header>
+    <a href="index.html" class="back-btn" title="Kembali ke Kurir-Q">
+        <span class="arrow">←</span> <span>Kurir-Q</span>
+    </a>
+    <h1>📷 OCR → CSV (Sedang Diproses)</h1>
+</header>
+
+<main>
+    <div class="alert alert-info">
+        💡 Upload <strong>screenshot / foto / PDF</strong> order → tap <strong>Ekstrak Teks</strong> → <strong>hanya order "Sedang diproses"</strong> yang diambil → Export CSV → import di Kurir-Q.
+    </div>
+
+    <!-- UPLOAD ZONE -->
+    <div class="card" id="upload-card">
+        <div class="upload-zone" id="upload-zone">
+            <div class="upload-zone-icon">📸</div>
+            <div class="upload-zone-title">Tap untuk pilih file</div>
+            <div class="upload-zone-hint">
+                Format didukung:<br>
+                <span class="format-badge">PDF</span>
+                <span class="format-badge">JPG</span>
+                <span class="format-badge">JPEG</span>
+                <span class="format-badge">PNG</span>
+                <span class="format-badge">Screenshot</span>
+            </div>
+        </div>
+        <input type="file" id="file-input-camera" accept="image/*" capture="environment" style="display:none">
+        <input type="file" id="file-input-all" accept="image/*,application/pdf,.pdf" style="display:none">
+        <div class="row" style="margin-top:10px">
+            <button class="btn btn-primary btn-block" onclick="document.getElementById('file-input-camera').click()">📷 Kamera</button>
+            <button class="btn btn-secondary btn-block" onclick="document.getElementById('file-input-all').click()">📁 File / PDF</button>
+        </div>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="preview-container" id="preview-container">
+        <img id="preview-img" alt="Preview" style="display:none">
+        <div id="preview-pdf-info" class="preview-info" style="display:none">📄 PDF</div>
+        <div id="preview-info" class="preview-info" style="display:none"></div>
+        <button class="preview-remove" id="preview-remove" title="Hapus file">×</button>
+    </div>
+
+    <!-- PAGE SELECTOR (untuk PDF) -->
+    <div id="page-selector-wrap" style="display:none">
+        <div class="card" style="background:var(--bg)">
+            <div class="form-group" style="margin:0">
+                <label>Pilih Halaman PDF untuk di-OCR</label>
+                <select id="pdf-page-select"></select>
+                <div class="hint">PDF multi-halaman: pilih satu per satu, atau OCR semua nanti</div>
+            </div>
+            <div class="row" style="margin-top:10px">
+                <button class="btn btn-secondary btn-block" id="ocr-all-pages-btn">📚 Ekstrak SEMUA Halaman</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OCR BUTTON -->
+    <div id="ocr-action-wrap" style="display:none">
+        <button class="btn btn-primary btn-block btn-lg" id="start-ocr-btn">✨ Ekstrak Teks dari File Ini</button>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-text" id="progress-text">Menyiapkan...</div>
+    </div>
+
+    <!-- RESULT FORM (untuk 1 order hasil OCR) -->
+    <div id="result-form-wrap" style="display:none">
+        <div class="section-title">✏️ Koreksi Hasil OCR</div>
+        <div class="card" style="background:var(--bg)">
+            <div class="form-group">
+                <label>Nama Penerima</label>
+                <input type="text" id="ocr-name" placeholder="Contoh: Ryan">
+            </div>
+            <div class="form-group">
+                <label>No. WhatsApp</label>
+                <input type="tel" id="ocr-wa" placeholder="0851..." inputmode="tel">
+                <div class="hint">Auto-normalize ke 62... saat disimpan</div>
+            </div>
+            <div class="form-group">
+                <label>Alamat Lengkap</label>
+                <textarea id="ocr-alamat" placeholder="Jalan..., RT/RW, Kelurahan, Kecamatan..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Catatan / Order ID</label>
+                <textarea id="ocr-catatan" placeholder="GTL7249843568 - Sedang diproses"></textarea>
+                <div class="hint">Order ID & status bisa di sini (tidak dipakai untuk deteksi duplikat)</div>
+            </div>
+            <div class="row">
+                <button class="btn btn-success btn-block" id="add-item-btn">➕ Tambah ke Daftar</button>
+                <button class="btn btn-secondary btn-block" id="reset-form-btn">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ITEMS LIST -->
+    <div class="section-title">
+        <span>📋 Daftar Hasil (<span id="items-count">0</span>)</span>
+        <button class="btn btn-danger" id="clear-all-items" style="padding:4px 10px;font-size:11px;display:none">🗑️ Hapus Semua</button>
+    </div>
+    <div class="items-list" id="items-list">
+        <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <div>Belum ada item.<br>Upload file dan tap Ekstrak Teks.</div>
+        </div>
+    </div>
+</main>
+
+<!-- STICKY ACTIONS -->
+<div class="sticky-actions" id="sticky-actions" style="display:none">
+    <button class="btn btn-secondary" id="copy-csv-btn" style="flex:1">📋 Copy CSV</button>
+    <button class="btn btn-primary" id="export-csv-btn" style="flex:2">📥 Export CSV</button>
+</div>
+
+<!-- MODAL EDIT -->
+<div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+        <h2>✏️ Edit Item</h2>
+        <div class="form-group">
+            <label>Nama</label>
+            <input type="text" id="edit-name">
+        </div>
+        <div class="form-group">
+            <label>No. WA</label>
+            <input type="tel" id="edit-wa" inputmode="tel">
+        </div>
+        <div class="form-group">
+            <label>Alamat</label>
+            <textarea id="edit-alamat"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Catatan</label>
+            <textarea id="edit-catatan"></textarea>
+        </div>
+        <div class="row">
+            <button class="btn btn-secondary" style="flex:1" onclick="closeEditModal()">Batal</button>
+            <button class="btn btn-primary" style="flex:1" id="save-edit-btn">💾 Simpan</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+// ============================================
+// GLOBAL
+// ============================================
+let currentFile = null;
+let currentFileType = '';
+let currentImageBlob = null;
+let pdfDoc = null;
+let pdfTotalPages = 0;
+let ocrText = '';
+let items = [];
+let editingIndex = -1;
+let tesseractWorker = null;
+let tesseractLoaded = false;
+
+// Setup PDF.js worker
+if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+// ============================================
+// HELPER: NORMALISASI WA
+// ============================================
+function normalizeWhatsApp(input) {
+    if (!input) return '';
+    let digits = String(input).replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('620') && digits.length > 11) digits = '62' + digits.substring(3);
+    if (digits.startsWith('0062')) digits = digits.substring(2);
+    if (digits.startsWith('0')) digits = '62' + digits.substring(1);
+    else if (digits.startsWith('8')) digits = '62' + digits;
+    else if (!digits.startsWith('62')) digits = '62' + digits;
+    return digits;
+}
+function formatWhatsAppDisplay(wa) {
+    if (!wa || wa.length < 10) return wa || '-';
+    const rest = wa.substring(2);
+    if (rest.length >= 9) return `+62 ${rest.substring(0, 3)}-${rest.substring(3, 7)}-${rest.substring(7)}`;
+    return '+' + wa;
+}
+
+// ============================================
+// PARSER MULTI-ORDER
+// - Deteksi banyak order dalam 1 gambar
+// - FILTER: hanya status "Sedang diproses"
+// ============================================
+function parseMultipleOrders(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const orders = [];
+    let current = null;
+
+    // Header order: GTL7223262488, AB123456, dll
+    const orderIdRegex = /\b([A-Z]{2,}\d{6,})\b/i;
+    // Status yg dideteksi di baris header
+    const statusRegex  = /(sedang\s+diproses|diproses|selesai|batal|pending|dikirim|dikemas)/i;
+
+    for (const line of lines) {
+        const idMatch = line.match(orderIdRegex);
+        if (idMatch) {
+            if (current) orders.push(current);
+            const statusMatch = line.match(statusRegex);
+            current = {
+                orderId: idMatch[1],
+                status : statusMatch ? statusMatch[1].toLowerCase() : '',
+                lines  : []
+            };
+        } else if (current) {
+            current.lines.push(line);
+        }
+    }
+    if (current) orders.push(current);
+
+    console.log('=== OCR MULTI-ORDER ===');
+    console.log('Total blok order terdeteksi:', orders.length);
+    orders.forEach(o => console.log(`  • ${o.orderId} → status: "${o.status}"`));
+
+    // 🔑 FILTER: hanya "sedang diproses"
+    const processed = orders.filter(o => /sedang\s+diproses/i.test(o.status));
+    console.log('Setelah filter "Sedang diproses":', processed.length);
+
+    // Parse tiap blok yang lolos filter
+    return processed.map(o => {
+        const L = o.lines;
+        let nama = '', wa = '', alamat = '', waIdx = -1;
+
+        const waPatterns = [
+            /\(\+?62\)[\s\-\d]{8,}/,
+            /\+?62[\s\-\d]{9,}/,
+            /\b0\d{2}[\s\-]?\d{3,4}[\s\-]?\d{3,4}\b/,
+            /\b8\d{2}[\s\-]?\d{3,4}[\s\-]?\d{3,4}\b/
+        ];
+
+        // Cari baris WA
+        for (let i = 0; i < L.length; i++) {
+            for (const p of waPatterns) {
+                if (p.test(L[i])) {
+                    wa = normalizeWhatsApp(L[i].replace(/\D/g, ''));
+                    waIdx = i;
+                    break;
+                }
+            }
+            if (waIdx >= 0) break;
+        }
+
+        // Nama = baris tepat SEBELUM baris WA
+        if (waIdx > 0) nama = L[waIdx - 1];
+        else if (waIdx === -1 && L.length > 0) nama = L[0];
+
+        // Alamat = semua baris SETELAH baris WA (digabung)
+        if (waIdx >= 0 && waIdx < L.length - 1) {
+            alamat = L.slice(waIdx + 1).join(', ');
+        }
+
+        return {
+            nama: (nama || '').trim(),
+            wa,
+            alamat: (alamat || '').trim(),
+            catatan: `${o.orderId} - ${o.status}`
+        };
+    });
+}
+
+// ============================================
+// FILE HANDLING
+// ============================================
+document.getElementById('file-input-camera').addEventListener('change', handleFileSelect);
+document.getElementById('file-input-all').addEventListener('change', handleFileSelect);
+document.getElementById('upload-zone').addEventListener('click', () => document.getElementById('file-input-all').click());
+
+document.getElementById('upload-zone').addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.background = 'var(--bg-alt)'; });
+document.getElementById('upload-zone').addEventListener('dragleave', (e) => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = ''; });
+document.getElementById('upload-zone').addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.currentTarget.style.borderColor = '';
+    e.currentTarget.style.background = '';
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+});
+
+function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) processFile(file);
+    e.target.value = '';
+}
+
+async function processFile(file) {
+    currentFile = file;
+    currentFileType = '';
+    currentImageBlob = null;
+    pdfDoc = null;
+    pdfTotalPages = 0;
+
+    const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isPDF && !isImage) {
+        alert('❌ Format tidak didukung.\nGunakan PDF, JPG, JPEG, PNG, atau screenshot.');
+        return;
+    }
+
+    if (isImage) {
+        currentFileType = 'image';
+        showImagePreview(file);
+    } else if (isPDF) {
+        currentFileType = 'pdf';
+        await loadPDF(file);
+    }
+}
+
+function showImagePreview(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.getElementById('preview-img').src = e.target.result;
+        document.getElementById('preview-img').style.display = 'block';
+        document.getElementById('preview-pdf-info').style.display = 'none';
+        document.getElementById('preview-info').style.display = 'block';
+        document.getElementById('preview-info').textContent = `📷 ${file.name.length > 30 ? file.name.substring(0, 30) + '...' : file.name}`;
+        document.getElementById('preview-container').style.display = 'block';
+        document.getElementById('ocr-action-wrap').style.display = 'block';
+        document.getElementById('page-selector-wrap').style.display = 'none';
+        document.getElementById('result-form-wrap').style.display = 'none';
+        document.getElementById('progress-wrap').classList.remove('active');
+        document.getElementById('upload-card').style.display = 'none';
+
+        currentImageBlob = file;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function loadPDF(file) {
+    try {
+        document.getElementById('progress-wrap').classList.add('active');
+        document.getElementById('progress-fill').style.width = '20%';
+        document.getElementById('progress-text').textContent = 'Membaca PDF...';
+        document.getElementById('upload-card').style.display = 'none';
+
+        const arrayBuffer = await file.arrayBuffer();
+        pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        pdfTotalPages = pdfDoc.numPages;
+
+        document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('progress-text').textContent = `✓ PDF dimuat (${pdfTotalPages} halaman)`;
+
+        setTimeout(() => {
+            document.getElementById('progress-wrap').classList.remove('active');
+        }, 500);
+
+        await renderPDFPageToPreview(1);
+
+        document.getElementById('preview-pdf-info').style.display = 'block';
+        document.getElementById('preview-info').style.display = 'block';
+        document.getElementById('preview-info').textContent = `📄 ${file.name.length > 25 ? file.name.substring(0, 25) + '...' : file.name} · ${pdfTotalPages} hal`;
+        document.getElementById('preview-container').style.display = 'block';
+
+        const select = document.getElementById('pdf-page-select');
+        select.innerHTML = '';
+        for (let i = 1; i <= pdfTotalPages; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `Halaman ${i}`;
+            select.appendChild(opt);
+        }
+
+        if (pdfTotalPages > 1) {
+            document.getElementById('page-selector-wrap').style.display = 'block';
+        } else {
+            document.getElementById('page-selector-wrap').style.display = 'none';
+        }
+
+        document.getElementById('ocr-action-wrap').style.display = 'block';
+        document.getElementById('result-form-wrap').style.display = 'none';
+
+        await renderPDFPageToCanvas(1);
+    } catch (err) {
+        console.error('PDF error:', err);
+        alert('❌ Gagal membaca PDF: ' + err.message);
+        resetUpload();
+    }
+}
+
+async function renderPDFPageToPreview(pageNum) {
+    try {
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.0 });
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const scale = Math.min(800 / viewport.width, 2);
+        const scaledViewport = page.getViewport({ scale: scale });
+        canvas.width = scaledViewport.width;
+        canvas.height = scaledViewport.height;
+        await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+        document.getElementById('preview-img').src = canvas.toDataURL('image/jpeg', 0.85);
+        document.getElementById('preview-img').style.display = 'block';
+    } catch (err) {
+        console.error('Preview render error:', err);
+    }
+}
+
+async function renderPDFPageToCanvas(pageNum) {
+    try {
+        document.getElementById('progress-wrap').classList.add('active');
+        document.getElementById('progress-fill').style.width = '30%';
+        document.getElementById('progress-text').textContent = `Menyiapkan halaman ${pageNum}...`;
+
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.0 });
+        const scale = Math.min(2200 / viewport.width, 4);
+        const scaledViewport = page.getViewport({ scale: scale });
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = scaledViewport.width;
+        canvas.height = scaledViewport.height;
+        await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+        currentImageBlob = blob;
+
+        document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('progress-text').textContent = `✓ Halaman ${pageNum} siap`;
+
+        setTimeout(() => {
+            document.getElementById('progress-wrap').classList.remove('active');
+        }, 400);
+    } catch (err) {
+        console.error('PDF render error:', err);
+        alert('❌ Gagal render halaman PDF: ' + err.message);
+    }
+}
+
+document.getElementById('pdf-page-select').addEventListener('change', async (e) => {
+    const pageNum = parseInt(e.target.value);
+    if (!pdfDoc || !pageNum) return;
+    await renderPDFPageToPreview(pageNum);
+    await renderPDFPageToCanvas(pageNum);
+});
+
+// OCR semua halaman PDF sekaligus
+document.getElementById('ocr-all-pages-btn').addEventListener('click', async () => {
+    if (!pdfDoc || pdfTotalPages === 0) return;
+
+    const btn = document.getElementById('ocr-all-pages-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Memproses...';
+
+    let successCount = 0;
+    try {
+        const worker = await loadTesseract();
+
+        for (let i = 1; i <= pdfTotalPages; i++) {
+            document.getElementById('progress-wrap').classList.add('active');
+            document.getElementById('progress-text').textContent = `Memproses halaman ${i}/${pdfTotalPages}...`;
+            document.getElementById('progress-fill').style.width = '0%';
+
+            await renderPDFPageToCanvas(i);
+
+            const { data: { text } } = await worker.recognize(currentImageBlob);
+            const orders = parseMultipleOrders(text);
+
+            orders.forEach(o => {
+                items.push(o);
+                successCount++;
+            });
+        }
+
+        renderItems();
+        document.getElementById('progress-wrap').classList.remove('active');
+        alert(`✓ Selesai OCR ${pdfTotalPages} halaman.\nOrder "Sedang diproses" ditemukan: ${successCount}.\n\nSilakan cek daftar dan koreksi jika ada yang salah.`);
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '📚 Ekstrak SEMUA Halaman';
+    }
+});
+
+document.getElementById('preview-remove').addEventListener('click', () => resetUpload());
+
+function resetUpload() {
+    currentFile = null;
+    currentFileType = '';
+    currentImageBlob = null;
+    pdfDoc = null;
+    pdfTotalPages = 0;
+    document.getElementById('preview-img').src = '';
+    document.getElementById('preview-img').style.display = 'none';
+    document.getElementById('preview-container').style.display = 'none';
+    document.getElementById('ocr-action-wrap').style.display = 'none';
+    document.getElementById('page-selector-wrap').style.display = 'none';
+    document.getElementById('result-form-wrap').style.display = 'none';
+    document.getElementById('progress-wrap').classList.remove('active');
+    document.getElementById('upload-card').style.display = 'block';
+}
+
+// ============================================
+// TESSERACT OCR
+// ============================================
+async function loadTesseract() {
+    if (tesseractLoaded && tesseractWorker) return tesseractWorker;
+    document.getElementById('progress-text').textContent = 'Memuat engine OCR (sekali saja)...';
+    document.getElementById('progress-fill').style.width = '10%';
+    tesseractWorker = await Tesseract.createWorker('ind+eng', 1, {
+        logger: (m) => {
+            if (m.status === 'recognizing text') {
+                const pct = Math.round((m.progress || 0) * 100);
+                document.getElementById('progress-fill').style.width = pct + '%';
+                document.getElementById('progress-text').textContent = `Membaca teks... ${pct}%`;
+            } else if (m.status) {
+                document.getElementById('progress-text').textContent = m.status + (m.progress ? ' ' + Math.round(m.progress * 100) + '%' : '');
+            }
+        }
+    });
+    tesseractLoaded = true;
+    return tesseractWorker;
+}
+
+// ============================================
+// TOMBOL: Ekstrak Teks dari File Ini
+// - Pakai parseMultipleOrders (sudah difilter "Sedang diproses")
+// - 1 order → isi form manual
+// - >1 order → auto-tambah semua ke daftar
+// ============================================
+document.getElementById('start-ocr-btn').addEventListener('click', async () => {
+    if (!currentImageBlob) { alert('Pilih file dulu'); return; }
+
+    const btn = document.getElementById('start-ocr-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Memproses...';
+
+    document.getElementById('progress-wrap').classList.add('active');
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('progress-text').textContent = 'Menyiapkan...';
+
+    try {
+        const worker = await loadTesseract();
+        document.getElementById('progress-text').textContent = 'Membaca...';
+        document.getElementById('progress-fill').style.width = '10%';
+
+        const { data: { text } } = await worker.recognize(currentImageBlob);
+        ocrText = text;
+        console.log('=== OCR TEXT ===');
+        console.log(text);
+
+        const orders = parseMultipleOrders(text);
+
+        document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('progress-text').textContent = '✓ Selesai!';
+
+        setTimeout(() => {
+            document.getElementById('progress-wrap').classList.remove('active');
+
+            if (orders.length === 0) {
+                alert('⚠️ Tidak ada order dengan status "Sedang diproses" yang terdeteksi.\n\nCek console (F12) untuk melihat status yang terbaca OCR.');
+                return;
+            }
+
+            if (orders.length === 1) {
+                // 1 order → isi form untuk review manual
+                const p = orders[0];
+                document.getElementById('ocr-name').value    = p.nama;
+                document.getElementById('ocr-wa').value      = p.wa;
+                document.getElementById('ocr-alamat').value  = p.alamat;
+                document.getElementById('ocr-catatan').value = p.catatan;
+                document.getElementById('result-form-wrap').style.display = 'block';
+                document.getElementById('ocr-action-wrap').style.display = 'none';
+                document.getElementById('result-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                // >1 order → auto-tambah SEMUA
+                orders.forEach(o => items.push(o));
+                renderItems();
+                alert(`✓ ${orders.length} order "Sedang diproses" berhasil diekstrak & ditambahkan ke daftar.`);
+                document.getElementById('items-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 500);
+    } catch (err) {
+        console.error('OCR error:', err);
+        alert('❌ Gagal OCR: ' + err.message + '\n\nPastikan koneksi internet aktif (untuk download bahasa pertama kali).');
+        document.getElementById('progress-wrap').classList.remove('active');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '✨ Ekstrak Teks dari File Ini';
+    }
+});
+
+// ============================================
+// FORM ACTIONS
+// ============================================
+document.getElementById('add-item-btn').addEventListener('click', () => {
+    const nama = document.getElementById('ocr-name').value.trim();
+    const waRaw = document.getElementById('ocr-wa').value.trim();
+    const alamat = document.getElementById('ocr-alamat').value.trim();
+    const catatan = document.getElementById('ocr-catatan').value.trim();
+
+    if (!nama) { alert('Nama penerima wajib diisi'); return; }
+
+    const wa = waRaw ? normalizeWhatsApp(waRaw) : '';
+    items.push({ nama, wa, alamat, catatan });
+    renderItems();
+    resetUpload();
+    document.getElementById('ocr-name').value = '';
+    document.getElementById('ocr-wa').value = '';
+    document.getElementById('ocr-alamat').value = '';
+    document.getElementById('ocr-catatan').value = '';
+    window.scrollTo({ top: document.getElementById('items-list').offsetTop - 100, behavior: 'smooth' });
+});
+
+document.getElementById('reset-form-btn').addEventListener('click', () => {
+    document.getElementById('ocr-name').value = '';
+    document.getElementById('ocr-wa').value = '';
+    document.getElementById('ocr-alamat').value = '';
+    document.getElementById('ocr-catatan').value = '';
+});
+
+// ============================================
+// RENDER ITEMS
+// ============================================
+function renderItems() {
+    const list = document.getElementById('items-list');
+    document.getElementById('items-count').textContent = items.length;
+
+    if (items.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>Belum ada item.<br>Upload file dan tap Ekstrak Teks.</div></div>';
+        document.getElementById('sticky-actions').style.display = 'none';
+        document.getElementById('clear-all-items').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('sticky-actions').style.display = 'flex';
+    document.getElementById('clear-all-items').style.display = 'inline-block';
+
+    list.innerHTML = items.map((item, i) => `
+        <div class="item-card">
+            <div>
+                <span class="item-num">${i + 1}</span>
+                <span class="item-name">${escapeHtml(item.nama)}</span>
+                <span class="status-badge">✓ Sedang diproses</span>
+            </div>
+            ${item.wa ? `<div class="item-row">📱 <span class="wa-badge">${formatWhatsAppDisplay(item.wa)}</span></div>` : ''}
+            ${item.alamat ? `<div class="item-row">📍 <strong>Alamat:</strong> ${escapeHtml(item.alamat)}</div>` : ''}
+            ${item.catatan ? `<div class="item-row">📝 <strong>Catatan:</strong> ${escapeHtml(item.catatan)}</div>` : ''}
+            <div class="item-actions">
+                <button onclick="editItem(${i})">✏️ Edit</button>
+                <button class="del" onclick="deleteItem(${i})">🗑️ Hapus</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function deleteItem(i) {
+    if (!confirm('Hapus item ini?')) return;
+    items.splice(i, 1);
+    renderItems();
+}
+
+document.getElementById('clear-all-items').addEventListener('click', () => {
+    if (items.length === 0) return;
+    if (!confirm(`Hapus semua ${items.length} item?`)) return;
+    items = [];
+    renderItems();
+});
+
+// ============================================
+// MODAL EDIT
+// ============================================
+function editItem(i) {
+    editingIndex = i;
+    const item = items[i];
+    document.getElementById('edit-name').value = item.nama || '';
+    document.getElementById('edit-wa').value = item.wa || '';
+    document.getElementById('edit-alamat').value = item.alamat || '';
+    document.getElementById('edit-catatan').value = item.catatan || '';
+    document.getElementById('edit-modal').classList.add('active');
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').classList.remove('active');
+    editingIndex = -1;
+}
+
+document.getElementById('save-edit-btn').addEventListener('click', () => {
+    if (editingIndex < 0) return;
+    const nama = document.getElementById('edit-name').value.trim();
+    if (!nama) { alert('Nama wajib diisi'); return; }
+    const waRaw = document.getElementById('edit-wa').value.trim();
+    items[editingIndex] = {
+        nama,
+        wa: waRaw ? normalizeWhatsApp(waRaw) : '',
+        alamat: document.getElementById('edit-alamat').value.trim(),
+        catatan: document.getElementById('edit-catatan').value.trim()
+    };
+    renderItems();
+    closeEditModal();
+});
+
+// ============================================
+// EXPORT CSV
+// ============================================
+function generateCSV() {
+    const headers = ['nama', 'no_wa', 'alamat', 'catatan'];
+    const rows = items.map(it => [it.nama || '', it.wa || '', it.alamat || '', it.catatan || '']);
+    let csv = headers.join(',') + '\n';
+    rows.forEach(row => {
+        csv += row.map(cell => {
+            if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"') || cell.includes('\n'))) {
+                return '"' + cell.replace(/"/g, '""') + '"';
+            }
+            return cell;
+        }).join(',') + '\n';
+    });
+    return csv;
+}
+
+document.getElementById('export-csv-btn').addEventListener('click', () => {
+    if (items.length === 0) { alert('Belum ada item'); return; }
+    const csv = generateCSV();
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `kurir-q-import-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+});
+
+document.getElementById('copy-csv-btn').addEventListener('click', async () => {
+    if (items.length === 0) { alert('Belum ada item'); return; }
+    const csv = generateCSV();
+    try {
+        await navigator.clipboard.writeText(csv);
+        alert('✓ CSV disalin ke clipboard.');
+    } catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = csv;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        alert('✓ CSV disalin.');
+    }
+});
+
+// ============================================
+// INIT
+// ============================================
+renderItems();
+</script>
+</body>
+</html>
