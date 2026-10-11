@@ -809,12 +809,19 @@ function generateCSV() {
 document.getElementById('export-csv-btn').addEventListener('click', () => {
     if (items.length === 0) { alert('Belum ada item'); return; }
     const csv = generateCSV();
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    // ⚠️ MIME 'text/csv' tanpa charset → Android MediaStore lebih reliable.
+    // BOM (uFEFF) tetap dipertahankan agar Excel desktop membuka UTF-8 dengan benar.
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `kurir-q-import-${new Date().toISOString().split('T')[0]}.csv`;
+    // Nama file tanpa banyak dash — beberapa Android picker bingung
+    const d = new Date();
+    const fname = `kurirq-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.csv`;
+    link.download = fname;
+    document.body.appendChild(link); // beberapa WebView butuh ini
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
 });
 
