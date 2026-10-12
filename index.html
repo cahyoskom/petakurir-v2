@@ -109,7 +109,7 @@ input[type=number]{-moz-appearance:textfield}
 <header><h1>📦 Kurir-Q</h1><button class="menu-btn" id="menu-btn">☰</button></header>
 <main>
 <div class="page active" id="map-page">
-<div class="search-bar"><input type="text" id="search-input" placeholder="Cari nama / wa / alamat / patokan"><button id="search-btn">Cari</button></div>
+<div class="search-bar"><input type="text" id="search-input" placeholder="Cari nama / wa / gang / no / alamat / patokan"><button id="search-btn">Cari</button></div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-map-filter="belum">🔔 Belum Selesai</button>
 <button class="filter-btn" data-map-filter="semua">Semua</button>
@@ -126,7 +126,7 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 
 <div class="page" id="list-page">
-<div class="search-bar"><input type="text" id="list-search-input" placeholder="Cari nama / wa / alamat..."><button id="list-search-btn">Cari</button><button id="voice-search-btn" title="Voice search" style="padding:8px 12px;background:var(--secondary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">🎤</button></div>
+<div class="search-bar"><input type="text" id="list-search-input" placeholder="Cari nama / wa / gang / no / alamat..."><button id="list-search-btn">Cari</button><button id="voice-search-btn" title="Voice search" style="padding:8px 12px;background:var(--secondary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">🎤</button></div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-filter="semua">Semua</button>
 <button class="filter-btn" data-filter="tidak-order">Tidak Order</button>
@@ -208,7 +208,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="info-box"><strong>Kurir-Q v1.0</strong><br>Buku alamat pribadi kurir berbasis GPS + peta.<br><br><strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.</div>
 <h3 style="margin-bottom:12px;margin-top:20px">Fitur</h3>
 <div style="font-size:13px;color:var(--text-light);line-height:1.8">
-✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WhatsApp + tombol chat<br>✓ 2 foto alamat<br>✓ Auto-save state (anti reload)<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (update by nama/WA)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline per-area<br>✓ Backup/restore
+✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WhatsApp + tombol chat<br>✓ 2 foto alamat<br>✓ Auto-save state (anti reload)<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (update by nama/WA)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline per-area<br>✓ Backup/restore<br>✓ BFCache-friendly (tanpa reload saat balik dari app lain)
 </div>
 </div>
 </div>
@@ -435,41 +435,109 @@ document.getElementById('file-import-apikeys').addEventListener('change', async 
     e.target.value = '';
 });
 
-// ============ AUTO-SAVE STATE ============
+// ============ STATE SAVE / RESTORE (v2 — BFCache-friendly) ============
+const STATE_KEY = 'kurirq_state_v2';
+const STATE_TTL = 24 * 60 * 60 * 1000; // 24 jam (dulu cuma 5 menit)
+
 function saveAppState() {
     try {
-        sessionStorage.setItem('kurirq_state', JSON.stringify({
+        // Simpan scroll position tiap page
+        const scrolls = {};
+        document.querySelectorAll('.page').forEach(p => {
+            if (p.id) scrolls[p.id] = p.scrollTop || 0;
+        });
+
+        const state = {
+            v: 2,
             currentFilter, currentMapFilter, currentSort,
             mapCenter: map ? { lat: map.getCenter().lat, lng: map.getCenter().lng } : null,
             mapZoom: map ? map.getZoom() : null,
             activePage: document.querySelector('.page.active')?.id || 'map-page',
+            // Search query yang sedang aktif
+            mapSearch: document.getElementById('search-input')?.value || '',
+            listSearch: document.getElementById('list-search-input')?.value || '',
+            // Sheet yang sedang terbuka
+            openSheets: Array.from(document.querySelectorAll('.bottom-sheet.active')).map(s => s.id),
+            currentDetailId: currentDetailId || null,
+            // Scroll positions
+            scrolls,
+            // Bulk selection
+            bulkIds: Array.from(bulkSelectedIds || []),
             timestamp: Date.now()
-        }));
-    } catch (e) {}
+        };
+        sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
+    } catch (e) { console.warn('saveAppState', e); }
 }
+
 function restoreAppState() {
     try {
-        const raw = sessionStorage.getItem('kurirq_state');
+        const raw = sessionStorage.getItem(STATE_KEY) || sessionStorage.getItem('kurirq_state');
         if (!raw) return false;
         const s = JSON.parse(raw);
-        if (Date.now() - s.timestamp > 5 * 60 * 1000) return false;
+        // TTL 24 jam (bukan 5 menit lagi)
+        if (!s.timestamp || (Date.now() - s.timestamp) > STATE_TTL) return false;
+
+        // Filter & sort
         currentFilter = s.currentFilter || 'semua';
         currentMapFilter = s.currentMapFilter || 'belum';
         currentSort = s.currentSort || 'default';
-        if (s.mapCenter && s.mapZoom) window._pendingMapState = { center: s.mapCenter, zoom: s.mapZoom };
-        if (s.activePage && s.activePage !== 'map-page') window._pendingActivePage = s.activePage;
         document.querySelectorAll('[data-map-filter]').forEach(b => b.classList.toggle('active', b.dataset.mapFilter === currentMapFilter));
         document.querySelectorAll('[data-filter]').forEach(b => b.classList.toggle('active', b.dataset.filter === currentFilter));
         if (document.getElementById('sort-select')) document.getElementById('sort-select').value = currentSort;
+
+        // Map state (dipakai nanti di initMap)
+        if (s.mapCenter && s.mapZoom) {
+            window._pendingMapState = { center: s.mapCenter, zoom: s.mapZoom };
+            window._mapInitiallyCentered = true;
+        }
+
+        // Active page
+        if (s.activePage && s.activePage !== 'map-page') {
+            window._pendingActivePage = s.activePage;
+        }
+
+        // Search query
+        if (s.mapSearch && document.getElementById('search-input')) {
+            document.getElementById('search-input').value = s.mapSearch;
+            window._pendingMapSearch = s.mapSearch;
+        }
+        if (s.listSearch && document.getElementById('list-search-input')) {
+            document.getElementById('list-search-input').value = s.listSearch;
+        }
+
+        // Scroll positions (nanti di-restore setelah render)
+        if (s.scrolls) window._pendingScrolls = s.scrolls;
+
+        // Sheet terbuka (detail sheet saja, jangan record sheet karena form-nya bisa invalid)
+        if (s.currentDetailId) window._pendingDetailId = s.currentDetailId;
+
+        // Bulk selection
+        if (s.bulkIds && Array.isArray(s.bulkIds)) {
+            window._pendingBulkIds = s.bulkIds;
+        }
+
         return true;
-    } catch (e) { return false; }
+    } catch (e) { console.warn('restoreAppState', e); return false; }
 }
+
+// ============ BFCACHE-FRIENDLY STATE SAVE ============
+// CATATAN: JANGAN pakai 'beforeunload' — mematikan bfcache di Chrome/Safari.
+// Pakai 'pagehide' + 'visibilitychange' saja.
 document.addEventListener('visibilitychange', () => {
-    if (document.hidden) saveAppState();
-    else { if (map) setTimeout(() => map.invalidateSize(), 100); }
+    if (document.hidden) {
+        // Simpan state saat app masuk background
+        saveAppState();
+    } else {
+        // Saat kembali — refresh peta tanpa reload halaman
+        if (map) setTimeout(() => map.invalidateSize(), 100);
+    }
 });
-window.addEventListener('beforeunload', saveAppState);
-window.addEventListener('pagehide', saveAppState);
+window.addEventListener('pagehide', () => {
+    // 'pagehide' terpanggil baik untuk navigasi maupun kill oleh OS
+    // persisted=true artinya masuk bfcache → jangan lakukan apa-apa
+    saveAppState();
+});
+// TIDAK ada beforeunload — biarkan bfcache bekerja
 
 // ============ DB ============
 function initDB() {
@@ -501,6 +569,9 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   if (e.request.url.includes('googleapis')) return;
+  // JANGAN intercept HTML document — biarkan browser handle sendiri
+  // (bfcache + navigation preload jadi lebih baik)
+  if (e.request.mode === 'navigate') return;
   e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request).catch(() => new Response('Offline'))));
 });
 `;
@@ -585,9 +656,7 @@ async function updateMapMarkers(searchText = '') {
     const isSearching = searchText && searchText.length > 0;
     addresses.forEach((addr) => {
         if (isSearching) {
-            const basicMatch = ((addr.recipient_name || '').toLowerCase().includes(searchText) || (addr.whatsapp || '').includes(searchText) || (addr.gang || '').toLowerCase().includes(searchText) || (addr.house_number || '').toLowerCase().includes(searchText) || (addr.landmark || '').toLowerCase().includes(searchText) || (addr.address || '').toLowerCase().includes(searchText));
-            const recMatch = addr.recipients && addr.recipients.some(r => (r.name || '').toLowerCase().includes(searchText));
-            if (!basicMatch && !recMatch) return;
+            if (!matchesSearch(addr, searchText)) return;
             if (!firstSearchResult) firstSearchResult = addr;
         } else {
             let shouldShow = true;
@@ -686,12 +755,50 @@ async function checkDuplicate(latitude, longitude, newAddress) {
     return null;
 }
 
+// ============ SEARCH HELPERS ============
+function normalizeSearchText(s) {
+    return String(s || '')
+        .toLowerCase()
+        .replace(/\b(gg|gg\.|gang)\b/g, 'gang')
+        .replace(/\b(no|nomor|nomer)\b/g, 'no')
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function buildSearchHaystack(addr) {
+    if (!addr) return '';
+    const gang = addr.gang || '';
+    const nomor = addr.house_number || '';
+    const parts = [
+        addr.recipient_name || '',
+        addr.whatsapp || '',
+        gang,
+        nomor,
+        `${gang} ${nomor}`,
+        `${gang}${nomor}`,
+        addr.address || '',
+        addr.landmark || '',
+        addr.description || ''
+    ];
+    if (addr.recipients && addr.recipients.length > 0) {
+        addr.recipients.forEach(r => parts.push(r.name || ''));
+    }
+    return normalizeSearchText(parts.join(' '));
+}
+function matchesSearch(addr, query) {
+    if (!query) return true;
+    const q = normalizeSearchText(query);
+    if (!q) return true;
+    const hay = buildSearchHaystack(addr);
+    const tokens = q.split(' ').filter(t => t.length > 0);
+    return tokens.every(t => hay.includes(t));
+}
+
 // ============ WHATSAPP HELPERS ============
 function normalizeWhatsApp(input) {
     if (!input) return '';
     let digits = String(input).replace(/\D/g, '');
     if (!digits) return '';
-    // Handle "(+62)0xxx" → "620xxx" yang salah
     if (digits.startsWith('620') && digits.length > 11) digits = '62' + digits.substring(3);
     if (digits.startsWith('0062')) digits = digits.substring(2);
     if (digits.startsWith('0')) digits = '62' + digits.substring(1);
@@ -706,7 +813,7 @@ function formatWhatsAppDisplay(wa) {
     return '+' + wa;
 }
 
-// ============ WA PICKER (WA vs WA Business) ============
+// ============ WA PICKER ============
 function openWAChat(phone) {
     const clean = normalizeWhatsApp(phone);
     if (!clean || clean.length < 8) { showModal('Error', '❌ No. WA tidak valid'); return; }
@@ -730,18 +837,12 @@ function openWAChat(phone) {
         </div>`;
     document.getElementById('modal').classList.add('active');
 }
-
 function doOpenWAChat(type, clean) {
     closeModal();
     const isAndroid = /Android/i.test(navigator.userAgent);
     const webFallback = `https://wa.me/${clean}`;
     const fb = encodeURIComponent(webFallback);
-
-    if (type === 'web') {
-        window.open(webFallback, '_blank');
-        return;
-    }
-
+    if (type === 'web') { window.open(webFallback, '_blank'); return; }
     let url;
     if (type === 'wa') {
         url = isAndroid
@@ -751,19 +852,12 @@ function doOpenWAChat(type, clean) {
         url = isAndroid
             ? `intent://send?phone=${clean}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;S.browser_fallback_url=${fb};end`
             : `whatsapp-business://send?phone=${clean}`;
-    } else {
-        window.open(webFallback, '_blank');
-        return;
-    }
-
+    } else { window.open(webFallback, '_blank'); return; }
     try { window.location.href = url; } catch (e) { window.open(webFallback, '_blank'); }
-
-    // Fallback non-Android (iOS/desktop) kalau app tidak ada → buka web setelah 1.2s
     if (!isAndroid) {
         const t0 = Date.now();
         setTimeout(() => {
             if (!document.hidden && Date.now() - t0 < 2500) {
-                // Halaman masih aktif → kemungkinan scheme tidak dikenali
                 window.open(webFallback, '_blank');
             }
         }, 1200);
@@ -1750,13 +1844,9 @@ async function updateAddressList() {
             return true;
         });
     }
-    const st = document.getElementById('list-search-input').value.toLowerCase();
+    const st = document.getElementById('list-search-input').value;
     if (st) {
-        fl = fl.filter((a) => {
-            const bm = ((a.recipient_name || '').toLowerCase().includes(st) || (a.whatsapp || '').includes(st) || (a.gang || '').toLowerCase().includes(st) || (a.house_number || '').toLowerCase().includes(st) || (a.landmark || '').toLowerCase().includes(st) || (a.address || '').toLowerCase().includes(st));
-            const rm = a.recipients && a.recipients.some(r => (r.name || '').toLowerCase().includes(st));
-            return bm || rm;
-        });
+        fl = fl.filter(a => matchesSearch(a, st));
     }
     fl = sortAddresses(fl, currentSort);
     currentAddresses = fl;
@@ -1900,8 +1990,6 @@ document.getElementById('file-import-json').addEventListener('change', (e) => {
 function importCSV() { document.getElementById('file-import-csv').click(); }
 document.getElementById('file-import-csv').addEventListener('change', (e) => {
     const f = e.target.files[0]; if (!f) return;
-    // Validasi manual berdasar ekstensi (accept sudah dilebarkan,
-    // jadi beberapa picker bisa kasih file apapun)
     if (!/\.csv$/i.test(f.name)) {
         showModal('Error', `❌ File harus berekstensi .csv\n\nNama file: ${f.name}`);
         e.target.value = '';
@@ -1911,8 +1999,6 @@ document.getElementById('file-import-csv').addEventListener('change', (e) => {
     r.onload = async (ev) => {
         try {
             let csv = ev.target.result;
-            // Strip BOM (uFEFF) di awal file — supaya header 'nama' dikenali
-            // (CSV dari OCR/Excel kadang ada BOM)
             if (csv.charCodeAt(0) === 0xFEFF) csv = csv.substring(1);
             const lines = csv.split('\n');
             const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
@@ -1920,10 +2006,6 @@ document.getElementById('file-import-csv').addEventListener('change', (e) => {
             for (let i = 1; i < lines.length; i++) {
                 if (!lines[i].trim()) continue;
                 const v = parseCSVLine(lines[i]);
-                // ⚠️ JANGAN pakai fallback posisi default. CSV dari ocr.html hanya punya
-                // 4 kolom (nama, no_wa, alamat, catatan) sehingga fallback posisi membuat
-                // field 'gang'/'nomor' keisi nilai kolom lain (mis. 'gang' = catatan).
-                // Cukup cari by nama header; kalau tidak ada → biarkan kosong.
                 const g = (h, d) => { const idx = headers.findIndex(x => x.includes(h)); return idx >= 0 ? (v[idx] || '') : ''; };
                 const nm = g('nama', 1) || g('recipient', 1) || g('penerima', 1);
                 if (!nm.trim()) continue;
@@ -1971,7 +2053,7 @@ async function showImportModal(newAddresses, type) {
     if (type === 'json') {
         document.getElementById('modal-content').innerHTML = `<h2>🔄 Full Restore</h2><div class="info-box" style="background:#fef3c7;color:#92400e;margin:16px 0">⚠️ Semua data sekarang akan DIHAPUS diganti dengan backup.</div><p>Ditemukan <strong>${newAddresses.length}</strong> alamat.</p><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-danger" onclick="confirmImport('json', ${newAddresses.length})">🔄 Restore</button></div>`;
     } else {
-        document.getElementById('modal-content').innerHTML = `<h2>📤 Import CSV</h2><p>Ditemukan <strong>${newAddresses.length}</strong> baris.</p><div class="info-box" style="background:#dbeafe;color:#1e40af;font-size:13px;line-height:1.6"><strong>📌 Deteksi duplikat:</strong><br>• Nama sama ATAU<br>• No. WA sama<br><br>→ status di-update jadi "🔔 Belum Selesai"<br>→ Data baru akan ditambahkan</div><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-primary" onclick="confirmImport('csv', ${newAddresses.length})">📤 Import</button></div>`;
+        document.getElementById('modal-content').innerHTML = `<h2>📤 Import CSV</h2><p>Ditemukan <strong>${newAddresses.length}</strong> baris.</p><div class="info-box" style="background:#dbeafe;color:#1e40af;font-size:13px;line-height:1.6"><strong>📌 Cara kerja import:</strong><br>1. Match: nama+WA → nama → WA<br>2. Status di-update jadi "🔔 Belum Selesai"<br>3. Field kosong (WA / alamat / gang / nomor / patokan) diisi dari CSV<br>4. Data lama yang sudah ada isinya <strong>tidak ditimpa</strong></div><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-primary" onclick="confirmImport('csv', ${newAddresses.length})">📤 Import</button></div>`;
     }
     window.importNewAddresses = newAddresses;
     document.getElementById('modal').classList.add('active');
@@ -1988,71 +2070,180 @@ async function confirmImport(type, count) {
         });
     } else await processCSVImport(count);
 }
+// ============ CSV IMPORT: MERGE LOGIC ============
 async function processCSVImport(count) {
     document.getElementById('modal-content').innerHTML = `<div style="padding:40px;text-align:center"><h2 style="margin-bottom:20px">⏳ Memproses ${count}...</h2><div style="width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto"></div></div>`;
     document.getElementById('modal').classList.add('active');
+
     const ex = await getAllAddresses();
     let up = 0, add = 0;
-    const upReasons = { nama: 0, wa: 0 };
+    const upBy = { namaWa: 0, nama: 0, wa: 0 };
+    const filled = { wa: 0, alamat: 0, gang: 0, nomor: 0, patokan: 0, catatan: 0 };
+
+    const isEmpty = (v) => !v || String(v).trim() === '' || v === 0;
+
     for (const na of window.importNewAddresses) {
         const nm = (na.recipient_name || '').trim();
         if (!nm) continue;
-        
-        // ============================================
-        // DETEKSI DUPLIKAT: Nama ATAU No. WA
-        // ============================================
-        let e = null;
-        let matchReason = '';
-        
-        // 1. Cek by NAMA
         const nl = nm.toLowerCase();
-        e = ex.find(a => 
-            (a.recipient_name || '').toLowerCase().trim() === nl || 
-            (a.recipients && a.recipients.some(r => (r.name || '').toLowerCase().trim() === nl))
-        );
-        if (e) matchReason = 'nama';
-        
-        // 2. Cek by NO. WA (kalau nama tidak ketemu)
-        if (!e && na.whatsapp && na.whatsapp.length > 5) {
+        const nw = (na.whatsapp || '').trim();
+
+        let e = null, matchReason = '';
+
+        if (nw && nw.length > 5) {
             e = ex.find(a => {
-                if (a.whatsapp && a.whatsapp === na.whatsapp) return true;
-                if (a.recipients && a.recipients.some(r => r.whatsapp && r.whatsapp === na.whatsapp)) return true;
+                const nameMatch = (a.recipient_name || '').toLowerCase().trim() === nl ||
+                    (a.recipients && a.recipients.some(r => (r.name || '').toLowerCase().trim() === nl));
+                const waMatch = a.whatsapp === nw ||
+                    (a.recipients && a.recipients.some(r => r.whatsapp === nw));
+                return nameMatch && waMatch;
+            });
+            if (e) matchReason = 'nama+wa';
+        }
+
+        if (!e) {
+            e = ex.find(a =>
+                (a.recipient_name || '').toLowerCase().trim() === nl ||
+                (a.recipients && a.recipients.some(r => (r.name || '').toLowerCase().trim() === nl))
+            );
+            if (e) matchReason = 'nama';
+        }
+
+        if (!e && nw && nw.length > 5) {
+            e = ex.find(a => {
+                if (a.whatsapp && a.whatsapp === nw) return true;
+                if (a.recipients && a.recipients.some(r => r.whatsapp && r.whatsapp === nw)) return true;
                 return false;
             });
             if (e) matchReason = 'wa';
         }
-        
+
         if (e) {
-            // UPDATE existing — status jadi "belum selesai"
             e.delivery_status = 'belum selesai';
-            if (e.recipients && e.recipients.length > 0) e.recipients.forEach(r => { r.status = 'belum selesai'; r.updated_at = new Date().toISOString(); });
-            else e.recipients = [{ name: e.recipient_name, status: 'belum selesai', added_at: e.created_at || new Date().toISOString() }];
-            // Update field tambahan kalau CSV punya nilai
-            if (na.gang) e.gang = na.gang;
-            if (na.house_number) e.house_number = na.house_number;
-            if (na.address) e.address = na.address;
-            if (na.landmark) e.landmark = na.landmark;
-            if (na.whatsapp) e.whatsapp = na.whatsapp;
-            if (na.payment_status && na.payment_status !== 'belum') e.payment_status = na.payment_status;
-            if (na.location_type && na.location_type !== 'jelas') e.location_type = na.location_type;
-            if (na.description) e.description = na.description;
-            if (na.latitude && na.longitude && (na.latitude !== 0 || na.longitude !== 0)) { e.latitude = na.latitude; e.longitude = na.longitude; }
+            if (e.recipients && e.recipients.length > 0) {
+                const tr = e.recipients.find(r => (r.name || '').toLowerCase().trim() === nl);
+                if (tr) {
+                    tr.status = 'belum selesai';
+                    tr.updated_at = new Date().toISOString();
+                } else {
+                    e.recipients.push({
+                        name: nm,
+                        status: 'belum selesai',
+                        added_at: new Date().toISOString()
+                    });
+                }
+            } else {
+                e.recipients = [{
+                    name: e.recipient_name || nm,
+                    status: 'belum selesai',
+                    added_at: e.created_at || new Date().toISOString()
+                }];
+            }
+
+            if (isEmpty(e.whatsapp) && !isEmpty(na.whatsapp)) {
+                e.whatsapp = na.whatsapp; filled.wa++;
+            }
+            if (isEmpty(e.address) && !isEmpty(na.address)) {
+                e.address = na.address; filled.alamat++;
+            }
+            if (isEmpty(e.gang) && !isEmpty(na.gang)) {
+                e.gang = na.gang; filled.gang++;
+            }
+            if (isEmpty(e.house_number) && !isEmpty(na.house_number)) {
+                e.house_number = na.house_number; filled.nomor++;
+            }
+            if (isEmpty(e.landmark) && !isEmpty(na.landmark)) {
+                e.landmark = na.landmark; filled.patokan++;
+            }
+            if (isEmpty(e.description) && !isEmpty(na.description)) {
+                e.description = na.description; filled.catatan++;
+            }
+
+            if ((isEmpty(e.payment_status) || e.payment_status === 'belum')
+                && na.payment_status && na.payment_status !== 'belum') {
+                e.payment_status = na.payment_status;
+            }
+            if ((isEmpty(e.location_type) || e.location_type === 'jelas')
+                && na.location_type && na.location_type !== 'jelas') {
+                e.location_type = na.location_type;
+            }
+            if ((isEmpty(e.latitude) || isEmpty(e.longitude))
+                && na.latitude && na.longitude && (na.latitude !== 0 || na.longitude !== 0)) {
+                e.latitude = na.latitude;
+                e.longitude = na.longitude;
+            }
+
             if (!e.history) e.history = [];
-            e.history.push({ date: new Date().toISOString(), status: 'belum selesai', notes: `CSV import: status diubah (match by ${matchReason})` });
+            e.history.push({
+                date: new Date().toISOString(),
+                status: 'belum selesai',
+                notes: `CSV import · match by ${matchReason}`
+            });
+            e.updated_at = new Date().toISOString();
+
             await saveAddress(e);
             up++;
-            upReasons[matchReason]++;
+            if (matchReason === 'nama+wa') upBy.namaWa++;
+            else if (matchReason === 'nama') upBy.nama++;
+            else if (matchReason === 'wa') upBy.wa++;
+
         } else {
-            // TAMBAH baru
-            const ca = { ...na, id: na.id || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), delivery_status: 'belum selesai', recipients: (na.recipients || []).map(r => ({ name: r.name, status: 'belum selesai', added_at: r.added_at || new Date().toISOString() })), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), visit_count: 0, last_visit_at: null, history: [{ date: new Date().toISOString(), status: 'belum selesai', notes: 'Import dari CSV' }] };
-            if (ca.recipients.length === 0) ca.recipients = [{ name: nm, status: 'belum selesai', added_at: new Date().toISOString() }];
+            const ca = {
+                ...na,
+                id: na.id || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                delivery_status: 'belum selesai',
+                recipients: (na.recipients || []).map(r => ({
+                    name: r.name,
+                    status: 'belum selesai',
+                    added_at: r.added_at || new Date().toISOString()
+                })),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                visit_count: 0,
+                last_visit_at: null,
+                history: [{
+                    date: new Date().toISOString(),
+                    status: 'belum selesai',
+                    notes: 'Import dari CSV'
+                }]
+            };
+            if (ca.recipients.length === 0) {
+                ca.recipients = [{
+                    name: nm,
+                    status: 'belum selesai',
+                    added_at: new Date().toISOString()
+                }];
+            }
             ca.recipient_name = nm;
-            await saveAddress(ca); ex.push(ca); add++;
+            await saveAddress(ca);
+            ex.push(ca);
+            add++;
         }
     }
-    updateMapMarkers(); updateAddressList();
+
+    updateMapMarkers();
+    updateAddressList();
     closeModal();
-    showModal('Sukses', `✓ Import CSV selesai!\n\n🔔 Status diubah: ${up}\n   • by nama: ${upReasons.nama}\n   • by WA: ${upReasons.wa}\n➕ Data baru: ${add}\n\n📌 Semua berstatus "Belum Selesai"`);
+
+    const lines = [];
+    lines.push(`🔔 Update: ${up}`);
+    if (upBy.namaWa > 0) lines.push(`   • match nama+WA: ${upBy.namaWa}`);
+    if (upBy.nama > 0)   lines.push(`   • match nama   : ${upBy.nama}`);
+    if (upBy.wa > 0)     lines.push(`   • match WA     : ${upBy.wa}`);
+    lines.push(`➕ Data baru: ${add}`);
+
+    const fInfo = [];
+    if (filled.wa > 0)      fInfo.push(`WA:${filled.wa}`);
+    if (filled.alamat > 0)  fInfo.push(`alamat:${filled.alamat}`);
+    if (filled.gang > 0)    fInfo.push(`gang:${filled.gang}`);
+    if (filled.nomor > 0)   fInfo.push(`nomor:${filled.nomor}`);
+    if (filled.patokan > 0) fInfo.push(`patokan:${filled.patokan}`);
+    if (filled.catatan > 0) fInfo.push(`catatan:${filled.catatan}`);
+    if (fInfo.length > 0) lines.push(`📝 Field kosong diisi → ${fInfo.join(', ')}`);
+
+    lines.push('');
+    lines.push('📌 Semua berstatus "Belum Selesai"');
+    showModal('✓ Import CSV Selesai', lines.join('\n'));
 }
 
 // ============ KOMPRES FOTO ============
@@ -2272,6 +2463,19 @@ function attachAddressPhotoHandlers() {
 async function init() {
     try {
         await initDB();
+
+        // Minta storage persistent — Chrome/Edge cenderung pertahankan tab
+        // yang punya persistent storage saat memory low
+        if (navigator.storage && navigator.storage.persist) {
+            try {
+                const already = await navigator.storage.persisted();
+                if (!already) {
+                    const granted = await navigator.storage.persist();
+                    console.log('Persistent storage:', granted ? '✅ granted' : '❌ denied');
+                }
+            } catch (e) {}
+        }
+
         await loadRoutingApiKeys();
         restoreAppState();
         initMap();
@@ -2288,6 +2492,40 @@ async function init() {
             for (const a of demo) await saveAddress(a);
         }
         updateMapMarkers();
+
+        // ============ APPLY PENDING RESTORE STATE ============
+        // Restore scroll position
+        if (window._pendingScrolls) {
+            setTimeout(() => {
+                document.querySelectorAll('.page').forEach(p => {
+                    if (p.id && window._pendingScrolls[p.id] !== undefined) {
+                        p.scrollTop = window._pendingScrolls[p.id];
+                    }
+                });
+                window._pendingScrolls = null;
+            }, 200);
+        }
+        // Restore search di map
+        if (window._pendingMapSearch) {
+            const q = window._pendingMapSearch;
+            window._pendingMapSearch = null;
+            setTimeout(() => updateMapMarkers(q), 300);
+        }
+        // Restore bulk selection
+        if (window._pendingBulkIds && window._pendingBulkIds.length > 0) {
+            window._pendingBulkIds.forEach(id => bulkSelectedIds.add(id));
+            window._pendingBulkIds = null;
+            setTimeout(updateBulkUI, 400);
+        }
+        // Restore detail sheet (kalau sebelumnya sedang lihat detail)
+        if (window._pendingDetailId) {
+            const did = window._pendingDetailId;
+            window._pendingDetailId = null;
+            setTimeout(() => {
+                getAddressById(did).then(a => { if (a) showAddressDetail(did); });
+            }, 500);
+        }
+
         if (window._pendingActivePage) { const ap = window._pendingActivePage; window._pendingActivePage = null; setTimeout(() => showPage(ap), 300); }
         if (!sessionStorage.getItem('kurirq_welcomed')) {
             sessionStorage.setItem('kurirq_welcomed', '1');
