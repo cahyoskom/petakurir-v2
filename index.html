@@ -10,7 +10,24 @@
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%232563eb' width='180' height='180'/><text x='90' y='110' font-size='100' fill='white' text-anchor='middle' dominant-baseline='middle'>📦</text></svg>">
 <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Kurir-Q%20v1.0%22,%22short_name%22:%22Kurir-Q%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fff%22,%22theme_color%22:%22%232563eb%22,%22orientation%22:%22portrait%22}">
 <title>Kurir-Q v1.0</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+
+<!-- Leaflet CSS: Smart loader (lokal dulu → fallback CDN) -->
+<script>
+(function() {
+    var lcss = document.createElement('link');
+    lcss.rel = 'stylesheet';
+    lcss.href = './lib/leaflet.css';
+    lcss.onerror = function() {
+        console.warn('[Kurir-Q] Leaflet CSS lokal tidak ada, fallback ke CDN');
+        var c2 = document.createElement('link');
+        c2.rel = 'stylesheet';
+        c2.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+        document.head.appendChild(c2);
+    };
+    document.head.appendChild(lcss);
+})();
+</script>
+
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--primary:#2563eb;--primary-dark:#1d4ed8;--secondary:#10b981;--danger:#ef4444;--warning:#f59e0b;--bg:#fff;--bg-alt:#f3f4f6;--text:#1f2937;--text-light:#6b7280;--border:#d1d5db;--wa:#25D366}
@@ -102,9 +119,22 @@ main{flex:1;display:flex;overflow:hidden}
 .photo-slot-delete:active{background:rgba(220,38,38,1);transform:scale(.9)}
 input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 input[type=number]{-moz-appearance:textfield}
+#boot-splash{position:fixed;inset:0;background:#2563eb;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;transition:opacity .25s}
+#boot-splash.hidden{opacity:0;pointer-events:none}
+@keyframes bootPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
 </style>
 </head>
 <body>
+
+<div id="boot-splash">
+    <div style="font-size:72px;margin-bottom:12px;animation:bootPulse 1.5s infinite">📦</div>
+    <div style="font-size:20px;font-weight:600;margin-bottom:6px">Kurir-Q</div>
+    <div id="boot-status" style="font-size:12px;opacity:.85;margin-bottom:20px">Memuat...</div>
+    <div style="width:220px;height:3px;background:rgba(255,255,255,.25);border-radius:2px;overflow:hidden">
+        <div id="boot-bar" style="width:0%;height:100%;background:#fff;transition:width .3s;border-radius:2px"></div>
+    </div>
+</div>
+
 <div class="container">
 <header><h1>📦 Kurir-Q</h1><button class="menu-btn" id="menu-btn">☰</button></header>
 <main>
@@ -179,7 +209,7 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 <h3 style="margin-bottom:12px;font-size:14px">Import Data</h3>
 <button class="btn-secondary" id="import-json-btn" style="width:100%;margin-bottom:12px">🔄 Import JSON (Full Restore)</button>
-<button class="btn-secondary" id="import-csv-btn" style="width:100%;margin-bottom:24px">📤 Import CSV (Order Baru)</button>
+<button class="btn-secondary" id="import-csv-btn" style="width:100%;margin-bottom:24px">📤 Import CSV (Merge / Sync)</button>
 <h3 style="margin-bottom:12px;font-size:14px">🗜️ Optimasi Penyimpanan</h3>
 <button class="btn-secondary" id="compress-photos-btn" style="width:100%;margin-bottom:8px">🗜️ Kompres Semua Foto Lama</button>
 <div style="background:var(--bg-alt);padding:10px;border-radius:6px;font-size:11px;color:var(--text-light);margin-bottom:24px;line-height:1.5">💡 Kompres ulang semua foto lama agar lebih kecil (~5-8KB). Tekan sekali saja, tunggu sampai selesai.</div>
@@ -195,7 +225,7 @@ input[type=number]{-moz-appearance:textfield}
 <div id="cache-info-box" style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.7;margin-bottom:12px"><div id="cache-info-content">Memuat info cache...</div></div>
 <div style="display:flex;gap:8px;margin-bottom:24px">
 <button class="btn-secondary" id="refresh-cache-btn" style="flex:1;padding:10px;font-size:13px">🔄 Refresh Info</button>
-<button class="btn-danger" id="clear-cache-btn" style="flex:1;padding:10px;font-size:13px">🗑️ Hapus Cache</button>
+<button class="btn-danger" id="clear-cache-btn" style="flex:1;padding:10px;font-size:13px">🗑️ Hapus Cache Peta</button>
 </div>
 <h3 style="margin-bottom:12px;font-size:14px">📥 Peta Offline</h3>
 <div style="background:#dbeafe;color:#1e40af;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:12px">💡 Download peta untuk dipakai <strong>offline</strong>. Pilih area di peta, lalu tap tombol download.</div>
@@ -208,7 +238,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="info-box"><strong>Kurir-Q v1.0</strong><br>Buku alamat pribadi kurir berbasis GPS + peta.<br><br><strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.</div>
 <h3 style="margin-bottom:12px;margin-top:20px">Fitur</h3>
 <div style="font-size:13px;color:var(--text-light);line-height:1.8">
-✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WhatsApp + tombol chat<br>✓ 2 foto alamat<br>✓ Auto-save state (anti reload)<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (update by nama/WA)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline per-area<br>✓ Backup/restore<br>✓ BFCache-friendly (tanpa reload saat balik dari app lain)
+✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WhatsApp + tombol chat<br>✓ 2 foto alamat<br>✓ Auto-save state (anti reload)<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline per-area<br>✓ Backup/restore JSON<br>✓ BFCache-friendly
 </div>
 </div>
 </div>
@@ -223,7 +253,7 @@ input[type=number]{-moz-appearance:textfield}
     <button data-page="list-page">📋 Daftar Alamat</button>
     <button data-page="backup-page">💾 Backup</button>
     <button data-page="settings-page">⚙️ Pengaturan</button>
-    <button onclick="window.location.href='ocr.html'" style="color: var(--primary); font-weight: 700; border-top: 2px solid var(--primary);">📷 OCR Order → CSV</button>
+    <button id="open-ocr-btn" style="color: var(--primary); font-weight: 700; border-top: 2px solid var(--primary);">📷 OCR Order → CSV</button>
 </div>
 </div>
 
@@ -307,8 +337,38 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="file-import-csv" accept=".csv,text/csv,text/comma-separated-values,text/plain,application/csv,application/vnd.ms-excel" style="display:none">
 <input type="file" id="file-import-apikeys" accept=".json" style="display:none">
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- Leaflet JS: Smart loader (lokal dulu → fallback CDN) -->
 <script>
+(function() {
+    var ljs = document.createElement('script');
+    ljs.src = './lib/leaflet.js';
+    ljs.async = false;
+    ljs.onerror = function() {
+        console.warn('[Kurir-Q] Leaflet JS lokal tidak ada, fallback ke CDN');
+        var s2 = document.createElement('script');
+        s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+        s2.async = false;
+        document.head.appendChild(s2);
+    };
+    document.head.appendChild(ljs);
+})();
+</script>
+
+<script>
+// ============ BOOT SPLASH ============
+window.bootStatus = (msg, pct) => {
+    const s = document.getElementById('boot-status');
+    const b = document.getElementById('boot-bar');
+    if (s && msg) s.textContent = msg;
+    if (b && pct !== undefined) b.style.width = Math.min(100, pct) + '%';
+};
+window.bootHide = () => {
+    const s = document.getElementById('boot-splash');
+    if (!s) return;
+    s.classList.add('hidden');
+    setTimeout(() => s.remove(), 300);
+};
+
 // ============ GLOBAL ============
 let db, map;
 let currentLocation = null;
@@ -324,6 +384,9 @@ let currentLocationLayer = null;
 let _photoHandlersAttached = false;
 window.addressPhotos = [null, null];
 window._mapInitiallyCentered = false;
+
+// URL halaman OCR (di Cloudflare Pages)
+const OCR_URL = 'https://kurirmap.pages.dev/ocr.html';
 
 // ============ ROUTING PROVIDERS ============
 let ROUTING_PROVIDERS = [
@@ -435,33 +498,27 @@ document.getElementById('file-import-apikeys').addEventListener('change', async 
     e.target.value = '';
 });
 
-// ============ STATE SAVE / RESTORE (v2 — BFCache-friendly) ============
+// ============ STATE SAVE / RESTORE ============
 const STATE_KEY = 'kurirq_state_v2';
-const STATE_TTL = 24 * 60 * 60 * 1000; // 24 jam (dulu cuma 5 menit)
+const STATE_TTL = 24 * 60 * 60 * 1000;
 
 function saveAppState() {
     try {
-        // Simpan scroll position tiap page
         const scrolls = {};
         document.querySelectorAll('.page').forEach(p => {
             if (p.id) scrolls[p.id] = p.scrollTop || 0;
         });
-
         const state = {
             v: 2,
             currentFilter, currentMapFilter, currentSort,
             mapCenter: map ? { lat: map.getCenter().lat, lng: map.getCenter().lng } : null,
             mapZoom: map ? map.getZoom() : null,
             activePage: document.querySelector('.page.active')?.id || 'map-page',
-            // Search query yang sedang aktif
             mapSearch: document.getElementById('search-input')?.value || '',
             listSearch: document.getElementById('list-search-input')?.value || '',
-            // Sheet yang sedang terbuka
             openSheets: Array.from(document.querySelectorAll('.bottom-sheet.active')).map(s => s.id),
             currentDetailId: currentDetailId || null,
-            // Scroll positions
             scrolls,
-            // Bulk selection
             bulkIds: Array.from(bulkSelectedIds || []),
             timestamp: Date.now()
         };
@@ -474,10 +531,8 @@ function restoreAppState() {
         const raw = sessionStorage.getItem(STATE_KEY) || sessionStorage.getItem('kurirq_state');
         if (!raw) return false;
         const s = JSON.parse(raw);
-        // TTL 24 jam (bukan 5 menit lagi)
         if (!s.timestamp || (Date.now() - s.timestamp) > STATE_TTL) return false;
 
-        // Filter & sort
         currentFilter = s.currentFilter || 'semua';
         currentMapFilter = s.currentMapFilter || 'belum';
         currentSort = s.currentSort || 'default';
@@ -485,18 +540,13 @@ function restoreAppState() {
         document.querySelectorAll('[data-filter]').forEach(b => b.classList.toggle('active', b.dataset.filter === currentFilter));
         if (document.getElementById('sort-select')) document.getElementById('sort-select').value = currentSort;
 
-        // Map state (dipakai nanti di initMap)
         if (s.mapCenter && s.mapZoom) {
             window._pendingMapState = { center: s.mapCenter, zoom: s.mapZoom };
             window._mapInitiallyCentered = true;
         }
-
-        // Active page
         if (s.activePage && s.activePage !== 'map-page') {
             window._pendingActivePage = s.activePage;
         }
-
-        // Search query
         if (s.mapSearch && document.getElementById('search-input')) {
             document.getElementById('search-input').value = s.mapSearch;
             window._pendingMapSearch = s.mapSearch;
@@ -504,40 +554,25 @@ function restoreAppState() {
         if (s.listSearch && document.getElementById('list-search-input')) {
             document.getElementById('list-search-input').value = s.listSearch;
         }
-
-        // Scroll positions (nanti di-restore setelah render)
         if (s.scrolls) window._pendingScrolls = s.scrolls;
-
-        // Sheet terbuka (detail sheet saja, jangan record sheet karena form-nya bisa invalid)
         if (s.currentDetailId) window._pendingDetailId = s.currentDetailId;
-
-        // Bulk selection
         if (s.bulkIds && Array.isArray(s.bulkIds)) {
             window._pendingBulkIds = s.bulkIds;
         }
-
         return true;
     } catch (e) { console.warn('restoreAppState', e); return false; }
 }
 
-// ============ BFCACHE-FRIENDLY STATE SAVE ============
-// CATATAN: JANGAN pakai 'beforeunload' — mematikan bfcache di Chrome/Safari.
-// Pakai 'pagehide' + 'visibilitychange' saja.
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-        // Simpan state saat app masuk background
         saveAppState();
     } else {
-        // Saat kembali — refresh peta tanpa reload halaman
         if (map) setTimeout(() => map.invalidateSize(), 100);
     }
 });
 window.addEventListener('pagehide', () => {
-    // 'pagehide' terpanggil baik untuk navigasi maupun kill oleh OS
-    // persisted=true artinya masuk bfcache → jangan lakukan apa-apa
     saveAppState();
 });
-// TIDAK ada beforeunload — biarkan bfcache bekerja
 
 // ============ DB ============
 function initDB() {
@@ -562,15 +597,35 @@ function registerServiceWorker() {
         const swCode = `
 const CACHE_NAME = 'kurir-q-v1';
 self.addEventListener('install', (e) => self.skipWaiting());
-self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((names) => Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n))))); self.clients.claim(); });
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((names) =>
+      Promise.all(
+        names
+          .filter((n) => n !== CACHE_NAME)
+          .filter((n) => !n.startsWith('kurir-q-tiles'))
+          .filter((n) => !n.startsWith('kurir-q-cdn'))
+          .map((n) => caches.delete(n))
+      )
+    )
+  );
+  self.clients.claim();
+});
 self.addEventListener('fetch', (e) => {
+  if (e.request.url.includes('leaflet') || e.request.url.includes('cdnjs') || e.request.url.includes('jsdelivr')) {
+    e.respondWith(caches.open('kurir-q-cdn-v1').then((c) =>
+      c.match(e.request).then((r) => r || fetch(e.request).then((resp) => {
+        if (resp.ok && e.request.method === 'GET') c.put(e.request, resp.clone());
+        return resp;
+      }).catch(() => new Response('', { status: 404 })))
+    ));
+    return;
+  }
   if (e.request.url.includes('tile.openstreetmap')) {
     e.respondWith(caches.open('kurir-q-tiles-v1').then((tc) => tc.match(e.request).then((c) => c || fetch(e.request).then((r) => { if (r.ok && e.request.method === 'GET') tc.put(e.request, r.clone()); return r; }).catch(() => new Response('', { status: 404 })))));
     return;
   }
   if (e.request.url.includes('googleapis')) return;
-  // JANGAN intercept HTML document — biarkan browser handle sendiri
-  // (bfcache + navigation preload jadi lebih baik)
   if (e.request.mode === 'navigate') return;
   e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request).catch(() => new Response('Offline'))));
 });
@@ -592,7 +647,7 @@ function initMap() {
         const ps = window._pendingMapState;
         const center = ps ? [ps.center.lat, ps.center.lng] : [-6.2088, 106.8650];
         const zoom = ps ? ps.zoom : 13;
-        map = L.map('map', { attributionControl: true, zoomControl: true }).setView(center, zoom);
+        map = L.map('map', { attributionControl: true, zoomControl: true, preferCanvas: true }).setView(center, zoom);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(map);
         addressMarkersLayer = L.layerGroup().addTo(map);
         currentLocationLayer = L.layerGroup().addTo(map);
@@ -654,7 +709,14 @@ async function updateMapMarkers(searchText = '') {
     const addresses = await getAllAddresses();
     let firstSearchResult = null;
     const isSearching = searchText && searchText.length > 0;
-    addresses.forEach((addr) => {
+
+    let toRender = addresses;
+    if (!isSearching && addresses.length > 200 && map) {
+        const b = map.getBounds();
+        toRender = addresses.filter(a => b.contains([a.latitude, a.longitude]));
+    }
+
+    toRender.forEach((addr) => {
         if (isSearching) {
             if (!matchesSearch(addr, searchText)) return;
             if (!firstSearchResult) firstSearchResult = addr;
@@ -725,6 +787,7 @@ async function saveAddress(address) {
             });
         }
         if (address.recipients.length > 0) address.recipient_name = address.recipients.map(r => r.name).join(', ');
+        if (address.history.length > 20) address.history = address.history.slice(-20);
         const store = db.transaction('addresses', 'readwrite').objectStore('addresses');
         const req = store.put(address);
         req.onsuccess = () => resolve(address.id);
@@ -982,7 +1045,7 @@ function initLocationAdjustment() {
         const lv = currentLocation.latitude.toFixed(6), ov = currentLocation.longitude.toFixed(6);
         container.innerHTML = `<div style="margin:-16px -16px 10px;height:200px;background:#f3f4f6" id="adjustment-map"></div><div style="text-align:center;font-size:12px;color:var(--text-light);margin-bottom:10px">Geser pin, tap peta, atau ketik manual di bawah</div><div style="display:flex;gap:8px;margin-bottom:6px"><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LATITUDE</label><input type="number" id="edit-lat" step="0.000001" inputmode="decimal" value="${lv}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LONGITUDE</label><input type="number" id="edit-lon" step="0.000001" inputmode="decimal" value="${ov}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div></div><div style="display:flex;gap:6px;margin-bottom:10px"><button type="button" class="btn-primary" style="flex:1;padding:9px;font-size:12px" onclick="useCurrentLocationInForm()">🎯 Lokasi Sekarang</button><button type="button" class="btn-secondary" style="flex:1;padding:9px;font-size:12px" onclick="applyManualCoordsInForm()">✓ Terapkan</button></div>`;
         try {
-            adjustmentMap = L.map('adjustment-map', { dragging: true, touchZoom: true, tap: true, zoomControl: true }).setView([currentLocation.latitude, currentLocation.longitude], 16);
+            adjustmentMap = L.map('adjustment-map', { dragging: true, touchZoom: true, tap: true, zoomControl: true, preferCanvas: true }).setView([currentLocation.latitude, currentLocation.longitude], 16);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM', maxZoom: 19 }).addTo(adjustmentMap);
             adjustmentMarker = L.marker([currentLocation.latitude, currentLocation.longitude], { draggable: true }).addTo(adjustmentMap);
             adjustmentMarker.on('dragend', () => { const p = adjustmentMarker.getLatLng(); currentLocation = { latitude: p.lat, longitude: p.lng }; syncInputsFromLocation(); });
@@ -1421,7 +1484,7 @@ function openManualStartPointModal(pending) {
     setTimeout(() => {
         const mc = document.getElementById('route-start-map');
         if (mc) {
-            const sm = L.map(mc).setView(currentLocation ? [currentLocation.latitude, currentLocation.longitude] : [-6.2088, 106.8650], 13);
+            const sm = L.map(mc, { preferCanvas: true }).setView(currentLocation ? [currentLocation.latitude, currentLocation.longitude] : [-6.2088, 106.8650], 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM', maxZoom: 19 }).addTo(sm);
             let mk = L.marker(currentLocation ? [currentLocation.latitude, currentLocation.longitude] : [-6.2088, 106.8650], { draggable: true }).addTo(sm);
             window.routeStartPoint = { latitude: mk.getLatLng().lat, longitude: mk.getLatLng().lng, marker: mk };
@@ -1704,34 +1767,64 @@ async function updateCacheInfo() {
     if (!c) return;
     c.innerHTML = '<span class="loading"></span> Menghitung...';
     try {
-        let ts = 0, ti = 0;
+        let ts = 0, ti = 0, tileCount = 0, tileBytes = 0;
         if ('caches' in window) {
             const names = await caches.keys();
             for (const n of names) {
                 const cache = await caches.open(n);
                 const reqs = await cache.keys();
                 ti += reqs.length;
+                const isTile = n.startsWith('kurir-q-tiles');
                 const sm = Math.min(20, reqs.length);
                 let sb = 0;
                 for (let i = 0; i < sm; i++) { try { const r = reqs[Math.floor(Math.random() * reqs.length)]; const resp = await cache.match(r); if (resp) { const b = await resp.clone().blob(); sb += b.size; } } catch (e) {} }
-                if (sm > 0) ts += (sb / sm) * reqs.length;
+                if (sm > 0) {
+                    const est = (sb / sm) * reqs.length;
+                    ts += est;
+                    if (isTile) { tileCount = reqs.length; tileBytes = est; }
+                }
             }
         }
         let si = null;
         if (navigator.storage && navigator.storage.estimate) { try { const e = await navigator.storage.estimate(); si = { usage: e.usage || 0, quota: e.quota || 0 }; } catch (e) {} }
         const mb = (ts / 1024 / 1024).toFixed(2), kb = (ts / 1024).toFixed(0);
-        let html = `<div style="margin-bottom:6px"><strong>📦 Cache:</strong> ${ti} file</div><div style="margin-bottom:6px"><strong>💾 Ukuran:</strong> ${ts < 1024 * 1024 ? kb + ' KB' : mb + ' MB'}</div>`;
+        const tileMB = (tileBytes / 1024 / 1024).toFixed(2), tileKB = (tileBytes / 1024).toFixed(0);
+        let html = `<div style="margin-bottom:6px"><strong>📦 Cache total:</strong> ${ti} file</div><div style="margin-bottom:6px"><strong>💾 Ukuran:</strong> ${ts < 1024 * 1024 ? kb + ' KB' : mb + ' MB'}</div>`;
+        if (tileCount > 0) {
+            html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><strong>🗺️ Peta offline:</strong> ${tileCount} tile<br><strong>💾</strong> ${tileBytes < 1024 * 1024 ? tileKB + ' KB' : tileMB + ' MB'} <span style="color:var(--secondary)">✓ tersimpan</span></div>`;
+        } else {
+            html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--text-light)">🗺️ Peta offline: belum ada</div>`;
+        }
         if (si && si.usage > 0) { const um = (si.usage / 1024 / 1024).toFixed(1), qm = (si.quota / 1024 / 1024).toFixed(0), pct = ((si.usage / si.quota) * 100).toFixed(1); html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--text-light)"><div><strong>Total app:</strong> ${um} MB / ${qm} MB (${pct}%)</div><div style="margin-top:4px;background:var(--bg);height:6px;border-radius:3px;overflow:hidden"><div style="width:${Math.min(100, pct)}%;height:100%;background:${pct > 80 ? 'var(--danger)' : pct > 50 ? 'var(--warning)' : 'var(--secondary)'}"></div></div></div>`; }
+        if (navigator.storage && navigator.storage.persisted) {
+            try {
+                const isPersisted = await navigator.storage.persisted();
+                html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:${isPersisted ? 'var(--secondary)' : 'var(--warning)'}">${isPersisted ? '🔒 Storage: persistent (aman)' : '⚠️ Storage: best-effort (bisa dihapus OS)'}</div>`;
+            } catch (e) {}
+        }
         c.innerHTML = html;
     } catch (err) { c.innerHTML = `<span style="color:var(--danger)">❌ ${err.message}</span>`; }
 }
 async function clearTileCache() {
-    showConfirmModal('🗑️ Hapus Cache Peta', 'Cache peta akan dihapus. Data alamat & foto tidak terhapus.\n\nLanjutkan?', async () => {
-        try { if ('caches' in window) { const names = await caches.keys(); let cl = 0; for (const n of names) { if (await caches.delete(n)) cl++; } updateCacheInfo(); showModal('Sukses', `✓ ${cl} cache dihapus!`); } else showModal('Info', 'Browser tidak support Cache API.'); } catch (err) { showModal('Error', `❌ ${err.message}`); }
+    showConfirmModal('🗑️ Hapus Cache Peta', 'Cache tile peta offline akan dihapus.\n\nData alamat & foto TIDAK terhapus.\n\nPeta offline perlu di-download ulang.\n\nLanjutkan?', async () => {
+        try {
+            if ('caches' in window) {
+                const names = await caches.keys();
+                let cl = 0;
+                for (const n of names) {
+                    if (n.startsWith('kurir-q-tiles')) {
+                        if (await caches.delete(n)) cl++;
+                    }
+                }
+                updateCacheInfo();
+                if (cl > 0) showModal('Sukses', `✓ ${cl} cache tile peta dihapus.\n\nPeta offline perlu didownload ulang.`);
+                else showModal('Info', 'Tidak ada cache peta yang ditemukan.');
+            } else showModal('Info', 'Browser tidak support Cache API.');
+        } catch (err) { showModal('Error', `❌ ${err.message}`); }
     });
 }
 async function refreshTileCache() {
-    try { if ('caches' in window) { const names = await caches.keys(); for (const n of names) await caches.delete(n); updateCacheInfo(); showModal('Sukses', '✓ Cache dibersihkan!'); } } catch (err) { showModal('Error', `❌ ${err.message}`); }
+    updateCacheInfo();
 }
 
 // ============ ROUTING STATUS ============
@@ -1749,7 +1842,7 @@ function openOfflineMapDownloader() {
         const el = document.getElementById('offline-map');
         if (!el) return;
         if (offlineDownloaderMap) { try { offlineDownloaderMap.remove(); } catch (e) {} }
-        offlineDownloaderMap = L.map('offline-map').setView([-6.2088, 106.8650], 14);
+        offlineDownloaderMap = L.map('offline-map', { preferCanvas: true }).setView([-6.2088, 106.8650], 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM', maxZoom: 19 }).addTo(offlineDownloaderMap);
         setTimeout(() => offlineDownloaderMap.invalidateSize(), 100);
         document.getElementById('select-offline-area-btn').onclick = selectOfflineArea;
@@ -1808,7 +1901,7 @@ async function downloadOfflineArea(b, zl) {
             dl++; if (dl % 10 === 0) uu(); await new Promise(r => setTimeout(r, 150));
         }
         uu();
-        document.getElementById('modal-content').innerHTML = `<h2 style="margin-bottom:12px">✅ Selesai!</h2><div style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.8;margin-bottom:16px">✅ Berhasil: <strong>${dl - fl}</strong><br>⏭️ Sudah ada: <strong>${fc}</strong><br>❌ Gagal: <strong>${fl}</strong><br>💾 Total: <strong>${(by / 1024 / 1024).toFixed(2)} MB</strong></div><div style="display:flex;gap:8px"><button class="btn-primary" onclick="closeModal(); cleanupOfflineMap();" style="flex:1;padding:12px">Selesai</button><button class="btn-secondary" onclick="openOfflineMapDownloader();" style="flex:1;padding:12px;font-size:13px">Download Lagi</button></div>`;
+        document.getElementById('modal-content').innerHTML = `<h2 style="margin-bottom:12px">✅ Selesai!</h2><div style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.8;margin-bottom:16px">✅ Berhasil: <strong>${dl - fl}</strong><br>⏭️ Sudah ada: <strong>${fc}</strong><br>❌ Gagal: <strong>${fl}</strong><br>💾 Total: <strong>${(by / 1024 / 1024).toFixed(2)} MB</strong><br><br><span style="color:var(--secondary)">💾 Peta offline tersimpan permanen.</span></div><div style="display:flex;gap:8px"><button class="btn-primary" onclick="closeModal(); cleanupOfflineMap();" style="flex:1;padding:12px">Selesai</button><button class="btn-secondary" onclick="openOfflineMapDownloader();" style="flex:1;padding:12px;font-size:13px">Download Lagi</button></div>`;
         updateCacheInfo();
     } catch (err) { document.getElementById('modal-content').innerHTML = `<h2>❌ Error</h2><p>${err.message}</p><div class="modal-buttons"><button class="btn-primary" onclick="closeModal(); cleanupOfflineMap();" style="flex:1">Tutup</button></div>`; }
 }
@@ -1861,8 +1954,14 @@ async function updateAddressList() {
         const ap = extractAddressPhotos(a);
         const th = ap.length > 0 ? ap[0] : null;
         const waLine = a.whatsapp ? `<div style="color:#25D366;margin-top:2px">📱 ${formatWhatsAppDisplay(a.whatsapp)}</div>` : '';
-        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck ? 'checked' : ''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th ? `<img src="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">` : ''}<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang || ''} ${a.house_number || ''}${a.gang || a.house_number ? '<br>' : ''}${a.landmark || a.address || ''}</div>${waLine}<div class="address-item-meta">📍 ${formatDate(a.last_visit_at || a.created_at)} · ${a.visit_count || 1}x · ${rc} penerima${ap.length > 1 ? ` · ${ap.length} foto` : ''}</div></div>`;
+        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck ? 'checked' : ''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th ? `<img data-lazy="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">` : ''}<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang || ''} ${a.house_number || ''}${a.gang || a.house_number ? '<br>' : ''}${a.landmark || a.address || ''}</div>${waLine}<div class="address-item-meta">📍 ${formatDate(a.last_visit_at || a.created_at)} · ${a.visit_count || 1}x · ${rc} penerima${ap.length > 1 ? ` · ${ap.length} foto` : ''}</div></div>`;
     }).join('');
+    requestAnimationFrame(() => {
+        document.querySelectorAll('#address-list img[data-lazy]').forEach(img => {
+            const src = img.dataset.lazy;
+            if (src) { img.src = src; delete img.dataset.lazy; }
+        });
+    });
 }
 
 // ============ EXPORT ============
@@ -1874,7 +1973,7 @@ async function exportJSON() {
     const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
     const l = document.createElement('a'); l.href = url; l.download = `kurir-q-backup-${new Date().toISOString().split('T')[0]}.json`; l.click();
     URL.revokeObjectURL(url);
-    showModal('Sukses', `✓ Backup JSON: ${addresses.length} alamat`);
+    showModal('Sukses', `✓ Backup JSON: ${addresses.length} alamat\n\n📌 Termasuk foto & riwayat lengkap.`);
 }
 async function exportCSV() {
     const addresses = await getAllAddresses();
@@ -1886,7 +1985,7 @@ async function exportCSV() {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const l = document.createElement('a'); l.href = url; l.download = `kurir-q-backup-${new Date().toISOString().split('T')[0]}.csv`; l.click();
     URL.revokeObjectURL(url);
-    showModal('Sukses', `✓ Export CSV: ${addresses.length} alamat`);
+    showModal('Sukses', `✓ Export CSV: ${addresses.length} alamat\n\n💡 ID disertakan untuk match saat import balik.\n📌 Foto tidak ikut — pakai Export JSON untuk foto.`);
 }
 async function exportShortCSV() {
     const nf = document.getElementById('short-export-name').value.toLowerCase().trim();
@@ -1913,31 +2012,32 @@ async function exportShortCSV() {
     showModal('Sukses', `✓ ${fl.length} data diexport`);
 }
 function exportCSVTemplate() {
-    const t = `nama,no_wa,gang,nomor,alamat,patokan,status_pembayaran,tipe_lokasi,catatan
-Yeyen,(+62)085156395041,,,"Jalan Aselih No.52, RT.016/RW.1, Cipedak, Jakarta Selatan",,,,Sedang diproses
-Pak Budi,628123456789,Gang 4,27,"Gang 4 No.27 Cipedak",Pagar hitam,cod,,COD normal
-Bu Siti,08123456789,Gang 2,15,"Gang 2 No.15 Cipedak",Sebelah toko roti,transfer,jelas,`;
+    const t = `id,nama,no_wa,gang,nomor,alamat,patokan,status_pembayaran,tipe_lokasi,catatan
+,Yeyen,(+62)085156395041,,,"Jalan Aselih No.52, RT.016/RW.1, Cipedak, Jakarta Selatan",,,,Sedang diproses
+,Pak Budi,628123456789,Gang 4,27,"Gang 4 No.27 Cipedak",Pagar hitam,cod,,COD normal
+,Bu Siti,08123456789,Gang 2,15,"Gang 2 No.15 Cipedak",Sebelah toko roti,transfer,jelas,`;
     const url = URL.createObjectURL(new Blob([t], { type: 'text/csv;charset=utf-8;' }));
     const l = document.createElement('a'); l.href = url; l.download = `kurir-q-template.csv`; l.click();
     URL.revokeObjectURL(url);
-    showModal('Template CSV', `📝 Format CSV yang didukung:
+    showModal('Template CSV', `📝 Format CSV:
 
 Kolom WAJIB:
-• nama (minimal ini saja cukup)
+• nama
 
 Kolom OPSIONAL:
-• no_wa — 08xxx / 62xxx / +62xxx / (+62)xxx (auto-normalize)
-• gang, nomor — dipisah (opsional)
-• alamat — alamat lengkap (bisa panjang)
-• patokan — patokan/landmark
+• id — biarkan kosong untuk data baru
+• no_wa, gang, nomor, alamat, patokan
 • status_pembayaran — cod / transfer / belum
 • tipe_lokasi — jelas / nitip / sulit / patokan
-• catatan — catatan tambahan
+• catatan
 
-📌 Deteksi duplikat:
-Data dengan NAMA sama ATAU NO. WA sama akan di-update statusnya jadi "Belum Selesai".
+📌 Saat Import:
+• Baris dengan ID → update record lama (foto tetap)
+• Baris tanpa ID → tambah baru
+• Match fallback: nama+WA → nama → WA
 
-Data baru akan ditambahkan sebagai record baru.`);
+💡 Tips:
+Export CSV dulu dari Kurir-Q untuk melihat format lengkap.`);
 }
 
 // ============ BULK ============
@@ -2009,6 +2109,7 @@ document.getElementById('file-import-csv').addEventListener('change', (e) => {
                 const g = (h, d) => { const idx = headers.findIndex(x => x.includes(h)); return idx >= 0 ? (v[idx] || '') : ''; };
                 const nm = g('nama', 1) || g('recipient', 1) || g('penerima', 1);
                 if (!nm.trim()) continue;
+                const rawId = g('id', 0).trim();
                 const waRaw = g('no_wa', 2) || g('whatsapp', 2) || g('wa', 2) || '';
                 const rl = g('penerima_lain', 15) || g('recipients', 15) || '';
                 const ar = rl.split(';').map(x => x.trim()).filter(x => x).map(x => { const p = x.split(':'); return { name: p[0].trim(), status: (p[1] || 'belum selesai').trim(), added_at: new Date().toISOString() }; });
@@ -2016,7 +2117,7 @@ document.getElementById('file-import-csv').addEventListener('change', (e) => {
                 const ur = [], seen = new Set();
                 recs.forEach(x => { if (!seen.has(x.name.toLowerCase())) { seen.add(x.name.toLowerCase()); ur.push(x); } });
                 addresses.push({
-                    id: g('id', 0) || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    id: rawId || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                     recipient_name: nm,
                     whatsapp: waRaw ? normalizeWhatsApp(waRaw) : '',
                     gang: g('gang', 3),
@@ -2053,10 +2154,92 @@ async function showImportModal(newAddresses, type) {
     if (type === 'json') {
         document.getElementById('modal-content').innerHTML = `<h2>🔄 Full Restore</h2><div class="info-box" style="background:#fef3c7;color:#92400e;margin:16px 0">⚠️ Semua data sekarang akan DIHAPUS diganti dengan backup.</div><p>Ditemukan <strong>${newAddresses.length}</strong> alamat.</p><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-danger" onclick="confirmImport('json', ${newAddresses.length})">🔄 Restore</button></div>`;
     } else {
-        document.getElementById('modal-content').innerHTML = `<h2>📤 Import CSV</h2><p>Ditemukan <strong>${newAddresses.length}</strong> baris.</p><div class="info-box" style="background:#dbeafe;color:#1e40af;font-size:13px;line-height:1.6"><strong>📌 Cara kerja import:</strong><br>1. Match: nama+WA → nama → WA<br>2. Status di-update jadi "🔔 Belum Selesai"<br>3. Field kosong (WA / alamat / gang / nomor / patokan) diisi dari CSV<br>4. Data lama yang sudah ada isinya <strong>tidak ditimpa</strong></div><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-primary" onclick="confirmImport('csv', ${newAddresses.length})">📤 Import</button></div>`;
+        const hasId = newAddresses.some(a => a.id && a.id.startsWith('addr_'));
+        const idCount = newAddresses.filter(a => a.id && a.id.startsWith('addr_')).length;
+        
+        document.getElementById('modal-content').innerHTML = `
+        <h2>📤 Import CSV</h2>
+        <p>Ditemukan <strong>${newAddresses.length}</strong> baris${hasId ? ` · ${idCount} punya ID` : ''}.</p>
+        
+        <div style="font-weight:600;font-size:13px;color:var(--text-light);margin-bottom:8px;text-transform:uppercase">Pilih mode import:</div>
+        
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+            <label class="import-mode-opt" style="display:flex;gap:10px;padding:12px;border:2px solid var(--primary);border-radius:8px;cursor:pointer;background:rgba(37,99,235,.05)">
+                <input type="radio" name="import-mode" value="merge" checked style="margin-top:3px;cursor:pointer">
+                <div style="flex:1">
+                    <strong>🔀 Merge (aman)</strong><br>
+                    <small style="color:var(--text-light);line-height:1.4;display:block;margin-top:4px">
+                        Update data yang match, tambah yang baru.<br>
+                        <b>Tidak ada yang dihapus.</b> Foto lama tetap aman.
+                    </small>
+                </div>
+            </label>
+            
+            <label class="import-mode-opt" style="display:flex;gap:10px;padding:12px;border:2px solid var(--border);border-radius:8px;cursor:pointer">
+                <input type="radio" name="import-mode" value="sync" style="margin-top:3px;cursor:pointer">
+                <div style="flex:1">
+                    <strong>🔄 Sync (ganti total)</strong><br>
+                    <small style="color:var(--text-light);line-height:1.4;display:block;margin-top:4px">
+                        Sama seperti merge, <b>PLUS</b> hapus record lama yang tidak ada di CSV.<br>
+                        Foto tetap untuk record yang match.
+                    </small>
+                </div>
+            </label>
+        </div>
+        
+        <div id="sync-warning" style="display:none;background:#fef3c7;color:#92400e;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:16px">
+            ⚠️ <b>Mode Sync:</b> record di app yang <u>tidak ada di CSV</u> akan dihapus.<br>
+            Pastikan CSV kamu sudah lengkap.
+        </div>
+        
+        <div style="background:var(--bg-alt);padding:10px;border-radius:6px;font-size:11px;color:var(--text-light);line-height:1.6;margin-bottom:16px">
+            💡 <b>Match by:</b> ID → nama+WA → nama → WA<br>
+            ${hasId ? '✅ CSV ini punya kolom ID — edit nama/WA tetap aman.' : '⚠️ CSV ini tidak punya ID — match pakai nama/WA.'}
+        </div>
+        
+        <div class="modal-buttons">
+            <button class="btn-secondary" onclick="closeModal()">Batal</button>
+            <button class="btn-primary" onclick="confirmImportWithMode(${newAddresses.length})">📤 Import</button>
+        </div>`;
+        
+        setTimeout(() => {
+            document.querySelectorAll('input[name="import-mode"]').forEach(r => {
+                r.addEventListener('change', () => {
+                    const mode = document.querySelector('input[name="import-mode"]:checked').value;
+                    document.getElementById('sync-warning').style.display = mode === 'sync' ? 'block' : 'none';
+                    document.querySelectorAll('.import-mode-opt').forEach(lbl => {
+                        const rr = lbl.querySelector('input');
+                        if (rr.checked) {
+                            lbl.style.borderColor = 'var(--primary)';
+                            lbl.style.background = 'rgba(37,99,235,.05)';
+                        } else {
+                            lbl.style.borderColor = 'var(--border)';
+                            lbl.style.background = 'transparent';
+                        }
+                    });
+                });
+            });
+        }, 50);
     }
     window.importNewAddresses = newAddresses;
     document.getElementById('modal').classList.add('active');
+}
+function confirmImportWithMode(count) {
+    const mode = document.querySelector('input[name="import-mode"]:checked')?.value || 'merge';
+    closeModal();
+    if (mode === 'sync') {
+        showConfirmModal(
+            '⚠️ Konfirmasi Mode Sync',
+            `Import ${count} baris + HAPUS record lama yang tidak ada di CSV?\n\nTindakan ini tidak bisa dibatalkan.\n\nLanjutkan?`,
+            async () => {
+                window._importMode = 'sync';
+                await processCSVImport(count);
+            }
+        );
+    } else {
+        window._importMode = 'merge';
+        processCSVImport(count);
+    }
 }
 async function confirmImport(type, count) {
     closeModal();
@@ -2070,15 +2253,16 @@ async function confirmImport(type, count) {
         });
     } else await processCSVImport(count);
 }
-// ============ CSV IMPORT: MERGE LOGIC ============
 async function processCSVImport(count) {
-    document.getElementById('modal-content').innerHTML = `<div style="padding:40px;text-align:center"><h2 style="margin-bottom:20px">⏳ Memproses ${count}...</h2><div style="width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto"></div></div>`;
+    const mode = window._importMode || 'merge';
+    document.getElementById('modal-content').innerHTML = `<div style="padding:40px;text-align:center"><h2 style="margin-bottom:20px">⏳ ${mode === 'sync' ? 'Sync' : 'Import'} ${count}...</h2><div style="width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto"></div></div>`;
     document.getElementById('modal').classList.add('active');
 
     const ex = await getAllAddresses();
-    let up = 0, add = 0;
-    const upBy = { namaWa: 0, nama: 0, wa: 0 };
+    let up = 0, add = 0, deleted = 0;
+    const upBy = { id: 0, namaWa: 0, nama: 0, wa: 0 };
     const filled = { wa: 0, alamat: 0, gang: 0, nomor: 0, patokan: 0, catatan: 0 };
+    const touchedIds = new Set();
 
     const isEmpty = (v) => !v || String(v).trim() === '' || v === 0;
 
@@ -2087,10 +2271,16 @@ async function processCSVImport(count) {
         if (!nm) continue;
         const nl = nm.toLowerCase();
         const nw = (na.whatsapp || '').trim();
+        const csvId = (na.id && na.id.startsWith('addr_')) ? na.id : null;
 
         let e = null, matchReason = '';
 
-        if (nw && nw.length > 5) {
+        if (csvId) {
+            e = ex.find(a => a.id === csvId);
+            if (e) matchReason = 'id';
+        }
+
+        if (!e && nw && nw.length > 5) {
             e = ex.find(a => {
                 const nameMatch = (a.recipient_name || '').toLowerCase().trim() === nl ||
                     (a.recipients && a.recipients.some(r => (r.name || '').toLowerCase().trim() === nl));
@@ -2119,6 +2309,7 @@ async function processCSVImport(count) {
         }
 
         if (e) {
+            touchedIds.add(e.id);
             e.delivery_status = 'belum selesai';
             if (e.recipients && e.recipients.length > 0) {
                 const tr = e.recipients.find(r => (r.name || '').toLowerCase().trim() === nl);
@@ -2140,24 +2331,12 @@ async function processCSVImport(count) {
                 }];
             }
 
-            if (isEmpty(e.whatsapp) && !isEmpty(na.whatsapp)) {
-                e.whatsapp = na.whatsapp; filled.wa++;
-            }
-            if (isEmpty(e.address) && !isEmpty(na.address)) {
-                e.address = na.address; filled.alamat++;
-            }
-            if (isEmpty(e.gang) && !isEmpty(na.gang)) {
-                e.gang = na.gang; filled.gang++;
-            }
-            if (isEmpty(e.house_number) && !isEmpty(na.house_number)) {
-                e.house_number = na.house_number; filled.nomor++;
-            }
-            if (isEmpty(e.landmark) && !isEmpty(na.landmark)) {
-                e.landmark = na.landmark; filled.patokan++;
-            }
-            if (isEmpty(e.description) && !isEmpty(na.description)) {
-                e.description = na.description; filled.catatan++;
-            }
+            if (isEmpty(e.whatsapp) && !isEmpty(na.whatsapp)) { e.whatsapp = na.whatsapp; filled.wa++; }
+            if (isEmpty(e.address) && !isEmpty(na.address)) { e.address = na.address; filled.alamat++; }
+            if (isEmpty(e.gang) && !isEmpty(na.gang)) { e.gang = na.gang; filled.gang++; }
+            if (isEmpty(e.house_number) && !isEmpty(na.house_number)) { e.house_number = na.house_number; filled.nomor++; }
+            if (isEmpty(e.landmark) && !isEmpty(na.landmark)) { e.landmark = na.landmark; filled.patokan++; }
+            if (isEmpty(e.description) && !isEmpty(na.description)) { e.description = na.description; filled.catatan++; }
 
             if ((isEmpty(e.payment_status) || e.payment_status === 'belum')
                 && na.payment_status && na.payment_status !== 'belum') {
@@ -2183,14 +2362,16 @@ async function processCSVImport(count) {
 
             await saveAddress(e);
             up++;
-            if (matchReason === 'nama+wa') upBy.namaWa++;
+            if (matchReason === 'id') upBy.id++;
+            else if (matchReason === 'nama+wa') upBy.namaWa++;
             else if (matchReason === 'nama') upBy.nama++;
             else if (matchReason === 'wa') upBy.wa++;
 
         } else {
+            const newId = csvId || ('addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
             const ca = {
                 ...na,
-                id: na.id || 'addr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                id: newId,
                 delivery_status: 'belum selesai',
                 recipients: (na.recipients || []).map(r => ({
                     name: r.name,
@@ -2217,20 +2398,37 @@ async function processCSVImport(count) {
             ca.recipient_name = nm;
             await saveAddress(ca);
             ex.push(ca);
+            touchedIds.add(newId);
             add++;
         }
     }
+
+    if (mode === 'sync') {
+        const allNow = await getAllAddresses();
+        for (const a of allNow) {
+            if (!touchedIds.has(a.id)) {
+                await deleteAddress(a.id);
+                deleted++;
+            }
+        }
+    }
+
+    window._importMode = null;
 
     updateMapMarkers();
     updateAddressList();
     closeModal();
 
     const lines = [];
+    lines.push(`📋 Mode: ${mode === 'sync' ? '🔄 Sync' : '🔀 Merge'}`);
+    lines.push('');
     lines.push(`🔔 Update: ${up}`);
-    if (upBy.namaWa > 0) lines.push(`   • match nama+WA: ${upBy.namaWa}`);
-    if (upBy.nama > 0)   lines.push(`   • match nama   : ${upBy.nama}`);
-    if (upBy.wa > 0)     lines.push(`   • match WA     : ${upBy.wa}`);
+    if (upBy.id > 0)     lines.push(`   • match ID      : ${upBy.id}`);
+    if (upBy.namaWa > 0) lines.push(`   • match nama+WA : ${upBy.namaWa}`);
+    if (upBy.nama > 0)   lines.push(`   • match nama    : ${upBy.nama}`);
+    if (upBy.wa > 0)     lines.push(`   • match WA      : ${upBy.wa}`);
     lines.push(`➕ Data baru: ${add}`);
+    if (mode === 'sync') lines.push(`🗑️ Dihapus: ${deleted}`);
 
     const fInfo = [];
     if (filled.wa > 0)      fInfo.push(`WA:${filled.wa}`);
@@ -2399,6 +2597,20 @@ document.getElementById('menu-btn').addEventListener('click', showSidebar);
 document.getElementById('menu-overlay').addEventListener('click', closeSidebar);
 document.getElementById('close-sidebar').addEventListener('click', closeSidebar);
 document.querySelectorAll('[data-page]').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
+
+// Tombol OCR: buka di browser eksternal (Capacitor) atau tab baru (web)
+document.getElementById('open-ocr-btn').addEventListener('click', async () => {
+    if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
+        try {
+            const Browser = (window.Capacitor.Plugins && window.Capacitor.Plugins.Browser);
+            if (Browser && Browser.open) { await Browser.open({ url: OCR_URL }); return; }
+        } catch (e) {}
+        window.open(OCR_URL, '_system');
+    } else {
+        window.open(OCR_URL, '_blank');
+    }
+});
+
 document.getElementById('record-btn').addEventListener('click', showRecordSheet);
 document.getElementById('close-record-sheet').addEventListener('click', () => closeRecordSheet());
 document.getElementById('cancel-record-btn').addEventListener('click', () => closeRecordSheet());
@@ -2462,28 +2674,32 @@ function attachAddressPhotoHandlers() {
 // ============ INIT ============
 async function init() {
     try {
-        await initDB();
+        bootStatus('Menyiapkan...', 5);
 
-        // Minta storage persistent — Chrome/Edge cenderung pertahankan tab
-        // yang punya persistent storage saat memory low
+        await initDB();
+        bootStatus('Database siap', 15);
+
         if (navigator.storage && navigator.storage.persist) {
-            try {
-                const already = await navigator.storage.persisted();
-                if (!already) {
-                    const granted = await navigator.storage.persist();
-                    console.log('Persistent storage:', granted ? '✅ granted' : '❌ denied');
-                }
-            } catch (e) {}
+            navigator.storage.persisted().then(already => {
+                if (!already) navigator.storage.persist().catch(() => {});
+            }).catch(() => {});
         }
 
-        await loadRoutingApiKeys();
+        loadRoutingApiKeys().catch(() => {});
+        bootStatus('Memuat pengaturan...', 25);
+
         restoreAppState();
-        initMap();
-        registerServiceWorker();
+        bootStatus('Restore tampilan...', 35);
+
         initProblemTags();
         attachAddressPhotoHandlers();
+        bootStatus('Menampilkan UI...', 50);
+
         const addresses = await getAllAddresses();
-        if (addresses.length === 0) {
+        bootStatus(`Memuat ${addresses.length} alamat...`, 65);
+
+        if (addresses.length === 0 && !localStorage.getItem('kurirq_seeded')) {
+            localStorage.setItem('kurirq_seeded', '1');
             const demo = [
                 { recipient_name: 'Pak Budi', gang: 'Gang 4', house_number: '27', landmark: 'Pagar hitam', latitude: -6.2088, longitude: 106.8650, whatsapp: '628123456789', payment_status: 'cod', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Pak Budi', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
                 { recipient_name: 'Bu Siti', gang: 'Gang 2', house_number: '15', landmark: 'Sebelah toko roti', latitude: -6.2100, longitude: 106.8700, whatsapp: '628987654321', payment_status: 'cod-transfer', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Bu Siti', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
@@ -2491,10 +2707,14 @@ async function init() {
             ];
             for (const a of demo) await saveAddress(a);
         }
-        updateMapMarkers();
 
-        // ============ APPLY PENDING RESTORE STATE ============
-        // Restore scroll position
+        bootStatus('Menyiapkan peta...', 80);
+
+        initMap();
+
+        registerServiceWorker();
+        bootStatus('Selesai', 100);
+
         if (window._pendingScrolls) {
             setTimeout(() => {
                 document.querySelectorAll('.page').forEach(p => {
@@ -2503,40 +2723,46 @@ async function init() {
                     }
                 });
                 window._pendingScrolls = null;
-            }, 200);
+            }, 150);
         }
-        // Restore search di map
         if (window._pendingMapSearch) {
             const q = window._pendingMapSearch;
             window._pendingMapSearch = null;
-            setTimeout(() => updateMapMarkers(q), 300);
+            setTimeout(() => updateMapMarkers(q), 250);
         }
-        // Restore bulk selection
         if (window._pendingBulkIds && window._pendingBulkIds.length > 0) {
             window._pendingBulkIds.forEach(id => bulkSelectedIds.add(id));
             window._pendingBulkIds = null;
-            setTimeout(updateBulkUI, 400);
+            setTimeout(updateBulkUI, 300);
         }
-        // Restore detail sheet (kalau sebelumnya sedang lihat detail)
         if (window._pendingDetailId) {
             const did = window._pendingDetailId;
             window._pendingDetailId = null;
             setTimeout(() => {
                 getAddressById(did).then(a => { if (a) showAddressDetail(did); });
-            }, 500);
+            }, 400);
+        }
+        if (window._pendingActivePage) {
+            const ap = window._pendingActivePage;
+            window._pendingActivePage = null;
+            setTimeout(() => showPage(ap), 200);
         }
 
-        if (window._pendingActivePage) { const ap = window._pendingActivePage; window._pendingActivePage = null; setTimeout(() => showPage(ap), 300); }
+        setTimeout(bootHide, 150);
+
         if (!sessionStorage.getItem('kurirq_welcomed')) {
             sessionStorage.setItem('kurirq_welcomed', '1');
-            showModal('Selamat Datang', '👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n📱 No. WA + tombol chat\n📤 Import CSV: update by nama/WA\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Backup JSON rutin!');
+            setTimeout(() => {
+                showModal('Selamat Datang', '👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n📱 No. WA + tombol chat\n📤 Import CSV: Merge / Sync\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Backup JSON rutin!');
+            }, 600);
         }
     } catch (err) {
         console.error('Init error:', err);
+        bootHide();
         showModal('Error', 'Gagal inisialisasi: ' + err.message);
     }
 }
-window.addEventListener('load', () => setTimeout(init, 1000));
+window.addEventListener('load', () => setTimeout(init, 50));
 </script>
 </body>
 </html>
