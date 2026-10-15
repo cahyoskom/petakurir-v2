@@ -1,0 +1,14 @@
+{
+  "appId": "com.kurirq.app",
+  "appName": "Kurir-Q",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
