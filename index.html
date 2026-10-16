@@ -354,6 +354,104 @@ input[type=number]{-moz-appearance:textfield}
 })();
 </script>
 
+<!-- ============================================ -->
+<!-- CAPACITOR GEOLOCATION POLYFILL               -->
+<!-- Override navigator.geolocation agar pakai    -->
+<!-- plugin Capacitor di APK. Di web tetap pakai  -->
+<!-- navigator bawaan.                            -->
+<!-- ============================================ -->
+<script>
+(function() {
+    function installPolyfill() {
+        if (!window.Capacitor || !window.Capacitor.isNativePlatform || !window.Capacitor.isNativePlatform()) {
+            return;
+        }
+        const Geo = window.Capacitor.Plugins && window.Capacitor.Plugins.Geolocation;
+        if (!Geo) {
+            console.warn('[Kurir-Q] Plugin Geolocation tidak tersedia');
+            return;
+        }
+        console.log('[Kurir-Q] Install polyfill Geolocation untuk Capacitor');
+        const origGet = navigator.geolocation.getCurrentPosition.bind(navigator.geolocation);
+
+        navigator.geolocation.getCurrentPosition = function(success, error, opts) {
+            Geo.requestPermissions().then(perm => {
+                const state = perm.location || (perm.coarseLocation ? 'granted' : 'denied');
+                if (state !== 'granted') {
+                    if (error) error({ code: 1, message: 'Izin lokasi ditolak' });
+                    return;
+                }
+                const geoOpts = {
+                    enableHighAccuracy: opts && opts.enableHighAccuracy !== false,
+                    timeout: (opts && opts.timeout) || 15000,
+                    maximumAge: (opts && opts.maximumAge) || 0
+                };
+                Geo.getCurrentPosition(geoOpts).then(pos => {
+                    if (success) success({
+                        coords: {
+                            latitude: pos.coords.latitude,
+                            longitude: pos.coords.longitude,
+                            accuracy: pos.coords.accuracy || 0,
+                            altitude: pos.coords.altitude || null,
+                            altitudeAccuracy: pos.coords.altitudeAccuracy || null,
+                            heading: pos.coords.heading || null,
+                            speed: pos.coords.speed || null
+                        },
+                        timestamp: pos.timestamp || Date.now()
+                    });
+                }).catch(err => {
+                    console.error('[Kurir-Q] Geo error:', err);
+                    if (error) error({ code: err.code || 2, message: err.message || 'Gagal ambil lokasi' });
+                });
+            }).catch(err => {
+                console.error('[Kurir-Q] Request permission error:', err);
+                origGet(success, error, opts);
+            });
+        };
+
+        navigator.geolocation.watchPosition = function(success, error, opts) {
+            const geoOpts = {
+                enableHighAccuracy: opts && opts.enableHighAccuracy !== false,
+                timeout: (opts && opts.timeout) || 30000,
+                maximumAge: (opts && opts.maximumAge) || 0
+            };
+            return Geo.watchPosition(geoOpts, (pos, err) => {
+                if (err) {
+                    if (error) error({ code: err.code || 2, message: err.message || 'Watch error' });
+                    return;
+                }
+                if (success) success({
+                    coords: {
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude,
+                        accuracy: pos.coords.accuracy || 0,
+                        altitude: pos.coords.altitude || null,
+                        altitudeAccuracy: pos.coords.altitudeAccuracy || null,
+                        heading: pos.coords.heading || null,
+                        speed: pos.coords.speed || null
+                    },
+                    timestamp: pos.timestamp || Date.now()
+                });
+            });
+        };
+
+        navigator.geolocation.clearWatch = function(id) {
+            try { Geo.clearWatch({ id }); } catch (e) {}
+        };
+    }
+
+    let tries = 0;
+    function waitForCapacitor() {
+        if (window.Capacitor && window.Capacitor.isNativePlatform) {
+            installPolyfill();
+        } else if (tries++ < 20) {
+            setTimeout(waitForCapacitor, 100);
+        }
+    }
+    waitForCapacitor();
+})();
+</script>
+
 <script>
 // ============ BOOT SPLASH ============
 window.bootStatus = (msg, pct) => {
@@ -385,7 +483,6 @@ let _photoHandlersAttached = false;
 window.addressPhotos = [null, null];
 window._mapInitiallyCentered = false;
 
-// URL halaman OCR (di Cloudflare Pages)
 const OCR_URL = 'https://kurirmap.pages.dev/ocr.html';
 
 // ============ ROUTING PROVIDERS ============
@@ -2598,7 +2695,6 @@ document.getElementById('menu-overlay').addEventListener('click', closeSidebar);
 document.getElementById('close-sidebar').addEventListener('click', closeSidebar);
 document.querySelectorAll('[data-page]').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
 
-// Tombol OCR: buka di browser eksternal (Capacitor) atau tab baru (web)
 document.getElementById('open-ocr-btn').addEventListener('click', async () => {
     if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
         try {
