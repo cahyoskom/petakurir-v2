@@ -11,7 +11,7 @@
 <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Kurir-Q%20v1.0%22,%22short_name%22:%22Kurir-Q%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fff%22,%22theme_color%22:%22%232563eb%22,%22orientation%22:%22portrait%22}">
 <title>Kurir-Q v1.0</title>
 
-<!-- Leaflet CSS: Smart loader (lokal dulu → fallback CDN) -->
+<!-- Leaflet CSS: Smart loader -->
 <script>
 (function() {
     var lcss = document.createElement('link');
@@ -238,7 +238,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="info-box"><strong>Kurir-Q v1.0</strong><br>Buku alamat pribadi kurir berbasis GPS + peta.<br><br><strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.</div>
 <h3 style="margin-bottom:12px;margin-top:20px">Fitur</h3>
 <div style="font-size:13px;color:var(--text-light);line-height:1.8">
-✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WhatsApp + tombol chat<br>✓ 2 foto alamat<br>✓ Auto-save state (anti reload)<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline per-area<br>✓ Backup/restore JSON<br>✓ BFCache-friendly
+✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WhatsApp + tombol chat<br>✓ 2 foto alamat<br>✓ Auto-save state (anti reload)<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline per-area<br>✓ Backup/restore JSON<br>✓ Navigasi multi-app (GMap/Waze/Default)
 </div>
 </div>
 </div>
@@ -337,7 +337,6 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="file-import-csv" accept=".csv,text/csv,text/comma-separated-values,text/plain,application/csv,application/vnd.ms-excel" style="display:none">
 <input type="file" id="file-import-apikeys" accept=".json" style="display:none">
 
-<!-- Leaflet JS: Smart loader (lokal dulu → fallback CDN) -->
 <script>
 (function() {
     var ljs = document.createElement('script');
@@ -354,12 +353,6 @@ input[type=number]{-moz-appearance:textfield}
 })();
 </script>
 
-<!-- ============================================ -->
-<!-- CAPACITOR GEOLOCATION POLYFILL               -->
-<!-- Override navigator.geolocation agar pakai    -->
-<!-- plugin Capacitor di APK. Di web tetap pakai  -->
-<!-- navigator bawaan.                            -->
-<!-- ============================================ -->
 <script>
 (function() {
     function installPolyfill() {
@@ -1821,12 +1814,61 @@ async function updateAddress() {
 }
 async function deleteCurrentAddress() { showConfirmModal('Hapus Alamat', 'Yakin hapus alamat ini?', async () => { await deleteAddress(currentDetailId); document.getElementById('detail-sheet').classList.remove('active'); updateMapMarkers(); updateAddressList(); showModal('Sukses', '✓ Alamat dihapus!'); }); }
 async function recordVisit() { const a = await getAddressById(currentDetailId); if (!a.history) a.history = []; a.history.push({ date: new Date().toISOString(), status: 'berhasil' }); a.visit_count = (a.visit_count || 0) + 1; a.last_visit_at = new Date().toISOString(); await saveAddress(a); showAddressDetail(currentDetailId); showModal('Sukses', '✓ Kunjungan tercatat!'); }
+
+// ============ NAVIGASI (FIXED) ============
 async function navigateToAddress() {
     const a = await getAddressById(currentDetailId);
-    if (typeof navigator.permissions !== 'undefined') {
-        try { const r = await navigator.permissions.query({ name: 'geolocation' }); if (r.state !== 'denied') { const url = `geo:${a.latitude},${a.longitude}`; if (/Android/i.test(navigator.userAgent)) window.location.href = url; else window.open(`https://maps.google.com/?q=${a.latitude},${a.longitude}`); return; } } catch (e) {}
+    if (!a) return;
+    const name = a.recipient_name || 'Alamat';
+    document.getElementById('modal-content').innerHTML = `
+        <h2>🧭 Navigasi ke ${name}</h2>
+        <div style="background:var(--bg-alt);padding:10px;border-radius:6px;font-size:12px;color:var(--text-light);line-height:1.5;margin-bottom:16px">
+            📍 ${a.gang || ''} ${a.house_number || ''}${a.landmark ? ' · ' + a.landmark : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn-primary" style="padding:12px;text-align:left;font-size:14px" onclick="doNavigate('gmaps')">🗺️ Google Maps (Rute)</button>
+            <button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doNavigate('waze')">🚗 Waze</button>
+            <button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doNavigate('geo')">🧭 App Default Android</button>
+        </div>
+        <div class="modal-buttons" style="margin-top:12px">
+            <button class="btn-secondary" onclick="closeModal()" style="flex:1">Tutup</button>
+        </div>`;
+    document.getElementById('modal').classList.add('active');
+}
+async function doNavigate(type) {
+    const a = await getAddressById(currentDetailId);
+    if (!a) return;
+    closeModal();
+    const lat = a.latitude, lon = a.longitude;
+    const name = (a.recipient_name || 'Alamat').replace(/[()]/g, '');
+    const isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    const isAndroid = /Android/i.test(navigator.userAgent);
+
+    let url = '';
+    if (type === 'gmaps') {
+        url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
+    } else if (type === 'waze') {
+        url = `https://waze.com/ul?ll=${lat},${lon}&navigate=yes`;
+    } else if (type === 'geo') {
+        url = `geo:${lat},${lon}?q=${lat},${lon}(${encodeURIComponent(name)})`;
     }
-    window.open(`https://maps.google.com/?q=${a.latitude},${a.longitude}`);
+
+    if (!url) return;
+
+    if (url.startsWith('geo:')) {
+        if (isCapacitor) {
+            window.open(url, '_system');
+        } else {
+            window.location.href = url;
+        }
+        return;
+    }
+
+    if (isCapacitor) {
+        window.open(url, '_system');
+    } else {
+        window.open(url, '_blank');
+    }
 }
 
 // ============ SHARE ============
