@@ -43,27 +43,37 @@ jobs:
 
     - name: Verify Geolocation plugin installed
       run: |
-        echo "=== node_modules @capacitor/geolocation ==="
-        ls -la node_modules/@capacitor/geolocation/ 2>/dev/null || echo "❌ PLUGIN NOT INSTALLED"
+        echo "=== @capacitor/geolocation di node_modules ==="
+        if [ -d "node_modules/@capacitor/geolocation" ]; then
+          echo "✅ Folder plugin ADA"
+          ls node_modules/@capacitor/geolocation/
+        else
+          echo "❌ Folder plugin TIDAK ADA"
+        fi
         echo ""
         echo "=== capacitor.plugins.json ==="
-        cat android/app/src/main/assets/capacitor.plugins.json 2>/dev/null || echo "❌ NOT FOUND"
+        cat android/app/src/main/assets/capacitor.plugins.json 2>/dev/null || echo "❌ FILE TIDAK ADA"
         echo ""
         echo "=== capacitor.settings.gradle ==="
-        cat android/capacitor.settings.gradle 2>/dev/null || echo "❌ NOT FOUND"
+        cat android/capacitor.settings.gradle 2>/dev/null || echo "❌ FILE TIDAK ADA"
+        echo ""
+        echo "=== capacitor.build.gradle (app) ==="
+        cat android/app/capacitor.build.gradle 2>/dev/null || echo "❌ FILE TIDAK ADA"
 
     - name: Inject location permissions to AndroidManifest
       run: |
         MANIFEST="android/app/src/main/AndroidManifest.xml"
-        echo "=== Sebelum inject ==="
+        echo "=== Manifest SEBELUM inject ==="
         cat $MANIFEST
         if ! grep -q "ACCESS_FINE_LOCATION" $MANIFEST; then
-          echo "Injecting permissions..."
+          echo ""
+          echo "Injecting location permissions..."
           sed -i 's|<application|<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <application|' $MANIFEST
         fi
         echo ""
-        echo "=== Sesudah inject ==="
+        echo "=== Manifest SESUDAH inject ==="
         cat $MANIFEST
+        echo ""
         grep -q "ACCESS_FINE_LOCATION" $MANIFEST && echo "✅ FINE_LOCATION OK" || (echo "❌ FINE_LOCATION MISSING" && exit 1)
         grep -q "ACCESS_COARSE_LOCATION" $MANIFEST && echo "✅ COARSE_LOCATION OK" || (echo "❌ COARSE_LOCATION MISSING" && exit 1)
 
