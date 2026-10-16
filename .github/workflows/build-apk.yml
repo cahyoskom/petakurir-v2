@@ -41,12 +41,31 @@ jobs:
     - name: Sync web assets
       run: npx cap sync
 
-    - name: Verify location permissions
+    - name: Verify Geolocation plugin installed
+      run: |
+        echo "=== node_modules @capacitor/geolocation ==="
+        ls -la node_modules/@capacitor/geolocation/ 2>/dev/null || echo "❌ PLUGIN NOT INSTALLED"
+        echo ""
+        echo "=== capacitor.plugins.json ==="
+        cat android/app/src/main/assets/capacitor.plugins.json 2>/dev/null || echo "❌ NOT FOUND"
+        echo ""
+        echo "=== capacitor.settings.gradle ==="
+        cat android/capacitor.settings.gradle 2>/dev/null || echo "❌ NOT FOUND"
+
+    - name: Inject location permissions to AndroidManifest
       run: |
         MANIFEST="android/app/src/main/AndroidManifest.xml"
-        echo "=== AndroidManifest.xml ==="
+        echo "=== Sebelum inject ==="
         cat $MANIFEST
-        grep -q "ACCESS_FINE_LOCATION" $MANIFEST && echo "✅ FINE_LOCATION OK" || echo "⚠️ FINE_LOCATION MISSING"
+        if ! grep -q "ACCESS_FINE_LOCATION" $MANIFEST; then
+          echo "Injecting permissions..."
+          sed -i 's|<application|<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <application|' $MANIFEST
+        fi
+        echo ""
+        echo "=== Sesudah inject ==="
+        cat $MANIFEST
+        grep -q "ACCESS_FINE_LOCATION" $MANIFEST && echo "✅ FINE_LOCATION OK" || (echo "❌ FINE_LOCATION MISSING" && exit 1)
+        grep -q "ACCESS_COARSE_LOCATION" $MANIFEST && echo "✅ COARSE_LOCATION OK" || (echo "❌ COARSE_LOCATION MISSING" && exit 1)
 
     - name: Build Debug APK
       working-directory: android
