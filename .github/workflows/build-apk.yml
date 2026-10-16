@@ -41,6 +41,13 @@ jobs:
     - name: Sync web assets
       run: npx cap sync
 
+    - name: Verify location permissions
+      run: |
+        MANIFEST="android/app/src/main/AndroidManifest.xml"
+        echo "=== AndroidManifest.xml ==="
+        cat $MANIFEST
+        grep -q "ACCESS_FINE_LOCATION" $MANIFEST && echo "✅ FINE_LOCATION OK" || echo "⚠️ FINE_LOCATION MISSING"
+
     - name: Build Debug APK
       working-directory: android
       run: |
