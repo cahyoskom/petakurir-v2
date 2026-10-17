@@ -276,7 +276,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="form-group"><label>Nama Penerima</label><input type="text" id="form-name" placeholder="Contoh: Yeyen"></div>
 <div class="form-group"><label>No. WhatsApp</label><input type="tel" id="form-whatsapp" placeholder="085156395041 atau (+62)..." inputmode="tel" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px"><small style="color:var(--text-light);font-size:10px;margin-top:4px">Otomatis format 62... (opsional)</small></div>
 <div style="display:flex;gap:8px;">
-    <div class="form-group" style="flex:1"><label>Gang</label><input type="text" id="form-gang" placeholder="Contoh: Gang 4"></div>
+    <div class="form-group" style="flex:1"><label>Gang / Jalan</label><input type="text" id="form-gang" placeholder="Contoh: Gang 4 / Jalan Mawar"></div>
     <div class="form-group" style="flex:1"><label>Nomor Rumah</label><input type="text" id="form-house-number" placeholder="Contoh: 27"></div>
 </div>
 <div class="form-group">
@@ -973,24 +973,49 @@ async function checkDuplicate(latitude, longitude, newAddress) {
 // ============ PARSER ALAMAT ============
 function parseAddressFields() {
     const address = document.getElementById('form-address').value;
+    const gangInput = document.getElementById('form-gang');
+    const nomorInput = document.getElementById('form-house-number');
     const rtInput = document.getElementById('form-rt');
     const rwInput = document.getElementById('form-rw');
     const kelInput = document.getElementById('form-kelurahan');
 
-    // Parse RT/RW: RT. 001/RW. 002, RT 01 RW 02, 01/02
+    if (!address) return;
+
+    // 1. Parse RT / RW
+    // Menangkap format RT. 01/RW. 02, RT 01 RW 02, atau 01/02
     const rtRwMatch = address.match(/(?:RT\.?|RT)\s*(\d{1,3})\s*[\/\-]?\s*(?:RW\.?|RW)\s*(\d{1,3})/i) || address.match(/\b(\d{1,3})\s*[\/\-]\s*(\d{1,3})\b/);
     if (rtRwMatch) {
         if (!rtInput.value) rtInput.value = rtRwMatch[1];
         if (!rwInput.value) rwInput.value = rtRwMatch[2];
     }
 
-    // Parse Kelurahan (mencari kata "Kel." atau "Kelurahan")
+    // 2. Parse Gang / Jalan
+    // Regex: Menangkap kata Gang, Gg, Jalan, Jl, diikuti nama jalannya.
+    // Berhenti saat bertemu "No", "Nomor", "RT", "RW", atau koma.
+    const gangRegex = /(?:Gang|Gg\.?|Jalan|Jl\.?)\s*([A-Za-z0-9\s\.]+?)(?=\s*(?:No|Nomor|Nomer|Rt|RW|,|$))/i;
+    const gangMatch = address.match(gangRegex);
+    if (gangMatch && !gangInput.value) {
+        let isJalan = /j(l|alan)/i.test(gangMatch[0]);
+        let namaJalan = gangMatch[1].trim();
+        // Format standar: "Gang X" atau "Jalan Y"
+        gangInput.value = isJalan ? `Jalan ${namaJalan}` : `Gang ${namaJalan}`;
+    }
+
+    // 3. Parse Nomor Rumah
+    // Regex: Menangkap alfanumerik setelah kata No, Nomor, Nomer
+    const nomorRegex = /(?:No\.?|Nomor|Nomer)\s*([A-Za-z0-9\-]+)/i;
+    const nomorMatch = address.match(nomorRegex);
+    if (nomorMatch && !nomorInput.value) {
+        nomorInput.value = nomorMatch[1].trim();
+    }
+
+    // 4. Parse Kelurahan (via kata "Kel." atau "Kelurahan")
     const kelMatch = address.match(/(?:Kel\.?|Kelurahan)\s*([a-zA-Z\s]+)/i);
     if (kelMatch && !kelInput.value) {
         kelInput.value = kelMatch[1].trim().split(',')[0];
     }
 
-    // Tambahan: coba ambil kelurahan sebelum "Kec." atau "Kecamatan" jika belum terisi
+    // 5. Fallback Kelurahan (cari teks setelah RT/RW)
     if (!kelInput.value) {
         const parts = address.split(',');
         if (parts.length >= 2) {
