@@ -139,7 +139,7 @@ input[type=number]{-moz-appearance:textfield}
 <header><h1>📦 Kurir-Q</h1><button class="menu-btn" id="menu-btn">☰</button></header>
 <main>
 <div class="page active" id="map-page">
-<div class="search-bar"><input type="text" id="search-input" placeholder="Cari nama / wa / gang / no / alamat / patokan"><button id="search-btn">Cari</button></div>
+<div class="search-bar"><input type="text" id="search-input" placeholder="Cari nama / gang / no / alamat / rt / rw / kelurahan"><button id="search-btn">Cari</button></div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-map-filter="belum">🔔 Belum Selesai</button>
 <button class="filter-btn" data-map-filter="semua">Semua</button>
@@ -156,7 +156,7 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 
 <div class="page" id="list-page">
-<div class="search-bar"><input type="text" id="list-search-input" placeholder="Cari nama / wa / gang / no / alamat..."><button id="list-search-btn">Cari</button><button id="voice-search-btn" title="Voice search" style="padding:8px 12px;background:var(--secondary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">🎤</button></div>
+<div class="search-bar"><input type="text" id="list-search-input" placeholder="Cari nama / gang / no / alamat / rt / rw / kelurahan..."><button id="list-search-btn">Cari</button><button id="voice-search-btn" title="Voice search" style="padding:8px 12px;background:var(--secondary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">🎤</button></div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-filter="semua">Semua</button>
 <button class="filter-btn" data-filter="tidak-order">Tidak Order</button>
@@ -221,6 +221,8 @@ input[type=number]{-moz-appearance:textfield}
 
 <div class="page" id="settings-page">
 <div class="sheet-content">
+<h3 style="margin-bottom:12px;font-size:14px">📍 GPS Diagnostics</h3>
+<button class="btn-secondary" id="gps-debug-btn" style="width:100%;padding:10px;margin-bottom:24px;font-size:13px">🔍 Cek Status GPS</button>
 <h3 style="margin-bottom:12px;font-size:14px">🗺️ Cache Peta</h3>
 <div id="cache-info-box" style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.7;margin-bottom:12px"><div id="cache-info-content">Memuat info cache...</div></div>
 <div style="display:flex;gap:8px;margin-bottom:24px">
@@ -273,9 +275,22 @@ input[type=number]{-moz-appearance:textfield}
 <div id="manual-form" style="display:none">
 <div class="form-group"><label>Nama Penerima</label><input type="text" id="form-name" placeholder="Contoh: Yeyen"></div>
 <div class="form-group"><label>No. WhatsApp</label><input type="tel" id="form-whatsapp" placeholder="085156395041 atau (+62)..." inputmode="tel" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px"><small style="color:var(--text-light);font-size:10px;margin-top:4px">Otomatis format 62... (opsional)</small></div>
-<div class="form-group"><label>Gang</label><input type="text" id="form-gang" placeholder="Contoh: Gang 4"></div>
-<div class="form-group"><label>Nomor Rumah</label><input type="text" id="form-house-number" placeholder="Contoh: 27"></div>
-<div class="form-group"><label>Alamat Lengkap</label><textarea id="form-address" placeholder="Contoh: Jalan Aselih No.52, RT.016/RW.1, Cipedak, Jakarta Selatan" style="min-height:70px"></textarea></div>
+<div style="display:flex;gap:8px;">
+    <div class="form-group" style="flex:1"><label>Gang</label><input type="text" id="form-gang" placeholder="Contoh: Gang 4"></div>
+    <div class="form-group" style="flex:1"><label>Nomor Rumah</label><input type="text" id="form-house-number" placeholder="Contoh: 27"></div>
+</div>
+<div class="form-group">
+    <label style="display:flex;justify-content:space-between;align-items:center;">
+        Alamat Lengkap
+        <button type="button" onclick="parseAddressFields()" style="padding:2px 8px;font-size:10px;background:var(--secondary);color:white;border:none;border-radius:4px;cursor:pointer">✨ Parse Alamat</button>
+    </label>
+    <textarea id="form-address" placeholder="Contoh: Jalan Aselih No.52, RT.016/RW.1, Cipedak, Jakarta Selatan" style="min-height:70px"></textarea>
+</div>
+<div style="display:flex;gap:8px;">
+    <div class="form-group" style="flex:1"><label>RT</label><input type="text" id="form-rt" placeholder="Contoh: 001"></div>
+    <div class="form-group" style="flex:1"><label>RW</label><input type="text" id="form-rw" placeholder="Contoh: 002"></div>
+</div>
+<div class="form-group"><label>Kelurahan</label><input type="text" id="form-kelurahan" placeholder="Contoh: Cipedak"></div>
 <div class="form-group"><label>Patokan/Landmark</label><input type="text" id="form-landmark" placeholder="Contoh: Pagar hitam"></div>
 <div class="form-group"><label>Status Pembayaran</label><select id="form-payment"><option value="belum">Belum diketahui</option><option value="cod">COD normal</option><option value="cod-transfer">COD minta transfer</option><option value="transfer">Transfer</option><option value="other">Minta metode lain</option></select></div>
 <div class="form-group"><label>Tipe Lokasi</label><select id="form-location-type"><option value="jelas">Alamat jelas</option><option value="nitip">Alamat nitip</option><option value="sulit">Sulit ditemukan</option><option value="patokan">Butuh patokan</option></select></div>
@@ -353,24 +368,40 @@ input[type=number]{-moz-appearance:textfield}
 })();
 </script>
 
+<!-- ============================================ -->
+<!-- CAPACITOR GEOLOCATION POLYFILL v2            -->
+<!-- ============================================ -->
 <script>
 (function() {
-    function installPolyfill() {
-        if (!window.Capacitor || !window.Capacitor.isNativePlatform || !window.Capacitor.isNativePlatform()) {
-            return;
+    console.log('[Kurir-Q GPS] Polyfill v2 loaded');
+
+    function getGeoPlugin() {
+        if (!window.Capacitor) return null;
+        if (window.Capacitor.Plugins && window.Capacitor.Plugins.Geolocation) {
+            return window.Capacitor.Plugins.Geolocation;
         }
-        const Geo = window.Capacitor.Plugins && window.Capacitor.Plugins.Geolocation;
-        if (!Geo) {
-            console.warn('[Kurir-Q] Plugin Geolocation tidak tersedia');
-            return;
+        if (typeof window.Capacitor.registerPlugin === 'function') {
+            try {
+                const p = window.Capacitor.registerPlugin('Geolocation');
+                if (p) return p;
+            } catch (e) {
+                console.warn('[Kurir-Q GPS] registerPlugin gagal:', e);
+            }
         }
-        console.log('[Kurir-Q] Install polyfill Geolocation untuk Capacitor');
+        return null;
+    }
+
+    function installPolyfill(Geo) {
+        console.log('[Kurir-Q GPS] Install polyfill dengan plugin Geolocation');
         const origGet = navigator.geolocation.getCurrentPosition.bind(navigator.geolocation);
 
         navigator.geolocation.getCurrentPosition = function(success, error, opts) {
+            console.log('[Kurir-Q GPS] Requesting permission...');
             Geo.requestPermissions().then(perm => {
+                console.log('[Kurir-Q GPS] Permission result:', JSON.stringify(perm));
                 const state = perm.location || (perm.coarseLocation ? 'granted' : 'denied');
                 if (state !== 'granted') {
+                    console.warn('[Kurir-Q GPS] Izin ditolak user:', state);
                     if (error) error({ code: 1, message: 'Izin lokasi ditolak' });
                     return;
                 }
@@ -379,7 +410,9 @@ input[type=number]{-moz-appearance:textfield}
                     timeout: (opts && opts.timeout) || 15000,
                     maximumAge: (opts && opts.maximumAge) || 0
                 };
+                console.log('[Kurir-Q GPS] Getting position...');
                 Geo.getCurrentPosition(geoOpts).then(pos => {
+                    console.log('[Kurir-Q GPS] Got position:', pos.coords.latitude, pos.coords.longitude);
                     if (success) success({
                         coords: {
                             latitude: pos.coords.latitude,
@@ -393,11 +426,11 @@ input[type=number]{-moz-appearance:textfield}
                         timestamp: pos.timestamp || Date.now()
                     });
                 }).catch(err => {
-                    console.error('[Kurir-Q] Geo error:', err);
+                    console.error('[Kurir-Q GPS] getCurrentPosition error:', err);
                     if (error) error({ code: err.code || 2, message: err.message || 'Gagal ambil lokasi' });
                 });
             }).catch(err => {
-                console.error('[Kurir-Q] Request permission error:', err);
+                console.error('[Kurir-Q GPS] requestPermissions error:', err);
                 origGet(success, error, opts);
             });
         };
@@ -433,15 +466,44 @@ input[type=number]{-moz-appearance:textfield}
         };
     }
 
-    let tries = 0;
-    function waitForCapacitor() {
-        if (window.Capacitor && window.Capacitor.isNativePlatform) {
-            installPolyfill();
-        } else if (tries++ < 20) {
-            setTimeout(waitForCapacitor, 100);
+    let attempts = 0;
+    const MAX_ATTEMPTS = 50;
+    function tryInstall() {
+        attempts++;
+        if (!window.Capacitor) {
+            if (attempts === 1 || attempts % 10 === 0) console.log(`[Kurir-Q GPS] Menunggu Capacitor... (${attempts})`);
+            if (attempts < MAX_ATTEMPTS) setTimeout(tryInstall, 200);
+            return;
         }
+        let isNative = false;
+        try {
+            if (typeof window.Capacitor.isNativePlatform === 'function') {
+                isNative = window.Capacitor.isNativePlatform();
+            } else if (typeof window.Capacitor.getPlatform === 'function') {
+                const p = window.Capacitor.getPlatform();
+                isNative = (p === 'android' || p === 'ios');
+            }
+        } catch (e) {}
+        console.log(`[Kurir-Q GPS] Capacitor detected. isNative=${isNative}`);
+        if (!isNative) {
+            console.log('[Kurir-Q GPS] Bukan native, polyfill tidak dipakai');
+            return;
+        }
+        const Geo = getGeoPlugin();
+        if (!Geo || typeof Geo.getCurrentPosition !== 'function') {
+            console.warn(`[Kurir-Q GPS] Plugin tidak siap (attempt ${attempts})`);
+            if (attempts < MAX_ATTEMPTS) setTimeout(tryInstall, 200);
+            else console.error('[Kurir-Q GPS] Plugin Geolocation TIDAK DITEMUKAN setelah 10 detik');
+            return;
+        }
+        installPolyfill(Geo);
     }
-    waitForCapacitor();
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tryInstall);
+    } else {
+        tryInstall();
+    }
 })();
 </script>
 
@@ -837,7 +899,7 @@ async function updateMapMarkers(searchText = '') {
         const pt = addr.problem_tags && addr.problem_tags.length > 0 ? `<div style="color:#ef4444;font-size:11px;margin-top:4px">⚠️ ${addr.problem_tags.join(', ')}</div>` : '';
         const pb = addr.payment_status ? `<div style="display:inline-block;background:#e5e7eb;padding:2px 6px;border-radius:3px;font-size:10px;margin-top:4px">${formatPaymentStatus(addr.payment_status)}</div>` : '';
         const waBadge = addr.whatsapp ? `<div style="margin-top:4px;font-size:11px;color:#25D366">📱 ${formatWhatsAppDisplay(addr.whatsapp)}</div>` : '';
-        marker.bindPopup(`<div style="font-size:13px;min-width:150px"><strong>${addr.recipient_name}</strong><br>${addr.gang || ''} ${addr.house_number || ''}<br><small style="color:#666">${addr.landmark || addr.address || ''}</small>${waBadge}${pb}${pt}<div style="margin-top:6px;font-size:11px;color:#999">Kunjungan: ${addr.visit_count || 1}x</div><div style="margin-top:6px;text-align:center;font-size:12px"><strong style="color:#2563eb;cursor:pointer" onclick="showAddressDetail('${addr.id}')">👉 Lihat Detail</strong></div></div>`);
+        marker.bindPopup(`<div style="font-size:13px;min-width:150px"><strong>${addr.recipient_name}</strong><br>${addr.gang || ''} ${addr.house_number || ''}${addr.rt ? `<br>RT ${addr.rt} / RW ${addr.rw}` : ''}${addr.kelurahan ? `<br>Kel. ${addr.kelurahan}` : ''}<br><small style="color:#666">${addr.landmark || addr.address || ''}</small>${waBadge}${pb}${pt}<div style="margin-top:6px;font-size:11px;color:#999">Kunjungan: ${addr.visit_count || 1}x</div><div style="margin-top:6px;text-align:center;font-size:12px"><strong style="color:#2563eb;cursor:pointer" onclick="showAddressDetail('${addr.id}')">👉 Lihat Detail</strong></div></div>`);
         marker.on('click', () => showAddressDetail(addr.id));
     });
     if (isSearching && firstSearchResult) map.flyTo([firstSearchResult.latitude, firstSearchResult.longitude], 16, { duration: 0.8 });
@@ -908,12 +970,49 @@ async function checkDuplicate(latitude, longitude, newAddress) {
     return null;
 }
 
+// ============ PARSER ALAMAT ============
+function parseAddressFields() {
+    const address = document.getElementById('form-address').value;
+    const rtInput = document.getElementById('form-rt');
+    const rwInput = document.getElementById('form-rw');
+    const kelInput = document.getElementById('form-kelurahan');
+
+    // Parse RT/RW: RT. 001/RW. 002, RT 01 RW 02, 01/02
+    const rtRwMatch = address.match(/(?:RT\.?|RT)\s*(\d{1,3})\s*[\/\-]?\s*(?:RW\.?|RW)\s*(\d{1,3})/i) || address.match(/\b(\d{1,3})\s*[\/\-]\s*(\d{1,3})\b/);
+    if (rtRwMatch) {
+        if (!rtInput.value) rtInput.value = rtRwMatch[1];
+        if (!rwInput.value) rwInput.value = rtRwMatch[2];
+    }
+
+    // Parse Kelurahan (mencari kata "Kel." atau "Kelurahan")
+    const kelMatch = address.match(/(?:Kel\.?|Kelurahan)\s*([a-zA-Z\s]+)/i);
+    if (kelMatch && !kelInput.value) {
+        kelInput.value = kelMatch[1].trim().split(',')[0];
+    }
+
+    // Tambahan: coba ambil kelurahan sebelum "Kec." atau "Kecamatan" jika belum terisi
+    if (!kelInput.value) {
+        const parts = address.split(',');
+        if (parts.length >= 2) {
+            for (let i = 0; i < parts.length; i++) {
+                if (parts[i].toUpperCase().includes('RT') || parts[i].toUpperCase().includes('RW')) {
+                    if (i + 1 < parts.length) {
+                        kelInput.value = parts[i + 1].replace(/Kel\.?|Kelurahan/i, '').trim();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ============ SEARCH HELPERS ============
 function normalizeSearchText(s) {
     return String(s || '')
         .toLowerCase()
         .replace(/\b(gg|gg\.|gang)\b/g, 'gang')
         .replace(/\b(no|nomor|nomer)\b/g, 'no')
+        .replace(/\b(rt|rw)\b/g, '') // hapus prefix rt/rw saat search
         .replace(/[^\w\s]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
@@ -924,9 +1023,11 @@ function buildSearchHaystack(addr) {
     const nomor = addr.house_number || '';
     const parts = [
         addr.recipient_name || '',
-        addr.whatsapp || '',
         gang,
         nomor,
+        addr.rt || '',
+        addr.rw || '',
+        addr.kelurahan || '',
         `${gang} ${nomor}`,
         `${gang}${nomor}`,
         addr.address || '',
@@ -1211,6 +1312,9 @@ function resetRecordForm() {
     document.getElementById('form-whatsapp').value = '';
     document.getElementById('form-gang').value = '';
     document.getElementById('form-house-number').value = '';
+    document.getElementById('form-rt').value = '';
+    document.getElementById('form-rw').value = '';
+    document.getElementById('form-kelurahan').value = '';
     document.getElementById('form-address').value = '';
     document.getElementById('form-landmark').value = '';
     document.getElementById('form-payment').value = 'belum';
@@ -1235,8 +1339,12 @@ async function saveRecord() {
     const na = {
         recipient_name: name, latitude: currentLocation.latitude, longitude: currentLocation.longitude,
         whatsapp: waRaw ? normalizeWhatsApp(waRaw) : '',
-        address: document.getElementById('form-address').value, gang: document.getElementById('form-gang').value,
+        gang: document.getElementById('form-gang').value,
         house_number: document.getElementById('form-house-number').value,
+        rt: document.getElementById('form-rt').value.trim(),
+        rw: document.getElementById('form-rw').value.trim(),
+        kelurahan: document.getElementById('form-kelurahan').value.trim(),
+        address: document.getElementById('form-address').value,
         landmark: document.getElementById('form-landmark').value,
         description: document.getElementById('form-description').value,
         payment_status: document.getElementById('form-payment').value,
@@ -1286,7 +1394,11 @@ async function showAddressDetail(id) {
     if (address.whatsapp) {
         html += `<div class="form-group"><label>📱 WhatsApp</label><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-family:monospace;font-weight:600">${formatWhatsAppDisplay(address.whatsapp)}</span><button type="button" class="btn-wa" style="border:none;cursor:pointer;font-family:inherit" onclick="openWAChat('${address.whatsapp}')">💬 Chat WA</button></div></div>`;
     }
-    html += `<div class="form-group"><label>Gang</label><div>${address.gang || '-'}</div></div><div class="form-group"><label>Nomor Rumah</label><div>${address.house_number || '-'}</div></div><div class="form-group"><label>Alamat Lengkap</label><div style="white-space:pre-wrap;font-size:13px">${address.address || '-'}</div></div><div class="form-group"><label>Patokan/Landmark</label><div>${address.landmark || '-'}</div></div><div class="form-group"><label>Status Pembayaran</label><div><span class="tag">${formatPaymentStatus(address.payment_status)}</span></div></div><div class="form-group"><label>Tipe Lokasi</label><div><span class="tag">${formatLocationType(address.location_type)}</span></div></div>`;
+    html += `<div class="form-group"><label>Gang / No. Rumah</label><div>${address.gang || '-'} ${address.house_number ? 'No. ' + address.house_number : ''}</div></div>`;
+    if (address.rt || address.rw || address.kelurahan) {
+        html += `<div class="form-group"><label>RT / RW / Kelurahan</label><div>${address.rt ? 'RT ' + address.rt : ''} ${address.rw ? '/ RW ' + address.rw : ''} ${address.kelurahan ? '<br>Kel. ' + address.kelurahan : ''}</div></div>`;
+    }
+    html += `<div class="form-group"><label>Alamat Lengkap</label><div style="white-space:pre-wrap;font-size:13px">${address.address || '-'}</div></div><div class="form-group"><label>Patokan/Landmark</label><div>${address.landmark || '-'}</div></div><div class="form-group"><label>Status Pembayaran</label><div><span class="tag">${formatPaymentStatus(address.payment_status)}</span></div></div><div class="form-group"><label>Tipe Lokasi</label><div><span class="tag">${formatLocationType(address.location_type)}</span></div></div>`;
     const dp = extractAddressPhotos(address);
     if (dp.length > 0) html += `<div class="form-group"><label>📸 Foto Alamat (${dp.length})</label><div style="display:flex;gap:6px;flex-wrap:wrap">${dp.map((p) => `<div style="width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--border);background:var(--bg-alt);flex-shrink:0"><img src="${p}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none"></div>`).join('')}</div><small style="color:var(--text-light);font-size:10px;margin-top:6px">Thumbnail saja</small></div>`;
     if (address.recipients && address.recipients.length > 0) {
@@ -1452,7 +1564,7 @@ async function executeSplitRecipient(addrId) {
             const rec = addr.recipients.find(r => r.name === name);
             if (!rec) continue;
             const now = Date.now() + Math.floor(Math.random() * 1000);
-            const na = { id: 'addr_' + now + '_' + Math.random().toString(36).substr(2, 9), latitude: addr.latitude, longitude: addr.longitude, address: addr.address || '', gang: addr.gang || '', house_number: addr.house_number || '', landmark: addr.landmark || '', description: addr.description || '', whatsapp: addr.whatsapp || '', payment_status: addr.payment_status || 'belum', location_type: addr.location_type || 'jelas', problem_tags: [...(addr.problem_tags || [])], recipient_name: rec.name, recipients: [{ name: rec.name, status: rec.status || 'berhasil', photo: rec.photo || null, photo_ref: rec.photo_ref || null, added_at: rec.added_at || new Date().toISOString() }], delivery_status: rec.status || 'berhasil', photos: [...ap], photo: ap[0] || null, photo_ref: ap.length > 0 ? `addr-${now}.jpg` : null, visit_count: 0, last_visit_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), history: [{ date: new Date().toISOString(), status: 'split', notes: `✂️ Dipisahkan dari: ${addr.recipient_name || '?'}` }], raw_voice_note: '' };
+            const na = { id: 'addr_' + now + '_' + Math.random().toString(36).substr(2, 9), latitude: addr.latitude, longitude: addr.longitude, address: addr.address || '', gang: addr.gang || '', house_number: addr.house_number || '', rt: addr.rt || '', rw: addr.rw || '', kelurahan: addr.kelurahan || '', landmark: addr.landmark || '', description: addr.description || '', whatsapp: addr.whatsapp || '', payment_status: addr.payment_status || 'belum', location_type: addr.location_type || 'jelas', problem_tags: [...(addr.problem_tags || [])], recipient_name: rec.name, recipients: [{ name: rec.name, status: rec.status || 'berhasil', photo: rec.photo || null, photo_ref: rec.photo_ref || null, added_at: rec.added_at || new Date().toISOString() }], delivery_status: rec.status || 'berhasil', photos: [...ap], photo: ap[0] || null, photo_ref: ap.length > 0 ? `addr-${now}.jpg` : null, visit_count: 0, last_visit_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), history: [{ date: new Date().toISOString(), status: 'split', notes: `✂️ Dipisahkan dari: ${addr.recipient_name || '?'}` }], raw_voice_note: '' };
             await saveAddress(na);
             sc++;
         }
@@ -1686,7 +1798,7 @@ function exportRouteKML() {
         const st = i === 0 ? 's' : i === route.length - 1 ? 'e' : 'w';
         const nm = i === 0 ? 'START' : i === route.length - 1 ? 'END' : `${i}`;
         const rec = (addr.recipient_name || '').replace(/[<>&'"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
-        const det = [addr.gang, addr.house_number, addr.landmark].filter(Boolean).join(' · ');
+        const det = [addr.gang, addr.house_number, addr.rt ? `RT ${addr.rt}/RW ${addr.rw}` : '', addr.kelurahan ? `Kel. ${addr.kelurahan}` : '', addr.landmark].filter(Boolean).join(' · ');
         kml += `<Placemark><name>${nm} - ${rec}</name><description>${det}</description><styleUrl>#${st}</styleUrl><Point><coordinates>${addr.longitude},${addr.latitude},0</coordinates></Point></Placemark>\n`;
     });
     kml += `<Placemark><name>Jalur</name><styleUrl>#r</styleUrl><LineString><tessellate>1</tessellate><coordinates>${route.map(a => `${a.longitude},${a.latitude},0`).join(' ')}</coordinates></LineString></Placemark>\n</Document>\n</kml>`;
@@ -1706,7 +1818,7 @@ function exportRouteGPX() {
     gpx += `</trkseg></trk>\n`;
     route.forEach((a, i) => {
         const nm = ((i === 0 ? 'START - ' : i === route.length - 1 ? 'END - ' : `${i}. `) + (a.recipient_name || 'Alamat')).replace(/[<>&'"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
-        const det = [a.gang, a.house_number, a.landmark].filter(Boolean).join(' · ');
+        const det = [a.gang, a.house_number, a.rt ? `RT ${a.rt}/RW ${a.rw}` : '', a.kelurahan ? `Kel. ${a.kelurahan}` : '', a.landmark].filter(Boolean).join(' · ');
         gpx += `<wpt lat="${a.latitude}" lon="${a.longitude}"><name>${nm}</name><desc>${det}</desc></wpt>\n`;
     });
     gpx += `</gpx>`;
@@ -1724,7 +1836,7 @@ async function copyRouteCoords() {
     let text = `📍 Rute Kurir-Q (${route.length} titik)\nDibuat: ${new Date().toLocaleString('id-ID')}\n\n`;
     route.forEach((a, i) => {
         const lb = i === 0 ? 'START' : i === route.length - 1 ? 'END' : `${i}`;
-        const det = [a.gang, a.house_number, a.landmark].filter(Boolean).join(' · ');
+        const det = [a.gang, a.house_number, a.rt ? `RT ${a.rt}/RW ${a.rw}` : '', a.kelurahan ? `Kel. ${a.kelurahan}` : '', a.landmark].filter(Boolean).join(' · ');
         text += `${lb}. ${a.recipient_name || 'Alamat'}${det ? ' (' + det + ')' : ''}\n   ${a.latitude.toFixed(6)}, ${a.longitude.toFixed(6)}\n`;
     });
     try { await navigator.clipboard.writeText(text); showModal('Sukses', `✓ ${route.length} koordinat disalin!`); }
@@ -1775,6 +1887,9 @@ async function editAddress() {
     document.getElementById('form-whatsapp').value = address.whatsapp || '';
     document.getElementById('form-gang').value = address.gang || '';
     document.getElementById('form-house-number').value = address.house_number || '';
+    document.getElementById('form-rt').value = address.rt || '';
+    document.getElementById('form-rw').value = address.rw || '';
+    document.getElementById('form-kelurahan').value = address.kelurahan || '';
     document.getElementById('form-address').value = address.address || '';
     document.getElementById('form-landmark').value = address.landmark || '';
     document.getElementById('form-payment').value = address.payment_status || 'belum';
@@ -1793,6 +1908,9 @@ async function updateAddress() {
     address.whatsapp = waRaw ? normalizeWhatsApp(waRaw) : '';
     address.gang = document.getElementById('form-gang').value;
     address.house_number = document.getElementById('form-house-number').value;
+    address.rt = document.getElementById('form-rt').value.trim();
+    address.rw = document.getElementById('form-rw').value.trim();
+    address.kelurahan = document.getElementById('form-kelurahan').value.trim();
     address.address = document.getElementById('form-address').value;
     address.landmark = document.getElementById('form-landmark').value;
     address.description = document.getElementById('form-description').value;
@@ -1815,7 +1933,7 @@ async function updateAddress() {
 async function deleteCurrentAddress() { showConfirmModal('Hapus Alamat', 'Yakin hapus alamat ini?', async () => { await deleteAddress(currentDetailId); document.getElementById('detail-sheet').classList.remove('active'); updateMapMarkers(); updateAddressList(); showModal('Sukses', '✓ Alamat dihapus!'); }); }
 async function recordVisit() { const a = await getAddressById(currentDetailId); if (!a.history) a.history = []; a.history.push({ date: new Date().toISOString(), status: 'berhasil' }); a.visit_count = (a.visit_count || 0) + 1; a.last_visit_at = new Date().toISOString(); await saveAddress(a); showAddressDetail(currentDetailId); showModal('Sukses', '✓ Kunjungan tercatat!'); }
 
-// ============ NAVIGASI (FIXED) ============
+// ============ NAVIGASI ============
 async function navigateToAddress() {
     const a = await getAddressById(currentDetailId);
     if (!a) return;
@@ -1823,7 +1941,7 @@ async function navigateToAddress() {
     document.getElementById('modal-content').innerHTML = `
         <h2>🧭 Navigasi ke ${name}</h2>
         <div style="background:var(--bg-alt);padding:10px;border-radius:6px;font-size:12px;color:var(--text-light);line-height:1.5;margin-bottom:16px">
-            📍 ${a.gang || ''} ${a.house_number || ''}${a.landmark ? ' · ' + a.landmark : ''}
+            📍 ${a.gang || ''} ${a.house_number || ''}${a.rt ? `<br>RT ${a.rt}/RW ${a.rw}` : ''}${a.kelurahan ? `<br>Kel. ${a.kelurahan}` : ''}${a.landmark ? `<br>(${a.landmark})` : ''}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
             <button class="btn-primary" style="padding:12px;text-align:left;font-size:14px" onclick="doNavigate('gmaps')">🗺️ Google Maps (Rute)</button>
@@ -1876,7 +1994,7 @@ async function shareAddress() {
     const a = await getAddressById(currentDetailId);
     if (!a) return;
     const lat = a.latitude, lon = a.longitude, name = a.recipient_name || 'Alamat';
-    const det = [a.gang, a.house_number, a.landmark].filter(Boolean).join(' · ');
+    const det = [a.gang, a.house_number, a.rt ? `RT ${a.rt}/RW ${a.rw}` : '', a.kelurahan ? `Kel. ${a.kelurahan}` : '', a.landmark].filter(Boolean).join(' · ');
     document.getElementById('modal-content').innerHTML = `<h2>📤 Bagikan Lokasi</h2><div class="info-box" style="margin:12px 0"><strong>${name}</strong><br>${det || '-'}<br>${a.whatsapp ? '📱 ' + formatWhatsAppDisplay(a.whatsapp) + '<br>' : ''}<small style="color:var(--text-light);font-family:monospace">${lat.toFixed(6)}, ${lon.toFixed(6)}</small></div><div style="display:flex;flex-direction:column;gap:8px"><button class="btn-primary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('native')">📱 Bagikan (Semua App)</button>${a.whatsapp ? `<button class="btn-wa" style="padding:12px;text-align:left;font-size:14px;width:100%" onclick="doShare('wa_direct')">💬 Chat WA Langsung</button>` : ''}<button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('gmaps')">🗺️ Google Maps</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('waze')">🚗 Waze</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('whatsapp')">💬 Share ke WhatsApp</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('telegram')">✈️ Telegram</button><button class="btn-secondary" style="padding:12px;text-align:left;font-size:14px" onclick="doShare('copy_coords')">📋 Copy Koordinat</button></div><div class="modal-buttons" style="margin-top:12px"><button class="btn-secondary" onclick="closeModal()" style="flex:1">Tutup</button></div>`;
     document.getElementById('modal').classList.add('active');
 }
@@ -1884,7 +2002,7 @@ async function doShare(type) {
     const a = await getAddressById(currentDetailId);
     if (!a) return;
     const lat = a.latitude, lon = a.longitude, name = a.recipient_name || 'Alamat';
-    const det = [a.gang, a.house_number, a.landmark].filter(Boolean).join(' · ');
+    const det = [a.gang, a.house_number, a.rt ? `RT ${a.rt}/RW ${a.rw}` : '', a.kelurahan ? `Kel. ${a.kelurahan}` : '', a.landmark].filter(Boolean).join(' · ');
     const gm = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
     const wz = `https://waze.com/ul?ll=${lat},${lon}&navigate=yes`;
     const ct = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
@@ -1964,6 +2082,63 @@ async function clearTileCache() {
 }
 async function refreshTileCache() {
     updateCacheInfo();
+}
+
+// ============ GPS DEBUG ============
+async function runGPSDebug() {
+    let info = [];
+    info.push('=== ENVIRONMENT ===');
+    info.push(`User Agent: ${navigator.userAgent.substring(0, 100)}...`);
+    info.push(`Android: ${navigator.userAgent.includes('Android') ? 'YES' : 'NO'}`);
+    info.push(`Capacitor: ${window.Capacitor ? 'ADA' : 'TIDAK ADA'}`);
+    if (window.Capacitor) {
+        try {
+            const isNative = typeof window.Capacitor.isNativePlatform === 'function' ? window.Capacitor.isNativePlatform() : 'unknown';
+            info.push(`isNativePlatform(): ${isNative}`);
+            if (typeof window.Capacitor.getPlatform === 'function') info.push(`getPlatform(): ${window.Capacitor.getPlatform()}`);
+            const plugins = Object.keys(window.Capacitor.Plugins || {});
+            info.push(`Plugins (${plugins.length}): ${plugins.join(', ') || '(kosong)'}`);
+            info.push(`registerPlugin: ${typeof window.Capacitor.registerPlugin === 'function' ? 'ADA' : 'TIDAK ADA'}`);
+            if (typeof window.Capacitor.registerPlugin === 'function') {
+                try {
+                    const G = window.Capacitor.registerPlugin('Geolocation');
+                    info.push(`registerPlugin('Geolocation'): ${G ? 'BERHASIL' : 'GAGAL'}`);
+                    if (G) info.push(`  .getCurrentPosition: ${typeof G.getCurrentPosition}`);
+                    if (G) info.push(`  .requestPermissions: ${typeof G.requestPermissions}`);
+                } catch (e) { info.push(`registerPlugin error: ${e.message}`); }
+            }
+        } catch (e) { info.push(`Capacitor error: ${e.message}`); }
+    }
+    info.push('');
+    info.push('=== TEST navigator.geolocation ===');
+    await new Promise((resolve) => {
+        const timeout = setTimeout(() => { info.push('TIMEOUT (6s) - tidak ada response'); resolve(); }, 6000);
+        navigator.geolocation.getCurrentPosition(
+            (p) => { clearTimeout(timeout); info.push(`SUKSES: lat=${p.coords.latitude.toFixed(6)}, lng=${p.coords.longitude.toFixed(6)}, acc=${p.coords.accuracy}`); resolve(); },
+            (e) => { clearTimeout(timeout); info.push(`ERROR code=${e.code}: ${e.message || 'no message'}`); resolve(); },
+            { enableHighAccuracy: true, timeout: 5000 }
+        );
+    });
+    info.push('');
+    info.push('=== TEST Capacitor Geolocation langsung ===');
+    if (window.Capacitor && typeof window.Capacitor.registerPlugin === 'function') {
+        try {
+            const G = window.Capacitor.registerPlugin('Geolocation');
+            if (G && G.requestPermissions) {
+                const perm = await G.requestPermissions();
+                info.push(`requestPermissions: ${JSON.stringify(perm)}`);
+                if (perm.location === 'granted' || perm.coarseLocation === 'granted') {
+                    const pos = await G.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+                    info.push(`getCurrentPosition: lat=${pos.coords.latitude.toFixed(6)}, lng=${pos.coords.longitude.toFixed(6)}`);
+                }
+            }
+        } catch (e) { info.push(`Capacitor GPS error: ${e.message}`); }
+    } else {
+        info.push('Tidak bisa test - registerPlugin tidak tersedia');
+    }
+    const txt = info.join('\n');
+    document.getElementById('modal-content').innerHTML = `<h2>📍 GPS Debug</h2><textarea readonly style="width:100%;height:400px;font-family:monospace;font-size:11px;padding:8px;border:1px solid var(--border);border-radius:4px;box-sizing:border-box;background:var(--bg-alt);color:var(--text)">${txt}</textarea><div class="modal-buttons" style="margin-top:12px"><button class="btn-secondary" onclick="navigator.clipboard.writeText(document.querySelector('#modal-content textarea').value);alert('Tersalin!')" style="flex:1">📋 Copy</button><button class="btn-primary" onclick="closeModal()" style="flex:1">Tutup</button></div>`;
+    document.getElementById('modal').classList.add('active');
 }
 
 // ============ ROUTING STATUS ============
@@ -2093,7 +2268,10 @@ async function updateAddressList() {
         const ap = extractAddressPhotos(a);
         const th = ap.length > 0 ? ap[0] : null;
         const waLine = a.whatsapp ? `<div style="color:#25D366;margin-top:2px">📱 ${formatWhatsAppDisplay(a.whatsapp)}</div>` : '';
-        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck ? 'checked' : ''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th ? `<img data-lazy="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">` : ''}<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang || ''} ${a.house_number || ''}${a.gang || a.house_number ? '<br>' : ''}${a.landmark || a.address || ''}</div>${waLine}<div class="address-item-meta">📍 ${formatDate(a.last_visit_at || a.created_at)} · ${a.visit_count || 1}x · ${rc} penerima${ap.length > 1 ? ` · ${ap.length} foto` : ''}</div></div>`;
+        const rtRw = (a.rt || a.rw) ? `RT ${a.rt || '-'}/RW ${a.rw || '-'}` : '';
+        const kel = a.kelurahan ? `Kel. ${a.kelurahan}` : '';
+        const detailLine = [rtRw, kel].filter(Boolean).join(' · ');
+        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck ? 'checked' : ''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th ? `<img data-lazy="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">` : ''}<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang || ''} ${a.house_number || ''}${detailLine ? `<br>${detailLine}` : ''}${a.landmark || a.address ? `<br>${a.landmark || a.address}` : ''}</div>${waLine}<div class="address-item-meta">📍 ${formatDate(a.last_visit_at || a.created_at)} · ${a.visit_count || 1}x · ${rc} penerima${ap.length > 1 ? ` · ${ap.length} foto` : ''}</div></div>`;
     }).join('');
     requestAnimationFrame(() => {
         document.querySelectorAll('#address-list img[data-lazy]').forEach(img => {
@@ -2117,8 +2295,8 @@ async function exportJSON() {
 async function exportCSV() {
     const addresses = await getAllAddresses();
     if (addresses.length === 0) { showModal('Info', '⚠️ Tidak ada data'); return; }
-    const h = ['id', 'nama', 'no_wa', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan', 'delivery_status', 'penerima_lain'];
-    const rows = addresses.map(a => [a.id, a.recipient_name, a.whatsapp || '', a.gang, a.house_number, a.address, a.latitude, a.longitude, a.landmark, a.payment_status, (a.problem_tags || []).join('; '), a.location_type, a.visit_count || 1, formatDate(a.last_visit_at || a.created_at), a.description, a.delivery_status, (a.recipients || []).filter(r => r.name !== a.recipient_name).map(r => `${r.name}:${r.status}`).join('; ')]);
+    const h = ['id', 'nama', 'no_wa', 'gang', 'nomor', 'rt', 'rw', 'kelurahan', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan', 'delivery_status', 'penerima_lain'];
+    const rows = addresses.map(a => [a.id, a.recipient_name, a.whatsapp || '', a.gang, a.house_number, a.rt || '', a.rw || '', a.kelurahan || '', a.address, a.latitude, a.longitude, a.landmark, a.payment_status, (a.problem_tags || []).join('; '), a.location_type, a.visit_count || 1, formatDate(a.last_visit_at || a.created_at), a.description, a.delivery_status, (a.recipients || []).filter(r => r.name !== a.recipient_name).map(r => `${r.name}:${r.status}`).join('; ')]);
     let csv = h.join(',') + '\n';
     rows.forEach(r => { csv += r.map(c => (typeof c === 'string' && (c.includes(',') || c.includes('"') || c.includes('\n'))) ? '"' + c.replace(/"/g, '""') + '"' : (c || '')).join(',') + '\n'; });
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
@@ -2137,8 +2315,8 @@ async function exportShortCSV() {
         return true;
     });
     if (fl.length === 0) { showModal('Info', '⚠️ Tidak ada data'); return; }
-    const h = ['id', 'nama', 'no_wa', 'gang', 'nomor', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan'];
-    const rows = fl.map(a => [a.id, a.recipient_name, a.whatsapp || '', a.gang, a.house_number, a.address, a.latitude, a.longitude, a.landmark, a.payment_status, (a.problem_tags || []).join('; '), a.location_type, a.visit_count || 1, formatDate(a.last_visit_at || a.created_at), a.description]);
+    const h = ['id', 'nama', 'no_wa', 'gang', 'nomor', 'rt', 'rw', 'kelurahan', 'alamat', 'latitude', 'longitude', 'patokan', 'status_pembayaran', 'masalah', 'tipe_lokasi', 'visit_count', 'kunjungan_terakhir', 'catatan'];
+    const rows = fl.map(a => [a.id, a.recipient_name, a.whatsapp || '', a.gang, a.house_number, a.rt || '', a.rw || '', a.kelurahan || '', a.address, a.latitude, a.longitude, a.landmark, a.payment_status, (a.problem_tags || []).join('; '), a.location_type, a.visit_count || 1, formatDate(a.last_visit_at || a.created_at), a.description]);
     let csv = h.join(',') + '\n';
     rows.forEach(r => { csv += r.map(c => (typeof c === 'string' && (c.includes(',') || c.includes('"'))) ? '"' + c.replace(/"/g, '""') + '"' : (c || '')).join(',') + '\n'; });
     let fn = 'kurir-q-export';
@@ -2151,10 +2329,10 @@ async function exportShortCSV() {
     showModal('Sukses', `✓ ${fl.length} data diexport`);
 }
 function exportCSVTemplate() {
-    const t = `id,nama,no_wa,gang,nomor,alamat,patokan,status_pembayaran,tipe_lokasi,catatan
-,Yeyen,(+62)085156395041,,,"Jalan Aselih No.52, RT.016/RW.1, Cipedak, Jakarta Selatan",,,,Sedang diproses
-,Pak Budi,628123456789,Gang 4,27,"Gang 4 No.27 Cipedak",Pagar hitam,cod,,COD normal
-,Bu Siti,08123456789,Gang 2,15,"Gang 2 No.15 Cipedak",Sebelah toko roti,transfer,jelas,`;
+    const t = `id,nama,no_wa,gang,nomor,rt,rw,kelurahan,alamat,patokan,status_pembayaran,tipe_lokasi,catatan
+,Yeyen,(+62)085156395041,,,001,002,Cipedak,"Jalan Aselih No.52, Cipedak, Jakarta Selatan",,,,Sedang diproses
+,Pak Budi,628123456789,Gang 4,27,003,004,Cipedak,"Gang 4 No.27 Cipedak",Pagar hitam,cod,,COD normal
+,Bu Siti,08123456789,Gang 2,15,005,006,Cipedak,"Gang 2 No.15 Cipedak",Sebelah toko roti,transfer,jelas,`;
     const url = URL.createObjectURL(new Blob([t], { type: 'text/csv;charset=utf-8;' }));
     const l = document.createElement('a'); l.href = url; l.download = `kurir-q-template.csv`; l.click();
     URL.revokeObjectURL(url);
@@ -2165,7 +2343,7 @@ Kolom WAJIB:
 
 Kolom OPSIONAL:
 • id — biarkan kosong untuk data baru
-• no_wa, gang, nomor, alamat, patokan
+• no_wa, gang, nomor, rt, rw, kelurahan, alamat, patokan
 • status_pembayaran — cod / transfer / belum
 • tipe_lokasi — jelas / nitip / sulit / patokan
 • catatan
@@ -2250,7 +2428,7 @@ document.getElementById('file-import-csv').addEventListener('change', (e) => {
                 if (!nm.trim()) continue;
                 const rawId = g('id', 0).trim();
                 const waRaw = g('no_wa', 2) || g('whatsapp', 2) || g('wa', 2) || '';
-                const rl = g('penerima_lain', 15) || g('recipients', 15) || '';
+                const rl = g('penerima_lain', 19) || g('recipients', 19) || ''; // index berubah karena tambah kolom
                 const ar = rl.split(';').map(x => x.trim()).filter(x => x).map(x => { const p = x.split(':'); return { name: p[0].trim(), status: (p[1] || 'belum selesai').trim(), added_at: new Date().toISOString() }; });
                 const recs = [{ name: nm, status: 'belum selesai', added_at: new Date().toISOString() }, ...ar];
                 const ur = [], seen = new Set();
@@ -2261,15 +2439,18 @@ document.getElementById('file-import-csv').addEventListener('change', (e) => {
                     whatsapp: waRaw ? normalizeWhatsApp(waRaw) : '',
                     gang: g('gang', 3),
                     house_number: g('nomor', 4) || g('house', 4),
-                    address: g('alamat', 5) || g('address', 5),
-                    latitude: parseFloat(g('latitude', 6)) || 0,
-                    longitude: parseFloat(g('longitude', 7)) || 0,
-                    landmark: g('patokan', 8) || g('landmark', 8),
-                    payment_status: g('status_pembayaran', 9) || g('payment', 9) || 'belum',
-                    problem_tags: (g('masalah', 10) || '').split(';').map(t => t.trim()).filter(t => t),
-                    location_type: g('tipe_lokasi', 11) || g('type', 11) || 'jelas',
+                    rt: g('rt', 5),
+                    rw: g('rw', 6),
+                    kelurahan: g('kelurahan', 7),
+                    address: g('alamat', 8) || g('address', 8),
+                    latitude: parseFloat(g('latitude', 9)) || 0,
+                    longitude: parseFloat(g('longitude', 10)) || 0,
+                    landmark: g('patokan', 11) || g('landmark', 11),
+                    payment_status: g('status_pembayaran', 12) || g('payment', 12) || 'belum',
+                    problem_tags: (g('masalah', 13) || '').split(';').map(t => t.trim()).filter(t => t),
+                    location_type: g('tipe_lokasi', 14) || g('type', 14) || 'jelas',
                     visit_count: 1,
-                    description: g('catatan', 14) || g('description', 14) || '',
+                    description: g('catatan', 17) || g('description', 17) || '',
                     delivery_status: 'belum selesai',
                     recipients: ur,
                     created_at: new Date().toISOString(),
@@ -2400,7 +2581,7 @@ async function processCSVImport(count) {
     const ex = await getAllAddresses();
     let up = 0, add = 0, deleted = 0;
     const upBy = { id: 0, namaWa: 0, nama: 0, wa: 0 };
-    const filled = { wa: 0, alamat: 0, gang: 0, nomor: 0, patokan: 0, catatan: 0 };
+    const filled = { wa: 0, alamat: 0, gang: 0, nomor: 0, rt: 0, rw: 0, kelurahan: 0, patokan: 0, catatan: 0 };
     const touchedIds = new Set();
 
     const isEmpty = (v) => !v || String(v).trim() === '' || v === 0;
@@ -2474,6 +2655,9 @@ async function processCSVImport(count) {
             if (isEmpty(e.address) && !isEmpty(na.address)) { e.address = na.address; filled.alamat++; }
             if (isEmpty(e.gang) && !isEmpty(na.gang)) { e.gang = na.gang; filled.gang++; }
             if (isEmpty(e.house_number) && !isEmpty(na.house_number)) { e.house_number = na.house_number; filled.nomor++; }
+            if (isEmpty(e.rt) && !isEmpty(na.rt)) { e.rt = na.rt; filled.rt++; }
+            if (isEmpty(e.rw) && !isEmpty(na.rw)) { e.rw = na.rw; filled.rw++; }
+            if (isEmpty(e.kelurahan) && !isEmpty(na.kelurahan)) { e.kelurahan = na.kelurahan; filled.kelurahan++; }
             if (isEmpty(e.landmark) && !isEmpty(na.landmark)) { e.landmark = na.landmark; filled.patokan++; }
             if (isEmpty(e.description) && !isEmpty(na.description)) { e.description = na.description; filled.catatan++; }
 
@@ -2574,6 +2758,9 @@ async function processCSVImport(count) {
     if (filled.alamat > 0)  fInfo.push(`alamat:${filled.alamat}`);
     if (filled.gang > 0)    fInfo.push(`gang:${filled.gang}`);
     if (filled.nomor > 0)   fInfo.push(`nomor:${filled.nomor}`);
+    if (filled.rt > 0)      fInfo.push(`RT:${filled.rt}`);
+    if (filled.rw > 0)      fInfo.push(`RW:${filled.rw}`);
+    if (filled.kelurahan > 0) fInfo.push(`Kel:${filled.kelurahan}`);
     if (filled.patokan > 0) fInfo.push(`patokan:${filled.patokan}`);
     if (filled.catatan > 0) fInfo.push(`catatan:${filled.catatan}`);
     if (fInfo.length > 0) lines.push(`📝 Field kosong diisi → ${fInfo.join(', ')}`);
@@ -2793,6 +2980,7 @@ document.getElementById('clear-cache-btn').addEventListener('click', clearTileCa
 document.getElementById('download-offline-map-btn').addEventListener('click', openOfflineMapDownloader);
 document.getElementById('set-apikey-btn').addEventListener('click', showApiKeySettingsModal);
 document.getElementById('routing-status-btn').addEventListener('click', showRoutingProviderStatus);
+document.getElementById('gps-debug-btn').addEventListener('click', runGPSDebug);
 
 // ============ PHOTO HANDLERS ============
 function attachAddressPhotoHandlers() {
@@ -2839,9 +3027,9 @@ async function init() {
         if (addresses.length === 0 && !localStorage.getItem('kurirq_seeded')) {
             localStorage.setItem('kurirq_seeded', '1');
             const demo = [
-                { recipient_name: 'Pak Budi', gang: 'Gang 4', house_number: '27', landmark: 'Pagar hitam', latitude: -6.2088, longitude: 106.8650, whatsapp: '628123456789', payment_status: 'cod', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Pak Budi', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
-                { recipient_name: 'Bu Siti', gang: 'Gang 2', house_number: '15', landmark: 'Sebelah toko roti', latitude: -6.2100, longitude: 106.8700, whatsapp: '628987654321', payment_status: 'cod-transfer', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Bu Siti', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
-                { recipient_name: 'Pak Ahmad', gang: 'Gang 5', house_number: '8', landmark: 'Rumah hijau', latitude: -6.2050, longitude: 106.8600, whatsapp: '628555555555', payment_status: 'transfer', location_type: 'sulit', problem_tags: ['Sulit ditemukan'], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Pak Ahmad', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] }
+                { recipient_name: 'Pak Budi', gang: 'Gang 4', house_number: '27', rt: '001', rw: '002', kelurahan: 'Cipedak', landmark: 'Pagar hitam', latitude: -6.2088, longitude: 106.8650, whatsapp: '628123456789', payment_status: 'cod', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Pak Budi', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
+                { recipient_name: 'Bu Siti', gang: 'Gang 2', house_number: '15', rt: '003', rw: '004', kelurahan: 'Cipedak', landmark: 'Sebelah toko roti', latitude: -6.2100, longitude: 106.8700, whatsapp: '628987654321', payment_status: 'cod-transfer', location_type: 'jelas', problem_tags: [], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Bu Siti', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] },
+                { recipient_name: 'Pak Ahmad', gang: 'Gang 5', house_number: '8', rt: '005', rw: '006', kelurahan: 'Cipedak', landmark: 'Rumah hijau', latitude: -6.2050, longitude: 106.8600, whatsapp: '628555555555', payment_status: 'transfer', location_type: 'sulit', problem_tags: ['Sulit ditemukan'], visit_count: 1, delivery_status: 'berhasil', recipients: [{ name: 'Pak Ahmad', status: 'berhasil', added_at: new Date().toISOString() }], history: [{ date: new Date().toISOString(), status: 'berhasil' }] }
             ];
             for (const a of demo) await saveAddress(a);
         }
@@ -2891,7 +3079,7 @@ async function init() {
         if (!sessionStorage.getItem('kurirq_welcomed')) {
             sessionStorage.setItem('kurirq_welcomed', '1');
             setTimeout(() => {
-                showModal('Selamat Datang', '👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n📱 No. WA + tombol chat\n📤 Import CSV: Merge / Sync\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Backup JSON rutin!');
+                showModal('Selamat Datang', '👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n📱 No. WA + tombol chat\n📤 Import CSV: Merge / Sync\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Backup JSON rutin!\n• Kalau GPS ditolak, buka Settings → GPS Diagnostics');
             }, 600);
         }
     } catch (err) {
