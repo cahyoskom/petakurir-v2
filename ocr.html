@@ -25,11 +25,10 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
 .upload-zone-title{font-weight:600;font-size:15px;margin-bottom:4px}
 .upload-zone-hint{font-size:12px;color:var(--text-light);line-height:1.6}
 .format-badge{display:inline-block;background:var(--bg-alt);color:var(--text-light);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin:2px 2px 0 0;border:1px solid var(--border)}
-.preview-container{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:#000;margin-bottom:12px;display:none}
-.preview-container img{display:block;width:100%;max-height:260px;object-fit:contain}
-.preview-container iframe{width:100%;height:260px;border:none;background:#fff}
+.preview-container{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:#000;margin-bottom:12px;display:none;max-height:320px}
+.preview-container img{display:block;width:100%;max-height:320px;object-fit:contain}
 .preview-remove{position:absolute;top:8px;right:8px;background:rgba(239,68,68,.95);color:#fff;border:2px solid #fff;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:20px;font-weight:bold;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;z-index:10}
-.preview-info{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.7);color:#fff;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;z-index:10}
+.preview-info{position:absolute;bottom:8px;left:8px;right:8px;background:rgba(0,0,0,.75);color:#fff;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:600;z-index:10;line-height:1.4}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;transition:opacity .2s;font-family:inherit}
 .btn:active{opacity:.8}
 .btn:disabled{opacity:.5;cursor:not-allowed}
@@ -50,7 +49,8 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
 .progress-wrap.active{display:block}
 .progress-bar{background:var(--border);height:8px;border-radius:4px;overflow:hidden;margin:12px 0}
 .progress-fill{height:100%;background:var(--primary);width:0%;transition:width .3s;border-radius:4px}
-.progress-text{font-size:13px;color:var(--text-light)}
+.progress-text{font-size:13px;color:var(--text-light);font-weight:600}
+.progress-meta{font-size:11px;color:var(--text-light);margin-top:6px;font-family:monospace}
 .section-title{font-size:13px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin:20px 0 10px;display:flex;align-items:center;justify-content:space-between}
 .items-list{display:flex;flex-direction:column;gap:8px}
 .item-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;position:relative}
@@ -75,15 +75,21 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
 .alert-info{background:#dbeafe;color:#1e40af}
 .alert-warn{background:#fef3c7;color:#92400e}
 .alert-success{background:#d1fae5;color:#065f46}
+.alert-longshot{background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd}
 @media(prefers-color-scheme:dark){
 .alert-info{background:#1e3a8a;color:#bfdbfe}
 .alert-warn{background:#78350f;color:#fde68a}
 .alert-success{background:#064e3b;color:#a7f3d0}
+.alert-longshot{background:#4c1d95;color:#ddd6fe;border-color:#7c3aed}
 }
 .wa-badge{display:inline-block;background:var(--wa);color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
-.page-info{font-size:12px;color:var(--text-light);text-align:center;margin:8px 0;padding:6px;background:var(--bg-alt);border-radius:6px}
 .status-badge{display:inline-block;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-left:4px}
 @media(prefers-color-scheme:dark){.status-badge{background:#1e3a8a;color:#bfdbfe}}
+.mem-hint{font-size:11px;color:var(--text-light);text-align:center;margin-top:8px;font-family:monospace}
+.tile-info{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.tile-info .stat{flex:1;min-width:80px;background:var(--bg);padding:8px;border-radius:6px;text-align:center;border:1px solid var(--border)}
+.tile-info .stat-num{font-weight:700;font-size:16px;color:var(--primary)}
+.tile-info .stat-label{font-size:10px;color:var(--text-light);margin-top:2px;text-transform:uppercase}
 </style>
 </head>
 <body>
@@ -96,10 +102,9 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
 
 <main>
     <div class="alert alert-info">
-        💡 Upload <strong>screenshot / foto / PDF</strong> order → tap <strong>Ekstrak Teks</strong> → <strong>hanya order "Sedang diproses"</strong> yang diambil → Export CSV → import di Kurir-Q.
+        💡 Upload <strong>screenshot / foto / PDF</strong> → tap <strong>Ekstrak Teks</strong> → <strong>hanya order "Sedang diproses"</strong> yang diambil → Export CSV → import di Kurir-Q.
     </div>
 
-    <!-- UPLOAD ZONE -->
     <div class="card" id="upload-card">
         <div class="upload-zone" id="upload-zone">
             <div class="upload-zone-icon">📸</div>
@@ -108,9 +113,8 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
                 Format didukung:<br>
                 <span class="format-badge">PDF</span>
                 <span class="format-badge">JPG</span>
-                <span class="format-badge">JPEG</span>
                 <span class="format-badge">PNG</span>
-                <span class="format-badge">Screenshot</span>
+                <span class="format-badge">📱 Screenshot Panjang</span>
             </div>
         </div>
         <input type="file" id="file-input-camera" accept="image/*" capture="environment" style="display:none">
@@ -119,17 +123,22 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
             <button class="btn btn-primary btn-block" onclick="document.getElementById('file-input-camera').click()">📷 Kamera</button>
             <button class="btn btn-secondary btn-block" onclick="document.getElementById('file-input-all').click()">📁 File / PDF</button>
         </div>
+        <div class="mem-hint" id="mem-hint"></div>
     </div>
 
-    <!-- PREVIEW -->
+    <div id="longshot-info-wrap" style="display:none">
+        <div class="alert alert-longshot">
+            📱 <strong>Screenshot panjang terdeteksi!</strong><br>
+            <span id="longshot-info-text"></span>
+        </div>
+    </div>
+
     <div class="preview-container" id="preview-container">
         <img id="preview-img" alt="Preview" style="display:none">
-        <div id="preview-pdf-info" class="preview-info" style="display:none">📄 PDF</div>
         <div id="preview-info" class="preview-info" style="display:none"></div>
         <button class="preview-remove" id="preview-remove" title="Hapus file">×</button>
     </div>
 
-    <!-- PAGE SELECTOR (untuk PDF) -->
     <div id="page-selector-wrap" style="display:none">
         <div class="card" style="background:var(--bg)">
             <div class="form-group" style="margin:0">
@@ -143,18 +152,17 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
         </div>
     </div>
 
-    <!-- OCR BUTTON -->
     <div id="ocr-action-wrap" style="display:none">
         <button class="btn btn-primary btn-block btn-lg" id="start-ocr-btn">✨ Ekstrak Teks dari File Ini</button>
     </div>
 
-    <!-- PROGRESS -->
     <div class="progress-wrap" id="progress-wrap">
         <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
         <div class="progress-text" id="progress-text">Menyiapkan...</div>
+        <div class="progress-meta" id="progress-meta"></div>
+        <button class="btn btn-secondary btn-block" id="abort-ocr-btn" style="margin-top:10px;display:none">✋ Batalkan</button>
     </div>
 
-    <!-- RESULT FORM (untuk 1 order hasil OCR) -->
     <div id="result-form-wrap" style="display:none">
         <div class="section-title">✏️ Koreksi Hasil OCR</div>
         <div class="card" style="background:var(--bg)">
@@ -174,7 +182,6 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
             <div class="form-group">
                 <label>Catatan / Order ID</label>
                 <textarea id="ocr-catatan" placeholder="GTL7249843568 - Sedang diproses"></textarea>
-                <div class="hint">Order ID & status bisa di sini (tidak dipakai untuk deteksi duplikat)</div>
             </div>
             <div class="row">
                 <button class="btn btn-success btn-block" id="add-item-btn">➕ Tambah ke Daftar</button>
@@ -183,7 +190,6 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
         </div>
     </div>
 
-    <!-- ITEMS LIST -->
     <div class="section-title">
         <span>📋 Daftar Hasil (<span id="items-count">0</span>)</span>
         <button class="btn btn-danger" id="clear-all-items" style="padding:4px 10px;font-size:11px;display:none">🗑️ Hapus Semua</button>
@@ -196,13 +202,11 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
     </div>
 </main>
 
-<!-- STICKY ACTIONS -->
 <div class="sticky-actions" id="sticky-actions" style="display:none">
     <button class="btn btn-secondary" id="copy-csv-btn" style="flex:1">📋 Copy CSV</button>
     <button class="btn btn-primary" id="export-csv-btn" style="flex:2">📥 Export CSV</button>
 </div>
 
-<!-- MODAL EDIT -->
 <div class="modal-overlay" id="edit-modal">
     <div class="modal">
         <h2>✏️ Edit Item</h2>
@@ -233,26 +237,55 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 // ============================================
-// GLOBAL
+// KONFIG ADAPTIF (RAM + ORIENTASI)
 // ============================================
-let currentFile = null;
-let currentFileType = '';
-let currentImageBlob = null;
-let pdfDoc = null;
-let pdfTotalPages = 0;
-let ocrText = '';
-let items = [];
-let editingIndex = -1;
-let tesseractWorker = null;
-let tesseractLoaded = false;
+const DEVICE_RAM_GB = navigator.deviceMemory || 4;
+const LOW_MEMORY = DEVICE_RAM_GB < 4;
 
-// Setup PDF.js worker
+const OCR_TARGET_WIDTH = LOW_MEMORY ? 1400 : 1800;
+const TILE_TARGET_HEIGHT = LOW_MEMORY ? 1600 : 2000;
+const TILE_OVERLAP = LOW_MEMORY ? 180 : 220;
+
+const LONGSCREENSHOT_ASPECT_THRESHOLD = 2.5;
+const LONGSCREENSHOT_HEIGHT_THRESHOLD = 2500;
+
+const JPEG_QUALITY = 0.88;
+const PREVIEW_MAX_DIM = 500;
+
 if (typeof pdfjsLib !== 'undefined') {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
 
 // ============================================
-// HELPER: NORMALISASI WA
+// STATE
+// ============================================
+let currentFileType = '';
+let currentImageBlob = null;
+let currentPreviewUrl = null;
+let currentLongImage = null;
+let currentLongInfo = null;
+let pdfDoc = null;
+let pdfTotalPages = 0;
+let items = [];
+let editingIndex = -1;
+let tesseractWorker = null;
+let tesseractLoaded = false;
+let isProcessing = false;
+let abortOCRAll = false;
+let wakeLock = null;
+
+(function initMemHint() {
+    const el = document.getElementById('mem-hint');
+    if (!el) return;
+    if (LOW_MEMORY) {
+        el.textContent = `⚠️ RAM ${DEVICE_RAM_GB}GB → mode hemat (target ${OCR_TARGET_WIDTH}px)`;
+    } else {
+        el.textContent = `📊 Mode normal (target ${OCR_TARGET_WIDTH}px)`;
+    }
+})();
+
+// ============================================
+// HELPERS: WA
 // ============================================
 function normalizeWhatsApp(input) {
     if (!input) return '';
@@ -273,19 +306,174 @@ function formatWhatsAppDisplay(wa) {
 }
 
 // ============================================
-// PARSER MULTI-ORDER
-// - Deteksi banyak order dalam 1 gambar
-// - FILTER: hanya status "Sedang diproses"
+// HELPERS: IMAGE
+// ============================================
+function loadImageFromBlob(blob) {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Gagal decode gambar')); };
+        img.src = url;
+    });
+}
+
+async function makeThumbnail(img, maxDim = PREVIEW_MAX_DIM) {
+    const iw = img.naturalWidth || img.width;
+    const ih = img.naturalHeight || img.height;
+    const scale = Math.min(1, maxDim / Math.max(iw, ih));
+    const w = Math.max(1, Math.round(iw * scale));
+    const h = Math.max(1, Math.round(ih * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, w, h);
+
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.72));
+    canvas.width = 0;
+    canvas.height = 0;
+    return blob;
+}
+
+function cropTileToBlob(img, srcY, srcH, targetWidth = OCR_TARGET_WIDTH) {
+    return new Promise((resolve, reject) => {
+        const srcW = img.naturalWidth || img.width;
+        const scale = Math.min(1, targetWidth / srcW);
+        const w = Math.max(1, Math.round(srcW * scale));
+        const h = Math.max(1, Math.round(srcH * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d', { alpha: false });
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, srcY, srcW, srcH, 0, 0, w, h);
+
+        canvas.toBlob(blob => {
+            canvas.width = 0;
+            canvas.height = 0;
+            if (blob) resolve(blob);
+            else reject(new Error('Gagal crop tile'));
+        }, 'image/jpeg', JPEG_QUALITY);
+    });
+}
+
+function prepareNormalImage(source, maxDim = OCR_TARGET_WIDTH, quality = JPEG_QUALITY) {
+    return new Promise((resolve, reject) => {
+        const isUrl = typeof source === 'string';
+        const url = isUrl ? source : URL.createObjectURL(source);
+        const img = new Image();
+
+        const cleanup = () => {
+            if (!isUrl) { try { URL.revokeObjectURL(url); } catch (e) {} }
+            img.src = '';
+            img.onload = null;
+            img.onerror = null;
+        };
+
+        img.onload = () => {
+            let canvas = null;
+            try {
+                const iw = img.naturalWidth, ih = img.naturalHeight;
+                const scale = Math.min(1, maxDim / Math.max(iw, ih));
+                const w = Math.round(iw * scale);
+                const h = Math.round(ih * scale);
+                canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d', { alpha: false });
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0, w, h);
+                canvas.toBlob(blob => {
+                    if (canvas) { canvas.width = 0; canvas.height = 0; canvas = null; }
+                    cleanup();
+                    if (blob) resolve(blob);
+                    else reject(new Error('Gagal membuat gambar'));
+                }, 'image/jpeg', quality);
+            } catch (err) {
+                if (canvas) { canvas.width = 0; canvas.height = 0; }
+                cleanup();
+                reject(err);
+            }
+        };
+        img.onerror = () => { cleanup(); reject(new Error('Gagal membaca gambar')); };
+        img.src = url;
+    });
+}
+
+function setPreview(blob, infoText) {
+    if (currentPreviewUrl) { try { URL.revokeObjectURL(currentPreviewUrl); } catch (e) {} }
+    currentPreviewUrl = URL.createObjectURL(blob);
+    const img = document.getElementById('preview-img');
+    img.src = currentPreviewUrl;
+    img.style.display = 'block';
+    const info = document.getElementById('preview-info');
+    info.style.display = 'block';
+    info.textContent = infoText;
+    document.getElementById('preview-container').style.display = 'block';
+}
+
+function freeCurrentBlob() { currentImageBlob = null; }
+function freePreviewUrl() {
+    if (currentPreviewUrl) { try { URL.revokeObjectURL(currentPreviewUrl); } catch (e) {} currentPreviewUrl = null; }
+}
+function freeCurrentLongImage() {
+    if (currentLongImage) {
+        currentLongImage.src = '';
+        currentLongImage = null;
+    }
+    currentLongInfo = null;
+}
+
+function updateMemInfo() {
+    const el = document.getElementById('progress-meta');
+    if (!el) return;
+    try {
+        if (performance.memory) {
+            const used = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(0);
+            const limit = (performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(0);
+            el.textContent = `💾 ${used} / ${limit} MB`;
+        } else {
+            el.textContent = '';
+        }
+    } catch (e) { el.textContent = ''; }
+}
+
+// ============================================
+// WAKE LOCK
+// ============================================
+async function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakeLock.addEventListener('release', () => { wakeLock = null; });
+        } catch (e) {}
+    }
+}
+function releaseWakeLock() {
+    if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; }
+}
+
+// ============================================
+// PARSER
 // ============================================
 function parseMultipleOrders(text) {
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const orders = [];
     let current = null;
 
-    // Header order: GTL7223262488, AB123456, dll
     const orderIdRegex = /\b([A-Z]{2,}\d{6,})\b/i;
-    // Status yg dideteksi di baris header
-    const statusRegex  = /(sedang\s+diproses|diproses|selesai|batal|pending|dikirim|dikemas)/i;
+    const statusRegex = /(sedang\s+diproses|diproses|selesai|batal|pending|dikirim|dikemas)/i;
 
     for (const line of lines) {
         const idMatch = line.match(orderIdRegex);
@@ -294,24 +482,27 @@ function parseMultipleOrders(text) {
             const statusMatch = line.match(statusRegex);
             current = {
                 orderId: idMatch[1],
-                status : statusMatch ? statusMatch[1].toLowerCase() : '',
-                lines  : []
+                status: statusMatch ? statusMatch[1].toLowerCase() : '',
+                lines: []
             };
         } else if (current) {
             current.lines.push(line);
+            if (!current.status) {
+                const sm = line.match(statusRegex);
+                if (sm) current.status = sm[1].toLowerCase();
+            }
         }
     }
     if (current) orders.push(current);
 
-    console.log('=== OCR MULTI-ORDER ===');
-    console.log('Total blok order terdeteksi:', orders.length);
-    orders.forEach(o => console.log(`  • ${o.orderId} → status: "${o.status}"`));
+    console.log(`[OCR] Blok order: ${orders.length}`);
+    const processed = orders.filter(o => {
+        const s = (o.status || '').toLowerCase();
+        if (/selesai|batal|dikirim|dikemas|pending/i.test(s)) return false;
+        return /diproses/i.test(s);
+    });
+    console.log(`[OCR] Setelah filter "Sedang diproses": ${processed.length}`);
 
-    // 🔑 FILTER: hanya "sedang diproses"
-    const processed = orders.filter(o => /sedang\s+diproses/i.test(o.status));
-    console.log('Setelah filter "Sedang diproses":', processed.length);
-
-    // Parse tiap blok yang lolos filter
     return processed.map(o => {
         const L = o.lines;
         let nama = '', wa = '', alamat = '', waIdx = -1;
@@ -323,7 +514,6 @@ function parseMultipleOrders(text) {
             /\b8\d{2}[\s\-]?\d{3,4}[\s\-]?\d{3,4}\b/
         ];
 
-        // Cari baris WA
         for (let i = 0; i < L.length; i++) {
             for (const p of waPatterns) {
                 if (p.test(L[i])) {
@@ -334,15 +524,9 @@ function parseMultipleOrders(text) {
             }
             if (waIdx >= 0) break;
         }
-
-        // Nama = baris tepat SEBELUM baris WA
         if (waIdx > 0) nama = L[waIdx - 1];
         else if (waIdx === -1 && L.length > 0) nama = L[0];
-
-        // Alamat = semua baris SETELAH baris WA (digabung)
-        if (waIdx >= 0 && waIdx < L.length - 1) {
-            alamat = L.slice(waIdx + 1).join(', ');
-        }
+        if (waIdx >= 0 && waIdx < L.length - 1) alamat = L.slice(waIdx + 1).join(', ');
 
         return {
             nama: (nama || '').trim(),
@@ -353,13 +537,45 @@ function parseMultipleOrders(text) {
     });
 }
 
+function dedupeOrders(orders) {
+    const map = new Map();
+    const noIdOrders = [];
+    const pickLonger = (a, b) => {
+        a = (a || '').trim(); b = (b || '').trim();
+        return b.length > a.length ? b : a;
+    };
+
+    for (const o of orders) {
+        const m = (o.catatan || '').match(/\b([A-Z]{2,}\d{6,})\b/i);
+        if (!m) {
+            const key = `${(o.nama || '').toLowerCase()}|${o.wa || ''}`;
+            if (o.nama || o.wa) {
+                const ex = map.get('__noid__' + key);
+                if (!ex) map.set('__noid__' + key, o);
+                else ex.alamat = pickLonger(ex.alamat, o.alamat);
+            } else {
+                noIdOrders.push(o);
+            }
+            continue;
+        }
+        const id = m[1].toUpperCase();
+        const ex = map.get(id);
+        if (!ex) map.set(id, { ...o });
+        else {
+            ex.nama = pickLonger(ex.nama, o.nama);
+            ex.wa = ex.wa || o.wa;
+            ex.alamat = pickLonger(ex.alamat, o.alamat);
+        }
+    }
+    return [...noIdOrders, ...Array.from(map.values())];
+}
+
 // ============================================
 // FILE HANDLING
 // ============================================
 document.getElementById('file-input-camera').addEventListener('change', handleFileSelect);
 document.getElementById('file-input-all').addEventListener('change', handleFileSelect);
 document.getElementById('upload-zone').addEventListener('click', () => document.getElementById('file-input-all').click());
-
 document.getElementById('upload-zone').addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.background = 'var(--bg-alt)'; });
 document.getElementById('upload-zone').addEventListener('dragleave', (e) => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = ''; });
 document.getElementById('upload-zone').addEventListener('drop', (e) => {
@@ -377,11 +593,12 @@ function handleFileSelect(e) {
 }
 
 async function processFile(file) {
-    currentFile = file;
-    currentFileType = '';
-    currentImageBlob = null;
-    pdfDoc = null;
+    freeCurrentBlob();
+    freePreviewUrl();
+    freeCurrentLongImage();
+    if (pdfDoc) { try { pdfDoc.destroy(); } catch (e) {} pdfDoc = null; }
     pdfTotalPages = 0;
+    document.getElementById('longshot-info-wrap').style.display = 'none';
 
     const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
     const isImage = file.type.startsWith('image/');
@@ -391,197 +608,186 @@ async function processFile(file) {
         return;
     }
 
-    if (isImage) {
-        currentFileType = 'image';
-        showImagePreview(file);
-    } else if (isPDF) {
-        currentFileType = 'pdf';
-        await loadPDF(file);
+    if (file.size > 15 * 1024 * 1024 && LOW_MEMORY) {
+        if (!confirm(`⚠️ File besar (${(file.size / 1024 / 1024).toFixed(1)} MB) di device RAM terbatas.\n\nLanjutkan?`)) return;
     }
-}
 
-function showImagePreview(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        document.getElementById('preview-img').src = e.target.result;
-        document.getElementById('preview-img').style.display = 'block';
-        document.getElementById('preview-pdf-info').style.display = 'none';
-        document.getElementById('preview-info').style.display = 'block';
-        document.getElementById('preview-info').textContent = `📷 ${file.name.length > 30 ? file.name.substring(0, 30) + '...' : file.name}`;
-        document.getElementById('preview-container').style.display = 'block';
-        document.getElementById('ocr-action-wrap').style.display = 'block';
-        document.getElementById('page-selector-wrap').style.display = 'none';
-        document.getElementById('result-form-wrap').style.display = 'none';
-        document.getElementById('progress-wrap').classList.remove('active');
-        document.getElementById('upload-card').style.display = 'none';
-
-        currentImageBlob = file;
-    };
-    reader.readAsDataURL(file);
-}
-
-async function loadPDF(file) {
     try {
-        document.getElementById('progress-wrap').classList.add('active');
-        document.getElementById('progress-fill').style.width = '20%';
-        document.getElementById('progress-text').textContent = 'Membaca PDF...';
-        document.getElementById('upload-card').style.display = 'none';
-
-        const arrayBuffer = await file.arrayBuffer();
-        pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        pdfTotalPages = pdfDoc.numPages;
-
-        document.getElementById('progress-fill').style.width = '100%';
-        document.getElementById('progress-text').textContent = `✓ PDF dimuat (${pdfTotalPages} halaman)`;
-
-        setTimeout(() => {
-            document.getElementById('progress-wrap').classList.remove('active');
-        }, 500);
-
-        await renderPDFPageToPreview(1);
-
-        document.getElementById('preview-pdf-info').style.display = 'block';
-        document.getElementById('preview-info').style.display = 'block';
-        document.getElementById('preview-info').textContent = `📄 ${file.name.length > 25 ? file.name.substring(0, 25) + '...' : file.name} · ${pdfTotalPages} hal`;
-        document.getElementById('preview-container').style.display = 'block';
-
-        const select = document.getElementById('pdf-page-select');
-        select.innerHTML = '';
-        for (let i = 1; i <= pdfTotalPages; i++) {
-            const opt = document.createElement('option');
-            opt.value = i;
-            opt.textContent = `Halaman ${i}`;
-            select.appendChild(opt);
-        }
-
-        if (pdfTotalPages > 1) {
-            document.getElementById('page-selector-wrap').style.display = 'block';
-        } else {
-            document.getElementById('page-selector-wrap').style.display = 'none';
-        }
-
-        document.getElementById('ocr-action-wrap').style.display = 'block';
-        document.getElementById('result-form-wrap').style.display = 'none';
-
-        await renderPDFPageToCanvas(1);
+        if (isImage) await processImageFile(file);
+        else await processPDFFile(file);
     } catch (err) {
-        console.error('PDF error:', err);
-        alert('❌ Gagal membaca PDF: ' + err.message);
+        console.error('Process file error:', err);
+        alert('❌ Gagal memproses file: ' + err.message);
         resetUpload();
     }
 }
 
-async function renderPDFPageToPreview(pageNum) {
-    try {
-        const page = await pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 1.0 });
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const scale = Math.min(800 / viewport.width, 2);
-        const scaledViewport = page.getViewport({ scale: scale });
-        canvas.width = scaledViewport.width;
-        canvas.height = scaledViewport.height;
-        await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
-        document.getElementById('preview-img').src = canvas.toDataURL('image/jpeg', 0.85);
-        document.getElementById('preview-img').style.display = 'block';
-    } catch (err) {
-        console.error('Preview render error:', err);
+async function processImageFile(file) {
+    document.getElementById('progress-wrap').classList.add('active');
+    document.getElementById('progress-fill').style.width = '10%';
+    document.getElementById('progress-text').textContent = 'Membaca gambar...';
+    document.getElementById('progress-meta').textContent = '';
+    document.getElementById('upload-card').style.display = 'none';
+    updateMemInfo();
+
+    const img = await loadImageFromBlob(file);
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    const aspectRatio = ih / iw;
+
+    const isLong = aspectRatio > LONGSCREENSHOT_ASPECT_THRESHOLD || ih > LONGSCREENSHOT_HEIGHT_THRESHOLD;
+
+    document.getElementById('progress-fill').style.width = '40%';
+
+    if (isLong) {
+        currentFileType = 'longshot';
+
+        const tileStride = Math.max(400, TILE_TARGET_HEIGHT - TILE_OVERLAP);
+        const tileCount = Math.max(1, Math.ceil((ih - TILE_OVERLAP) / tileStride));
+        currentLongInfo = { width: iw, height: ih, tileCount };
+        currentLongImage = img;
+
+        const thumb = await makeThumbnail(img, PREVIEW_MAX_DIM);
+        setPreview(thumb, `📱 Long screenshot ${iw}×${ih} px`);
+
+        const infoText = document.getElementById('longshot-info-text');
+        const estKB = Math.round((iw * ih * 0.15) / 1024);
+        infoText.innerHTML = `
+            <strong>${iw.toLocaleString()} × ${ih.toLocaleString()}</strong> px 
+            (rasio 1:${aspectRatio.toFixed(1)})<br>
+            Akan diproses dalam <strong>${tileCount} tile</strong> 
+            (tinggi tile ${TILE_TARGET_HEIGHT}px, overlap ${TILE_OVERLAP}px)<br>
+            <small>Hasil dari tiap tile digabung otomatis, order di perbatasan tidak dobel.</small>
+        `;
+        document.getElementById('longshot-info-wrap').style.display = 'block';
+
+        let statsHtml = `<div class="tile-info">`;
+        statsHtml += `<div class="stat"><div class="stat-num">${iw}</div><div class="stat-label">Lebar</div></div>`;
+        statsHtml += `<div class="stat"><div class="stat-num">${ih.toLocaleString()}</div><div class="stat-label">Tinggi</div></div>`;
+        statsHtml += `<div class="stat"><div class="stat-num">${tileCount}</div><div class="stat-label">Tile</div></div>`;
+        statsHtml += `<div class="stat"><div class="stat-num">${estKB}KB</div><div class="stat-label">Total tile</div></div>`;
+        statsHtml += `</div>`;
+        infoText.insertAdjacentHTML('afterend', statsHtml);
+
+        currentImageBlob = null;
+    } else {
+        currentFileType = 'image';
+        const optimizedBlob = await prepareNormalImage(img, OCR_TARGET_WIDTH);
+        img.src = '';
+        currentImageBlob = optimizedBlob;
+        const sizeKB = (optimizedBlob.size / 1024).toFixed(0);
+        setPreview(optimizedBlob, `📷 ${file.name.length > 25 ? file.name.substring(0, 25) + '...' : file.name} · ${sizeKB} KB · ${iw}×${ih}`);
     }
+
+    document.getElementById('progress-fill').style.width = '100%';
+    document.getElementById('progress-text').textContent = '✓ Siap';
+    setTimeout(() => document.getElementById('progress-wrap').classList.remove('active'), 350);
+
+    document.getElementById('ocr-action-wrap').style.display = 'block';
+    document.getElementById('page-selector-wrap').style.display = 'none';
+    document.getElementById('result-form-wrap').style.display = 'none';
 }
 
-async function renderPDFPageToCanvas(pageNum) {
+async function processPDFFile(file) {
+    currentFileType = 'pdf';
+    document.getElementById('progress-wrap').classList.add('active');
+    document.getElementById('progress-fill').style.width = '20%';
+    document.getElementById('progress-text').textContent = 'Membaca PDF...';
+    document.getElementById('upload-card').style.display = 'none';
+
+    const arrayBuffer = await file.arrayBuffer();
+    pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    pdfTotalPages = pdfDoc.numPages;
+
+    document.getElementById('progress-fill').style.width = '60%';
+    document.getElementById('progress-text').textContent = `Memuat halaman 1 dari ${pdfTotalPages}...`;
+
+    await renderPDFPage(1);
+
+    document.getElementById('progress-fill').style.width = '100%';
+    document.getElementById('progress-text').textContent = `✓ PDF dimuat (${pdfTotalPages} halaman)`;
+    setTimeout(() => document.getElementById('progress-wrap').classList.remove('active'), 400);
+
+    const info = `📄 ${file.name.length > 22 ? file.name.substring(0, 22) + '...' : file.name} · hal 1/${pdfTotalPages}`;
+    setPreview(currentImageBlob, info);
+
+    const select = document.getElementById('pdf-page-select');
+    select.innerHTML = '';
+    for (let i = 1; i <= pdfTotalPages; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `Halaman ${i}`;
+        select.appendChild(opt);
+    }
+
+    document.getElementById('page-selector-wrap').style.display = pdfTotalPages > 1 ? 'block' : 'none';
+    document.getElementById('ocr-action-wrap').style.display = 'block';
+    document.getElementById('result-form-wrap').style.display = 'none';
+}
+
+async function renderPDFPage(pageNum, updatePreview = true) {
+    if (!pdfDoc) throw new Error('PDF belum dimuat');
+    const page = await pdfDoc.getPage(pageNum);
+    let canvas = null;
     try {
-        document.getElementById('progress-wrap').classList.add('active');
-        document.getElementById('progress-fill').style.width = '30%';
-        document.getElementById('progress-text').textContent = `Menyiapkan halaman ${pageNum}...`;
-
-        const page = await pdfDoc.getPage(pageNum);
         const viewport = page.getViewport({ scale: 1.0 });
-        const scale = Math.min(2200 / viewport.width, 4);
-        const scaledViewport = page.getViewport({ scale: scale });
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = scaledViewport.width;
-        canvas.height = scaledViewport.height;
+        let scale = OCR_TARGET_WIDTH / viewport.width;
+        scale = Math.min(scale, LOW_MEMORY ? 2.0 : 2.5);
+        const scaledViewport = page.getViewport({ scale });
+        canvas = document.createElement('canvas');
+        canvas.width = Math.floor(scaledViewport.width);
+        canvas.height = Math.floor(scaledViewport.height);
+        const ctx = canvas.getContext('2d', { alpha: false });
         await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
-
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', JPEG_QUALITY));
+        if (!blob) throw new Error('Gagal render');
+        canvas.width = 0; canvas.height = 0; canvas = null;
         currentImageBlob = blob;
-
-        document.getElementById('progress-fill').style.width = '100%';
-        document.getElementById('progress-text').textContent = `✓ Halaman ${pageNum} siap`;
-
-        setTimeout(() => {
-            document.getElementById('progress-wrap').classList.remove('active');
-        }, 400);
-    } catch (err) {
-        console.error('PDF render error:', err);
-        alert('❌ Gagal render halaman PDF: ' + err.message);
+        if (updatePreview) setPreview(blob, `📄 Hal ${pageNum}/${pdfTotalPages} · ${(blob.size / 1024).toFixed(0)} KB`);
+        return blob;
+    } finally {
+        if (canvas) { canvas.width = 0; canvas.height = 0; }
+        try { page.cleanup(); } catch (e) {}
     }
 }
 
 document.getElementById('pdf-page-select').addEventListener('change', async (e) => {
     const pageNum = parseInt(e.target.value);
     if (!pdfDoc || !pageNum) return;
-    await renderPDFPageToPreview(pageNum);
-    await renderPDFPageToCanvas(pageNum);
-});
-
-// OCR semua halaman PDF sekaligus
-document.getElementById('ocr-all-pages-btn').addEventListener('click', async () => {
-    if (!pdfDoc || pdfTotalPages === 0) return;
-
-    const btn = document.getElementById('ocr-all-pages-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Memproses...';
-
-    let successCount = 0;
+    document.getElementById('progress-wrap').classList.add('active');
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('progress-text').textContent = `Merender halaman ${pageNum}...`;
     try {
-        const worker = await loadTesseract();
-
-        for (let i = 1; i <= pdfTotalPages; i++) {
-            document.getElementById('progress-wrap').classList.add('active');
-            document.getElementById('progress-text').textContent = `Memproses halaman ${i}/${pdfTotalPages}...`;
-            document.getElementById('progress-fill').style.width = '0%';
-
-            await renderPDFPageToCanvas(i);
-
-            const { data: { text } } = await worker.recognize(currentImageBlob);
-            const orders = parseMultipleOrders(text);
-
-            orders.forEach(o => {
-                items.push(o);
-                successCount++;
-            });
-        }
-
-        renderItems();
-        document.getElementById('progress-wrap').classList.remove('active');
-        alert(`✓ Selesai OCR ${pdfTotalPages} halaman.\nOrder "Sedang diproses" ditemukan: ${successCount}.\n\nSilakan cek daftar dan koreksi jika ada yang salah.`);
+        await renderPDFPage(pageNum);
+        document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('progress-text').textContent = `✓ Halaman ${pageNum} siap`;
+        setTimeout(() => document.getElementById('progress-wrap').classList.remove('active'), 400);
     } catch (err) {
-        alert('❌ Error: ' + err.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '📚 Ekstrak SEMUA Halaman';
+        alert('❌ Gagal render halaman: ' + err.message);
+        document.getElementById('progress-wrap').classList.remove('active');
     }
 });
 
 document.getElementById('preview-remove').addEventListener('click', () => resetUpload());
 
 function resetUpload() {
-    currentFile = null;
-    currentFileType = '';
-    currentImageBlob = null;
-    pdfDoc = null;
+    freeCurrentBlob();
+    freePreviewUrl();
+    freeCurrentLongImage();
+    if (pdfDoc) { try { pdfDoc.destroy(); } catch (e) {} pdfDoc = null; }
     pdfTotalPages = 0;
+    currentFileType = '';
     document.getElementById('preview-img').src = '';
     document.getElementById('preview-img').style.display = 'none';
     document.getElementById('preview-container').style.display = 'none';
     document.getElementById('ocr-action-wrap').style.display = 'none';
     document.getElementById('page-selector-wrap').style.display = 'none';
     document.getElementById('result-form-wrap').style.display = 'none';
+    document.getElementById('longshot-info-wrap').style.display = 'none';
     document.getElementById('progress-wrap').classList.remove('active');
+    document.getElementById('progress-meta').textContent = '';
     document.getElementById('upload-card').style.display = 'block';
+    document.getElementById('abort-ocr-btn').style.display = 'none';
 }
 
 // ============================================
@@ -589,89 +795,307 @@ function resetUpload() {
 // ============================================
 async function loadTesseract() {
     if (tesseractLoaded && tesseractWorker) return tesseractWorker;
-    document.getElementById('progress-text').textContent = 'Memuat engine OCR (sekali saja)...';
-    document.getElementById('progress-fill').style.width = '10%';
-    tesseractWorker = await Tesseract.createWorker('ind+eng', 1, {
-        logger: (m) => {
-            if (m.status === 'recognizing text') {
-                const pct = Math.round((m.progress || 0) * 100);
-                document.getElementById('progress-fill').style.width = pct + '%';
-                document.getElementById('progress-text').textContent = `Membaca teks... ${pct}%`;
-            } else if (m.status) {
-                document.getElementById('progress-text').textContent = m.status + (m.progress ? ' ' + Math.round(m.progress * 100) + '%' : '');
+    document.getElementById('progress-text').textContent = 'Memuat engine OCR...';
+    document.getElementById('progress-fill').style.width = '5%';
+    try {
+        tesseractWorker = await Tesseract.createWorker('ind', 1, {
+            logger: (m) => {
+                if (m.status === 'recognizing text') {
+                    const pct = Math.round((m.progress || 0) * 100);
+                    document.getElementById('progress-fill').style.width = pct + '%';
+                    const base = document.getElementById('progress-text').dataset.base || 'Membaca teks';
+                    document.getElementById('progress-text').textContent = `${base}... ${pct}%`;
+                } else if (m.status) {
+                    document.getElementById('progress-text').textContent = m.status + (m.progress ? ' ' + Math.round(m.progress * 100) + '%' : '');
+                }
             }
-        }
-    });
-    tesseractLoaded = true;
-    return tesseractWorker;
+        });
+        tesseractLoaded = true;
+        return tesseractWorker;
+    } catch (err) {
+        tesseractLoaded = false;
+        tesseractWorker = null;
+        throw new Error('Gagal memuat OCR engine. Cek internet lalu refresh. ' + (err.message || ''));
+    }
+}
+
+async function ocrOneBlob(worker, blob, baseLabel) {
+    const txt = document.getElementById('progress-text');
+    txt.dataset.base = baseLabel;
+    txt.textContent = `${baseLabel}...`;
+    document.getElementById('progress-fill').style.width = '0%';
+    const result = await worker.recognize(blob, {}, { text: true, blocks: false, hocr: false, tsv: false });
+    const text = result.data.text || '';
+    result.data.text = '';
+    result.data = null;
+    return text;
 }
 
 // ============================================
-// TOMBOL: Ekstrak Teks dari File Ini
-// - Pakai parseMultipleOrders (sudah difilter "Sedang diproses")
-// - 1 order → isi form manual
-// - >1 order → auto-tambah semua ke daftar
+// TOMBOL EKSTRAK
 // ============================================
 document.getElementById('start-ocr-btn').addEventListener('click', async () => {
-    if (!currentImageBlob) { alert('Pilih file dulu'); return; }
+    if (isProcessing) return;
+    if (currentFileType === 'longshot') {
+        if (!currentLongImage || !currentLongInfo) { alert('File belum siap'); return; }
+        await runOCRLongScreenshot();
+    } else if (currentFileType === 'image' || currentFileType === 'pdf') {
+        if (!currentImageBlob) { alert('Pilih file dulu'); return; }
+        await runOCRRegular();
+    } else {
+        alert('Pilih file dulu');
+    }
+});
 
+async function runOCRRegular() {
+    isProcessing = true;
     const btn = document.getElementById('start-ocr-btn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Memproses...';
-
     document.getElementById('progress-wrap').classList.add('active');
+    document.getElementById('progress-text').dataset.base = 'Membaca teks';
     document.getElementById('progress-fill').style.width = '0%';
     document.getElementById('progress-text').textContent = 'Menyiapkan...';
+    updateMemInfo();
 
     try {
         const worker = await loadTesseract();
-        document.getElementById('progress-text').textContent = 'Membaca...';
-        document.getElementById('progress-fill').style.width = '10%';
-
-        const { data: { text } } = await worker.recognize(currentImageBlob);
-        ocrText = text;
-        console.log('=== OCR TEXT ===');
-        console.log(text);
+        const text = await ocrOneBlob(worker, currentImageBlob, 'Membaca teks');
+        document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('progress-text').textContent = '✓ Selesai';
 
         const orders = parseMultipleOrders(text);
-
-        document.getElementById('progress-fill').style.width = '100%';
-        document.getElementById('progress-text').textContent = '✓ Selesai!';
-
         setTimeout(() => {
             document.getElementById('progress-wrap').classList.remove('active');
-
             if (orders.length === 0) {
-                alert('⚠️ Tidak ada order dengan status "Sedang diproses" yang terdeteksi.\n\nCek console (F12) untuk melihat status yang terbaca OCR.');
+                alert('⚠️ Tidak ada order "Sedang diproses" yang terdeteksi.\n\nTips:\n• Pastikan screenshot menampilkan order ID + status\n• Coba crop lebih ketat');
                 return;
             }
-
             if (orders.length === 1) {
-                // 1 order → isi form untuk review manual
                 const p = orders[0];
-                document.getElementById('ocr-name').value    = p.nama;
-                document.getElementById('ocr-wa').value      = p.wa;
-                document.getElementById('ocr-alamat').value  = p.alamat;
+                document.getElementById('ocr-name').value = p.nama;
+                document.getElementById('ocr-wa').value = p.wa;
+                document.getElementById('ocr-alamat').value = p.alamat;
                 document.getElementById('ocr-catatan').value = p.catatan;
                 document.getElementById('result-form-wrap').style.display = 'block';
                 document.getElementById('ocr-action-wrap').style.display = 'none';
                 document.getElementById('result-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
             } else {
-                // >1 order → auto-tambah SEMUA
                 orders.forEach(o => items.push(o));
                 renderItems();
-                alert(`✓ ${orders.length} order "Sedang diproses" berhasil diekstrak & ditambahkan ke daftar.`);
+                alert(`✓ ${orders.length} order berhasil diekstrak.`);
                 document.getElementById('items-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
-        }, 500);
+        }, 300);
     } catch (err) {
         console.error('OCR error:', err);
-        alert('❌ Gagal OCR: ' + err.message + '\n\nPastikan koneksi internet aktif (untuk download bahasa pertama kali).');
+        alert('❌ Gagal OCR: ' + err.message);
         document.getElementById('progress-wrap').classList.remove('active');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '✨ Ekstrak Teks dari File Ini';
+        isProcessing = false;
     }
+}
+
+async function runOCRLongScreenshot() {
+    const img = currentLongImage;
+    const info = currentLongInfo;
+    if (!img || !info) return;
+
+    if (LOW_MEMORY && info.tileCount > 20) {
+        if (!confirm(`⚠️ ${info.tileCount} tile di RAM terbatas.\nProses memakan waktu 5-15 menit.\n\nLanjutkan?`)) return;
+    }
+
+    isProcessing = true;
+    abortOCRAll = false;
+    const btn = document.getElementById('start-ocr-btn');
+    const abortBtn = document.getElementById('abort-ocr-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Memproses...';
+    abortBtn.style.display = 'block';
+
+    document.getElementById('progress-wrap').classList.add('active');
+    document.getElementById('progress-text').dataset.base = 'Menyiapkan OCR';
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('progress-text').textContent = 'Menyiapkan OCR...';
+    document.getElementById('ocr-action-wrap').style.display = 'none';
+
+    await requestWakeLock();
+
+    const iw = info.width;
+    const ih = info.height;
+    const stride = Math.max(400, TILE_TARGET_HEIGHT - TILE_OVERLAP);
+
+    let allOrders = [];
+    let processed = 0;
+    const failedTiles = [];
+    let totalOrders = 0;
+
+    try {
+        const worker = await loadTesseract();
+
+        for (let tileIdx = 0; tileIdx < info.tileCount; tileIdx++) {
+            if (abortOCRAll) break;
+
+            const srcY = tileIdx * stride;
+            const srcH = Math.min(TILE_TARGET_HEIGHT, ih - srcY);
+            if (srcH <= 0) break;
+
+            const pctBase = Math.round((tileIdx / info.tileCount) * 100);
+            document.getElementById('progress-fill').style.width = pctBase + '%';
+            document.getElementById('progress-text').dataset.base = `Tile ${tileIdx + 1}/${info.tileCount}`;
+            document.getElementById('progress-text').textContent = `Tile ${tileIdx + 1}/${info.tileCount} · memotong...`;
+            updateMemInfo();
+
+            try {
+                const tileBlob = await cropTileToBlob(img, srcY, srcH, OCR_TARGET_WIDTH);
+
+                if (currentPreviewUrl) { try { URL.revokeObjectURL(currentPreviewUrl); } catch (e) {} }
+                currentPreviewUrl = URL.createObjectURL(tileBlob);
+                document.getElementById('preview-img').src = currentPreviewUrl;
+                document.getElementById('preview-info').textContent = `📱 Tile ${tileIdx + 1}/${info.tileCount} · ${(tileBlob.size / 1024).toFixed(0)} KB`;
+
+                const text = await ocrOneBlob(worker, tileBlob, `Tile ${tileIdx + 1}/${info.tileCount}`);
+
+                const orders = parseMultipleOrders(text);
+                console.log(`[Tile ${tileIdx + 1}] ${orders.length} order ditemukan`);
+                allOrders.push(...orders);
+                totalOrders += orders.length;
+                processed++;
+
+                await new Promise(r => setTimeout(r, 80));
+
+            } catch (tileErr) {
+                console.warn(`Tile ${tileIdx + 1} gagal:`, tileErr);
+                failedTiles.push(tileIdx + 1);
+            }
+        }
+
+        document.getElementById('progress-fill').style.width = '100%';
+
+        const before = allOrders.length;
+        const unique = dedupeOrders(allOrders);
+        const dupCount = before - unique.length;
+
+        document.getElementById('progress-text').textContent = abortOCRAll
+            ? `⏹️ Dibatalkan (${processed}/${info.tileCount} tile)`
+            : `✓ Selesai (${unique.length} order unik)`;
+
+        await new Promise(r => setTimeout(r, 500));
+        document.getElementById('progress-wrap').classList.remove('active');
+
+        if (unique.length === 0) {
+            alert(`⚠️ Tidak ada order "Sedang diproses" terdeteksi.\n\nDari ${processed} tile berhasil dibaca.\n\nTips:\n• Cek screenshot menampilkan order ID + status\n• Pastikan teks tidak terlalu kecil`);
+            return;
+        }
+
+        let msg = `📱 Screenshot panjang selesai diproses!\n\n`;
+        msg += `✓ Tile diproses: ${processed}/${info.tileCount}\n`;
+        msg += `📋 Order ditemukan: ${totalOrders}\n`;
+        if (dupCount > 0) msg += `🔁 Duplikat (overlap): ${dupCount} dibuang\n`;
+        msg += `✨ Order unik final: ${unique.length}\n`;
+        if (failedTiles.length > 0) msg += `⚠️ Tile gagal: ${failedTiles.join(', ')}\n`;
+        if (abortOCRAll) msg += `⏹️ Dibatalkan user\n`;
+        msg += `\nTambahkan ${unique.length} order ke daftar?`;
+
+        if (confirm(msg)) {
+            unique.forEach(o => items.push(o));
+            renderItems();
+            document.getElementById('items-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            const thumb = await makeThumbnail(img, PREVIEW_MAX_DIM);
+            setPreview(thumb, `📱 Long screenshot ${iw}×${ih} px`);
+            document.getElementById('ocr-action-wrap').style.display = 'block';
+        }
+
+    } catch (err) {
+        console.error('OCR long error:', err);
+        alert('❌ Gagal OCR: ' + err.message);
+        document.getElementById('progress-wrap').classList.remove('active');
+        document.getElementById('ocr-action-wrap').style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '✨ Ekstrak Teks dari File Ini';
+        abortBtn.style.display = 'none';
+        isProcessing = false;
+        abortOCRAll = false;
+        releaseWakeLock();
+        updateMemInfo();
+    }
+}
+
+document.getElementById('ocr-all-pages-btn').addEventListener('click', async () => {
+    if (!pdfDoc || pdfTotalPages === 0 || isProcessing) return;
+
+    if (LOW_MEMORY && pdfTotalPages > 15) {
+        if (!confirm(`⚠️ ${pdfTotalPages} halaman di RAM terbatas.\nLanjutkan?`)) return;
+    }
+
+    isProcessing = true;
+    abortOCRAll = false;
+    const btn = document.getElementById('ocr-all-pages-btn');
+    const abortBtn = document.getElementById('abort-ocr-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Memproses...';
+    abortBtn.style.display = 'block';
+
+    document.getElementById('progress-wrap').classList.add('active');
+    document.getElementById('upload-card').style.display = 'none';
+
+    await requestWakeLock();
+
+    let successCount = 0;
+    const failedPages = [];
+
+    try {
+        const worker = await loadTesseract();
+
+        for (let i = 1; i <= pdfTotalPages; i++) {
+            if (abortOCRAll) break;
+            document.getElementById('progress-text').dataset.base = `Halaman ${i}/${pdfTotalPages}`;
+            document.getElementById('progress-text').textContent = `Halaman ${i}/${pdfTotalPages} · render...`;
+            document.getElementById('progress-fill').style.width = '0%';
+            updateMemInfo();
+
+            try {
+                await renderPDFPage(i, true);
+                const text = await ocrOneBlob(worker, currentImageBlob, `Halaman ${i}/${pdfTotalPages}`);
+                const orders = parseMultipleOrders(text);
+                orders.forEach(o => { items.push(o); successCount++; });
+                freeCurrentBlob();
+                await new Promise(r => setTimeout(r, 100));
+            } catch (pageErr) {
+                console.warn(`Halaman ${i} gagal:`, pageErr);
+                failedPages.push(i);
+                freeCurrentBlob();
+            }
+        }
+
+        renderItems();
+        document.getElementById('progress-wrap').classList.remove('active');
+
+        let msg = `✓ Selesai.\n\nOrder ditemukan: ${successCount}`;
+        if (failedPages.length > 0) msg += `\nGagal: ${failedPages.join(', ')}`;
+        if (abortOCRAll) msg += `\n⏹️ Dibatalkan`;
+        alert(msg);
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+        document.getElementById('progress-wrap').classList.remove('active');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '📚 Ekstrak SEMUA Halaman';
+        abortBtn.style.display = 'none';
+        isProcessing = false;
+        abortOCRAll = false;
+        releaseWakeLock();
+        updateMemInfo();
+    }
+});
+
+document.getElementById('abort-ocr-btn').addEventListener('click', () => {
+    abortOCRAll = true;
+    document.getElementById('progress-text').textContent = 'Membatalkan...';
 });
 
 // ============================================
@@ -682,9 +1106,7 @@ document.getElementById('add-item-btn').addEventListener('click', () => {
     const waRaw = document.getElementById('ocr-wa').value.trim();
     const alamat = document.getElementById('ocr-alamat').value.trim();
     const catatan = document.getElementById('ocr-catatan').value.trim();
-
     if (!nama) { alert('Nama penerima wajib diisi'); return; }
-
     const wa = waRaw ? normalizeWhatsApp(waRaw) : '';
     items.push({ nama, wa, alamat, catatan });
     renderItems();
@@ -709,17 +1131,14 @@ document.getElementById('reset-form-btn').addEventListener('click', () => {
 function renderItems() {
     const list = document.getElementById('items-list');
     document.getElementById('items-count').textContent = items.length;
-
     if (items.length === 0) {
         list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>Belum ada item.<br>Upload file dan tap Ekstrak Teks.</div></div>';
         document.getElementById('sticky-actions').style.display = 'none';
         document.getElementById('clear-all-items').style.display = 'none';
         return;
     }
-
     document.getElementById('sticky-actions').style.display = 'flex';
     document.getElementById('clear-all-items').style.display = 'inline-block';
-
     list.innerHTML = items.map((item, i) => `
         <div class="item-card">
             <div>
@@ -741,13 +1160,11 @@ function renderItems() {
 function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-
 function deleteItem(i) {
     if (!confirm('Hapus item ini?')) return;
     items.splice(i, 1);
     renderItems();
 }
-
 document.getElementById('clear-all-items').addEventListener('click', () => {
     if (items.length === 0) return;
     if (!confirm(`Hapus semua ${items.length} item?`)) return;
@@ -767,12 +1184,10 @@ function editItem(i) {
     document.getElementById('edit-catatan').value = item.catatan || '';
     document.getElementById('edit-modal').classList.add('active');
 }
-
 function closeEditModal() {
     document.getElementById('edit-modal').classList.remove('active');
     editingIndex = -1;
 }
-
 document.getElementById('save-edit-btn').addEventListener('click', () => {
     if (editingIndex < 0) return;
     const nama = document.getElementById('edit-name').value.trim();
@@ -809,17 +1224,14 @@ function generateCSV() {
 document.getElementById('export-csv-btn').addEventListener('click', () => {
     if (items.length === 0) { alert('Belum ada item'); return; }
     const csv = generateCSV();
-    // ⚠️ MIME 'text/csv' tanpa charset → Android MediaStore lebih reliable.
-    // BOM (uFEFF) tetap dipertahankan agar Excel desktop membuka UTF-8 dengan benar.
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    // Nama file tanpa banyak dash — beberapa Android picker bingung
     const d = new Date();
     const fname = `kurirq-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.csv`;
     link.download = fname;
-    document.body.appendChild(link); // beberapa WebView butuh ini
+    document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
@@ -830,7 +1242,7 @@ document.getElementById('copy-csv-btn').addEventListener('click', async () => {
     const csv = generateCSV();
     try {
         await navigator.clipboard.writeText(csv);
-        alert('✓ CSV disalin ke clipboard.');
+        alert('✓ CSV disalin.');
     } catch (e) {
         const ta = document.createElement('textarea');
         ta.value = csv;
@@ -840,6 +1252,17 @@ document.getElementById('copy-csv-btn').addEventListener('click', async () => {
         document.body.removeChild(ta);
         alert('✓ CSV disalin.');
     }
+});
+
+// ============================================
+// CLEANUP
+// ============================================
+window.addEventListener('beforeunload', () => {
+    if (tesseractWorker) { try { tesseractWorker.terminate(); } catch (e) {} }
+    if (pdfDoc) { try { pdfDoc.destroy(); } catch (e) {} }
+    freePreviewUrl();
+    freeCurrentLongImage();
+    releaseWakeLock();
 });
 
 // ============================================

@@ -982,7 +982,6 @@ function parseAddressFields() {
     if (!address) return;
 
     // 1. Parse RT / RW
-    // Menangkap format RT. 01/RW. 02, RT 01 RW 02, atau 01/02
     const rtRwMatch = address.match(/(?:RT\.?|RT)\s*(\d{1,3})\s*[\/\-]?\s*(?:RW\.?|RW)\s*(\d{1,3})/i) || address.match(/\b(\d{1,3})\s*[\/\-]\s*(\d{1,3})\b/);
     if (rtRwMatch) {
         if (!rtInput.value) rtInput.value = rtRwMatch[1];
@@ -990,32 +989,28 @@ function parseAddressFields() {
     }
 
     // 2. Parse Gang / Jalan
-    // Regex: Menangkap kata Gang, Gg, Jalan, Jl, diikuti nama jalannya.
-    // Berhenti saat bertemu "No", "Nomor", "RT", "RW", atau koma.
     const gangRegex = /(?:Gang|Gg\.?|Jalan|Jl\.?)\s*([A-Za-z0-9\s\.]+?)(?=\s*(?:No|Nomor|Nomer|Rt|RW|,|$))/i;
     const gangMatch = address.match(gangRegex);
     if (gangMatch && !gangInput.value) {
         let isJalan = /j(l|alan)/i.test(gangMatch[0]);
         let namaJalan = gangMatch[1].trim();
-        // Format standar: "Gang X" atau "Jalan Y"
         gangInput.value = isJalan ? `Jalan ${namaJalan}` : `Gang ${namaJalan}`;
     }
 
     // 3. Parse Nomor Rumah
-    // Regex: Menangkap alfanumerik setelah kata No, Nomor, Nomer
     const nomorRegex = /(?:No\.?|Nomor|Nomer)\s*([A-Za-z0-9\-]+)/i;
     const nomorMatch = address.match(nomorRegex);
     if (nomorMatch && !nomorInput.value) {
         nomorInput.value = nomorMatch[1].trim();
     }
 
-    // 4. Parse Kelurahan (via kata "Kel." atau "Kelurahan")
+    // 4. Parse Kelurahan
     const kelMatch = address.match(/(?:Kel\.?|Kelurahan)\s*([a-zA-Z\s]+)/i);
     if (kelMatch && !kelInput.value) {
         kelInput.value = kelMatch[1].trim().split(',')[0];
     }
 
-    // 5. Fallback Kelurahan (cari teks setelah RT/RW)
+    // 5. Fallback Kelurahan
     if (!kelInput.value) {
         const parts = address.split(',');
         if (parts.length >= 2) {
@@ -1037,7 +1032,7 @@ function normalizeSearchText(s) {
         .toLowerCase()
         .replace(/\b(gg|gg\.|gang)\b/g, 'gang')
         .replace(/\b(no|nomor|nomer)\b/g, 'no')
-        .replace(/\b(rt|rw)\b/g, '') // hapus prefix rt/rw saat search
+        .replace(/\b(rt|rw)\b/g, '')
         .replace(/[^\w\s]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
@@ -1683,47 +1678,108 @@ async function calculateDistanceReal(lat1, lon1, lat2, lon2) {
 }
 async function calculateDistance(lat1, lon1, lat2, lon2) { return calculateDistanceReal(lat1, lon1, lat2, lon2); }
 
+// ============ VALIDASI KOORDINAT (untuk optimasi rute) ============
+function hasValidCoordinates(obj) {
+    if (!obj) return false;
+    const lat = Number(obj.latitude);
+    const lng = Number(obj.longitude);
+    if (!isFinite(lat) || !isFinite(lng)) return false;
+    if (lat === 0 && lng === 0) return false;
+    if (lat < -90 || lat > 90) return false;
+    if (lng < -180 || lng > 180) return false;
+    return true;
+}
+function partitionByCoordinates(addresses) {
+    const valid = [], invalid = [];
+    (addresses || []).forEach(a => {
+        (hasValidCoordinates(a) ? valid : invalid).push(a);
+    });
+    return { valid, invalid };
+}
+
 async function showOptimizeRouteModal() {
     const all = await getAllAddresses();
-    const pending = all.filter(a => a.delivery_status === 'belum selesai');
-    if (pending.length === 0) { showModal('Info', 'Tidak ada alamat "Belum Selesai"'); return; }
-    let startPoint = currentLocation ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude } : null;
+    const pendingAll = all.filter(a => a.delivery_status === 'belum selesai');
+    if (pendingAll.length === 0) { showModal('Info', 'Tidak ada alamat "Belum Selesai"'); return; }
+
+    const { valid: pending, invalid: skipped } = partitionByCoordinates(pendingAll);
+    window._routeSkipped = skipped;
+    window.pendingAddressesForRoute = pending;
+
+    if (pending.length === 0) {
+        showModal('Info',
+            `⚠️ Tidak ada alamat "Belum Selesai" dengan koordinat valid.\n\n` +
+            `${skipped.length} alamat punya koordinat 0,0 / tidak valid.\n\n` +
+            `💡 Buka alamat → Edit → geser pin ke lokasi asli untuk perbaiki.`
+        );
+        return;
+    }
+
+    let startPoint = (currentLocation && hasValidCoordinates(currentLocation))
+        ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude }
+        : null;
+
     if (!startPoint && navigator.geolocation) {
         document.getElementById('modal-content').innerHTML = `<div style="padding:40px;text-align:center"><h2 style="margin-bottom:20px">📡 Mengambil GPS...</h2><div style="width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto"></div></div>`;
         document.getElementById('modal').classList.add('active');
         try {
             const pos = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }));
-            startPoint = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-            currentLocation = startPoint;
-        } catch (e) { closeModal(); return openManualStartPointModal(pending); }
+            const candidate = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+            if (hasValidCoordinates(candidate)) {
+                startPoint = candidate;
+                currentLocation = candidate;
+            }
+        } catch (e) { /* fallback ke manual */ }
     }
     if (!startPoint) return openManualStartPointModal(pending);
-    window.pendingAddressesForRoute = pending;
     showStartPointConfirmation(startPoint, pending);
 }
+
 function showStartPointConfirmation(startPoint, pending) {
-    document.getElementById('modal-content').innerHTML = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">🗺️ Optimasi Rute</h2><div class="info-box" style="font-size:13px;line-height:1.7;margin-bottom:12px">📍 <strong>Titik awal:</strong><br><span style="font-family:monospace;font-size:12px">${startPoint.latitude.toFixed(6)}, ${startPoint.longitude.toFixed(6)}</span><br><small style="color:var(--text-light)">Lokasi saat ini</small></div><div style="background:#dbeafe;color:#1e40af;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:12px">🎯 <strong>${pending.length}</strong> alamat "Belum Selesai" akan dioptimasi dari lokasi Anda sekarang.</div><button class="btn-primary" style="width:100%;padding:12px;font-size:14px;font-weight:600;margin-bottom:8px" onclick="executeRouteOptimizationFromCurrent(${startPoint.latitude}, ${startPoint.longitude})">🗺️ Mulai Optimasi</button><button class="btn-secondary" style="width:100%;padding:10px;font-size:13px;margin-bottom:6px" onclick="openManualStartPointModal(window.pendingAddressesForRoute)">📍 Ubah Titik Awal Manual</button><button class="btn-secondary" style="width:100%;padding:10px;font-size:13px" onclick="closeModal()">Batal</button></div>`;
+    const skipped = (window._routeSkipped || []).length;
+    const skippedNotice = skipped > 0
+        ? `<div style="background:#fef3c7;color:#92400e;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:12px">⚠️ <strong>${skipped}</strong> alamat "Belum Selesai" dilewati karena koordinat 0,0 / tidak valid.<br><small>Perbaiki via tombol ✏️ Edit di tiap alamat.</small></div>`
+        : '';
+    document.getElementById('modal-content').innerHTML = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">🗺️ Optimasi Rute</h2><div class="info-box" style="font-size:13px;line-height:1.7;margin-bottom:12px">📍 <strong>Titik awal:</strong><br><span style="font-family:monospace;font-size:12px">${startPoint.latitude.toFixed(6)}, ${startPoint.longitude.toFixed(6)}</span><br><small style="color:var(--text-light)">Lokasi saat ini</small></div>${skippedNotice}<div style="background:#dbeafe;color:#1e40af;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:12px">🎯 <strong>${pending.length}</strong> alamat akan dioptimasi.</div><button class="btn-primary" style="width:100%;padding:12px;font-size:14px;font-weight:600;margin-bottom:8px" onclick="executeRouteOptimizationFromCurrent(${startPoint.latitude}, ${startPoint.longitude})">🗺️ Mulai Optimasi</button><button class="btn-secondary" style="width:100%;padding:10px;font-size:13px;margin-bottom:6px" onclick="openManualStartPointModal(window.pendingAddressesForRoute)">📍 Ubah Titik Awal Manual</button><button class="btn-secondary" style="width:100%;padding:10px;font-size:13px" onclick="closeModal()">Batal</button></div>`;
     document.getElementById('modal').classList.add('active');
 }
+
 function openManualStartPointModal(pending) {
     document.getElementById('modal-content').innerHTML = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">📍 Pilih Titik Awal</h2><small style="color:var(--text-light);display:block;margin-bottom:8px">Geser pin atau tap peta.</small><div id="route-start-map" style="width:100%;height:300px;border:1px solid var(--border);border-radius:4px;margin-bottom:12px"></div><div style="display:flex;gap:8px"><button class="btn-primary" style="flex:1;padding:10px" onclick="executeRouteOptimizationFromMap()">🗺️ Mulai</button><button class="btn-secondary" style="flex:1;padding:10px" onclick="closeModal()">Batal</button></div></div>`;
     document.getElementById('modal').classList.add('active');
     setTimeout(() => {
         const mc = document.getElementById('route-start-map');
         if (mc) {
-            const sm = L.map(mc, { preferCanvas: true }).setView(currentLocation ? [currentLocation.latitude, currentLocation.longitude] : [-6.2088, 106.8650], 13);
+            const validStart = currentLocation && hasValidCoordinates(currentLocation);
+            const center = validStart ? [currentLocation.latitude, currentLocation.longitude] : [-6.2088, 106.8650];
+            const sm = L.map(mc, { preferCanvas: true }).setView(center, 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM', maxZoom: 19 }).addTo(sm);
-            let mk = L.marker(currentLocation ? [currentLocation.latitude, currentLocation.longitude] : [-6.2088, 106.8650], { draggable: true }).addTo(sm);
-            window.routeStartPoint = { latitude: mk.getLatLng().lat, longitude: mk.getLatLng().lng, marker: mk };
+            let mk = L.marker(center, { draggable: true }).addTo(sm);
+            window.routeStartPoint = { latitude: center[0], longitude: center[1], marker: mk };
             sm.on('click', e => { if (mk) mk.remove(); mk = L.marker(e.latlng, { draggable: true }).addTo(sm); window.routeStartPoint.latitude = e.latlng.lat; window.routeStartPoint.longitude = e.latlng.lng; });
             mk.on('drag', e => { window.routeStartPoint.latitude = e.target.getLatLng().lat; window.routeStartPoint.longitude = e.target.getLatLng().lng; });
         }
     }, 100);
     window.pendingAddressesForRoute = pending;
 }
+
 async function executeRouteOptimizationFromCurrent(lat, lon) {
     const startPoint = { latitude: lat, longitude: lon };
-    const pending = window.pendingAddressesForRoute || (await getAllAddresses()).filter(a => a.delivery_status === 'belum selesai');
+    if (!hasValidCoordinates(startPoint)) {
+        closeModal();
+        showModal('Error', '❌ Titik awal tidak valid (0,0). Pakai "Ubah Titik Awal Manual".');
+        return;
+    }
+    const source = window.pendingAddressesForRoute
+        || (await getAllAddresses()).filter(a => a.delivery_status === 'belum selesai');
+    const pending = source.filter(hasValidCoordinates);
+
+    if (pending.length === 0) {
+        closeModal();
+        showModal('Info', '⚠️ Tidak ada alamat dengan koordinat valid untuk dioptimasi.');
+        return;
+    }
+
     closeModal();
     document.getElementById('modal-content').innerHTML = `<div style="padding:40px;text-align:center"><h2 style="margin-bottom:20px">⏳ Optimasi Rute...</h2><div style="width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto"></div></div>`;
     document.getElementById('modal').classList.add('active');
@@ -1734,20 +1790,40 @@ async function executeRouteOptimizationFromCurrent(lat, lon) {
         displayRouteOnMap(route, totalDistance);
     } catch (err) { showModal('Error', `❌ ${err.message}`); }
 }
+
 async function executeRouteOptimizationFromMap() {
     if (!window.routeStartPoint || !window.pendingAddressesForRoute) { showModal('Error', 'Data tidak ditemukan'); return; }
+    const startPoint = { latitude: window.routeStartPoint.latitude, longitude: window.routeStartPoint.longitude };
+    if (!hasValidCoordinates(startPoint)) {
+        showModal('Error', '❌ Titik awal tidak valid (0,0). Geser pin ke lokasi asli.');
+        return;
+    }
+    const pending = window.pendingAddressesForRoute.filter(hasValidCoordinates);
+    if (pending.length === 0) {
+        closeModal();
+        showModal('Info', '⚠️ Tidak ada alamat dengan koordinat valid.');
+        return;
+    }
+
     closeModal();
     document.getElementById('modal-content').innerHTML = `<div style="padding:40px;text-align:center"><h2 style="margin-bottom:20px">⏳ Optimasi Rute...</h2><div style="width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto"></div></div>`;
     document.getElementById('modal').classList.add('active');
     try {
-        const { route, totalDistance } = await calculateNearestNeighbor(window.routeStartPoint, window.pendingAddressesForRoute);
+        const { route, totalDistance } = await calculateNearestNeighbor(startPoint, pending);
         closeModal();
         await displayRouteList(route, totalDistance);
         displayRouteOnMap(route, totalDistance);
     } catch (err) { showModal('Error', `❌ ${err.message}`); }
 }
+
 async function calculateNearestNeighbor(start, addresses) {
-    const rem = [...addresses];
+    if (!hasValidCoordinates(start)) {
+        throw new Error('Titik awal tidak valid (0,0)');
+    }
+    const rem = (addresses || []).filter(hasValidCoordinates);
+    if (rem.length === 0) {
+        throw new Error('Tidak ada alamat dengan koordinat valid');
+    }
     const route = [start];
     let cur = start, total = 0;
     while (rem.length > 0) {
@@ -1756,24 +1832,40 @@ async function calculateNearestNeighbor(start, addresses) {
             const d = await calculateDistance(cur.latitude, cur.longitude, rem[i].latitude, rem[i].longitude);
             if (d < nd) { nd = d; nearest = rem[i]; ni = i; }
         }
-        if (nearest) { route.push(nearest); total += nd; cur = { latitude: nearest.latitude, longitude: nearest.longitude }; rem.splice(ni, 1); }
+        if (nearest) {
+            route.push(nearest);
+            total += nd;
+            cur = { latitude: nearest.latitude, longitude: nearest.longitude };
+            rem.splice(ni, 1);
+        }
     }
     return { route, totalDistance: total };
 }
+
 async function displayRouteList(route, totalDistance) {
-    let html = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">Rute Optimal - ${route.length} Lokasi</h2><div style="background:var(--bg-alt);padding:8px;border-radius:4px;margin-bottom:12px;font-size:13px"><strong>Total Jarak:</strong> ${totalDistance.toFixed(2)} km</div><div style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:8px">`;
+    const skipped = (window._routeSkipped || []).length;
+    const skippedNotice = skipped > 0
+        ? `<div style="background:#fef3c7;color:#92400e;padding:8px;border-radius:4px;margin-bottom:8px;font-size:11px;line-height:1.5">⚠️ ${skipped} alamat dilewati (koordinat 0,0 / tidak valid)</div>`
+        : '';
+    let html = `<div style="padding:16px"><h2 style="margin-bottom:8px;font-size:16px">Rute Optimal - ${route.length} Lokasi</h2>${skippedNotice}<div style="background:var(--bg-alt);padding:8px;border-radius:4px;margin-bottom:12px;font-size:13px"><strong>Total Jarak:</strong> ${totalDistance.toFixed(2)} km</div><div style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:8px">`;
     let cum = 0;
     for (let i = 0; i < route.length; i++) {
         const a = route[i];
         if (i === 0) html += `<div style="padding:8px;background:#06b6d4;color:white;border-radius:4px;margin-bottom:6px;font-weight:600">📍 START: ${a.recipient_name || 'Titik Awal'}</div>`;
-        else { const d = await calculateDistance(route[i - 1].latitude, route[i - 1].longitude, a.latitude, a.longitude); cum += d; html += `<div style="padding:8px;background:var(--bg-alt);border-radius:4px;margin-bottom:6px;border-left:4px solid #06b6d4"><strong style="color:#06b6d4">🔹 ${i}</strong> ${a.recipient_name || 'Alamat'}<br><small style="color:var(--text-light)">Jarak: ${d.toFixed(2)} km | Kumulatif: ${cum.toFixed(2)} km</small></div>`; }
+        else {
+            const d = await calculateDistance(route[i - 1].latitude, route[i - 1].longitude, a.latitude, a.longitude);
+            cum += d;
+            html += `<div style="padding:8px;background:var(--bg-alt);border-radius:4px;margin-bottom:6px;border-left:4px solid #06b6d4"><strong style="color:#06b6d4">🔹 ${i}</strong> ${a.recipient_name || 'Alamat'}<br><small style="color:var(--text-light)">Jarak: ${d.toFixed(2)} km | Kumulatif: ${cum.toFixed(2)} km</small></div>`;
+        }
     }
     html += `</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><button class="btn-primary" style="padding:10px;font-size:13px;font-weight:600" onclick="openRouteInGoogleMaps()">🗺️ Buka di GMap</button><button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600" onclick="exportRouteKML()">📥 KML</button><button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600" onclick="exportRouteGPX()">📥 GPX</button><button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600" onclick="copyRouteCoords()">📋 Copy</button><button class="btn-secondary" style="padding:10px;font-size:13px;font-weight:600;grid-column:span 2" onclick="closeModal()">Tutup</button></div></div>`;
     document.getElementById('modal-content').innerHTML = html;
     document.getElementById('modal').classList.add('active');
     window.currentRoute = route;
     window.currentRouteTotalDistance = totalDistance;
+    window.currentRouteSkipped = window._routeSkipped || [];
 }
+
 function displayRouteOnMap(route, totalDistance) {
     if (!map) return;
     if (window.routePolyline) map.removeLayer(window.routePolyline);
@@ -2453,7 +2545,7 @@ document.getElementById('file-import-csv').addEventListener('change', (e) => {
                 if (!nm.trim()) continue;
                 const rawId = g('id', 0).trim();
                 const waRaw = g('no_wa', 2) || g('whatsapp', 2) || g('wa', 2) || '';
-                const rl = g('penerima_lain', 19) || g('recipients', 19) || ''; // index berubah karena tambah kolom
+                const rl = g('penerima_lain', 19) || g('recipients', 19) || '';
                 const ar = rl.split(';').map(x => x.trim()).filter(x => x).map(x => { const p = x.split(':'); return { name: p[0].trim(), status: (p[1] || 'belum selesai').trim(), added_at: new Date().toISOString() }; });
                 const recs = [{ name: nm, status: 'belum selesai', added_at: new Date().toISOString() }, ...ar];
                 const ur = [], seen = new Set();
@@ -2501,13 +2593,13 @@ async function showImportModal(newAddresses, type) {
     } else {
         const hasId = newAddresses.some(a => a.id && a.id.startsWith('addr_'));
         const idCount = newAddresses.filter(a => a.id && a.id.startsWith('addr_')).length;
-        
+
         document.getElementById('modal-content').innerHTML = `
         <h2>📤 Import CSV</h2>
         <p>Ditemukan <strong>${newAddresses.length}</strong> baris${hasId ? ` · ${idCount} punya ID` : ''}.</p>
-        
+
         <div style="font-weight:600;font-size:13px;color:var(--text-light);margin-bottom:8px;text-transform:uppercase">Pilih mode import:</div>
-        
+
         <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
             <label class="import-mode-opt" style="display:flex;gap:10px;padding:12px;border:2px solid var(--primary);border-radius:8px;cursor:pointer;background:rgba(37,99,235,.05)">
                 <input type="radio" name="import-mode" value="merge" checked style="margin-top:3px;cursor:pointer">
@@ -2519,7 +2611,7 @@ async function showImportModal(newAddresses, type) {
                     </small>
                 </div>
             </label>
-            
+
             <label class="import-mode-opt" style="display:flex;gap:10px;padding:12px;border:2px solid var(--border);border-radius:8px;cursor:pointer">
                 <input type="radio" name="import-mode" value="sync" style="margin-top:3px;cursor:pointer">
                 <div style="flex:1">
@@ -2531,22 +2623,22 @@ async function showImportModal(newAddresses, type) {
                 </div>
             </label>
         </div>
-        
+
         <div id="sync-warning" style="display:none;background:#fef3c7;color:#92400e;padding:10px;border-radius:6px;font-size:12px;line-height:1.6;margin-bottom:16px">
             ⚠️ <b>Mode Sync:</b> record di app yang <u>tidak ada di CSV</u> akan dihapus.<br>
             Pastikan CSV kamu sudah lengkap.
         </div>
-        
+
         <div style="background:var(--bg-alt);padding:10px;border-radius:6px;font-size:11px;color:var(--text-light);line-height:1.6;margin-bottom:16px">
             💡 <b>Match by:</b> ID → nama+WA → nama → WA<br>
             ${hasId ? '✅ CSV ini punya kolom ID — edit nama/WA tetap aman.' : '⚠️ CSV ini tidak punya ID — match pakai nama/WA.'}
         </div>
-        
+
         <div class="modal-buttons">
             <button class="btn-secondary" onclick="closeModal()">Batal</button>
             <button class="btn-primary" onclick="confirmImportWithMode(${newAddresses.length})">📤 Import</button>
         </div>`;
-        
+
         setTimeout(() => {
             document.querySelectorAll('input[name="import-mode"]').forEach(r => {
                 r.addEventListener('change', () => {
