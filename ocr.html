@@ -94,9 +94,7 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
 </head>
 <body>
 <header>
-    <a href="index.html" class="back-btn" title="Kembali ke Kurir-Q">
-        <span class="arrow">←</span> <span>Kurir-Q</span>
-    </a>
+    <a href="index.html" class="back-btn" title="Kembali ke Kurir-Q"><span class="arrow">←</span> <span>Kurir-Q</span></a>
     <h1>📷 OCR → CSV (Sedang Diproses)</h1>
 </header>
 
@@ -210,22 +208,10 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
 <div class="modal-overlay" id="edit-modal">
     <div class="modal">
         <h2>✏️ Edit Item</h2>
-        <div class="form-group">
-            <label>Nama</label>
-            <input type="text" id="edit-name">
-        </div>
-        <div class="form-group">
-            <label>No. WA</label>
-            <input type="tel" id="edit-wa" inputmode="tel">
-        </div>
-        <div class="form-group">
-            <label>Alamat</label>
-            <textarea id="edit-alamat"></textarea>
-        </div>
-        <div class="form-group">
-            <label>Catatan</label>
-            <textarea id="edit-catatan"></textarea>
-        </div>
+        <div class="form-group"><label>Nama</label><input type="text" id="edit-name"></div>
+        <div class="form-group"><label>No. WA</label><input type="tel" id="edit-wa" inputmode="tel"></div>
+        <div class="form-group"><label>Alamat</label><textarea id="edit-alamat"></textarea></div>
+        <div class="form-group"><label>Catatan</label><textarea id="edit-catatan"></textarea></div>
         <div class="row">
             <button class="btn btn-secondary" style="flex:1" onclick="closeEditModal()">Batal</button>
             <button class="btn btn-primary" style="flex:1" id="save-edit-btn">💾 Simpan</button>
@@ -236,919 +222,690 @@ main{flex:1;overflow-y:auto;padding:16px;padding-bottom:100px}
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
-// ============================================
-// KONFIG ADAPTIF (RAM + ORIENTASI)
-// ============================================
-const DEVICE_RAM_GB = navigator.deviceMemory || 4;
-const LOW_MEMORY = DEVICE_RAM_GB < 4;
+const DEVICE_RAM_GB=navigator.deviceMemory||4;
+const LOW_MEMORY=DEVICE_RAM_GB<4;
+const OCR_TARGET_WIDTH=LOW_MEMORY?1400:1800;
+const TILE_TARGET_HEIGHT=LOW_MEMORY?1600:2000;
+const TILE_OVERLAP=LOW_MEMORY?180:220;
+const LONGSCREENSHOT_ASPECT_THRESHOLD=2.5;
+const LONGSCREENSHOT_HEIGHT_THRESHOLD=2500;
+const JPEG_QUALITY=0.88;
+const PREVIEW_MAX_DIM=500;
 
-const OCR_TARGET_WIDTH = LOW_MEMORY ? 1400 : 1800;
-const TILE_TARGET_HEIGHT = LOW_MEMORY ? 1600 : 2000;
-const TILE_OVERLAP = LOW_MEMORY ? 180 : 220;
+if(typeof pdfjsLib!=='undefined'){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}
 
-const LONGSCREENSHOT_ASPECT_THRESHOLD = 2.5;
-const LONGSCREENSHOT_HEIGHT_THRESHOLD = 2500;
+let currentFileType='';
+let currentImageBlob=null;
+let currentPreviewUrl=null;
+let currentLongImage=null;
+let currentLongInfo=null;
+let pdfDoc=null;
+let pdfTotalPages=0;
+let items=[];
+let editingIndex=-1;
+let tesseractWorker=null;
+let tesseractLoaded=false;
+let isProcessing=false;
+let abortOCRAll=false;
+let wakeLock=null;
 
-const JPEG_QUALITY = 0.88;
-const PREVIEW_MAX_DIM = 500;
-
-if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-}
-
-// ============================================
-// STATE
-// ============================================
-let currentFileType = '';
-let currentImageBlob = null;
-let currentPreviewUrl = null;
-let currentLongImage = null;
-let currentLongInfo = null;
-let pdfDoc = null;
-let pdfTotalPages = 0;
-let items = [];
-let editingIndex = -1;
-let tesseractWorker = null;
-let tesseractLoaded = false;
-let isProcessing = false;
-let abortOCRAll = false;
-let wakeLock = null;
-
-(function initMemHint() {
-    const el = document.getElementById('mem-hint');
-    if (!el) return;
-    if (LOW_MEMORY) {
-        el.textContent = `⚠️ RAM ${DEVICE_RAM_GB}GB → mode hemat (target ${OCR_TARGET_WIDTH}px)`;
-    } else {
-        el.textContent = `📊 Mode normal (target ${OCR_TARGET_WIDTH}px)`;
-    }
+(function initMemHint(){
+    const el=document.getElementById('mem-hint');
+    if(!el)return;
+    if(LOW_MEMORY)el.textContent=`⚠️ RAM ${DEVICE_RAM_GB}GB → mode hemat (target ${OCR_TARGET_WIDTH}px)`;
+    else el.textContent=`📊 Mode normal (target ${OCR_TARGET_WIDTH}px)`;
 })();
 
-// ============================================
-// HELPERS: WA
-// ============================================
-function normalizeWhatsApp(input) {
-    if (!input) return '';
-    let digits = String(input).replace(/\D/g, '');
-    if (!digits) return '';
-    if (digits.startsWith('620') && digits.length > 11) digits = '62' + digits.substring(3);
-    if (digits.startsWith('0062')) digits = digits.substring(2);
-    if (digits.startsWith('0')) digits = '62' + digits.substring(1);
-    else if (digits.startsWith('8')) digits = '62' + digits;
-    else if (!digits.startsWith('62')) digits = '62' + digits;
+// ============ WHATSAPP NORMALIZATION (FIXED) ============
+function normalizeWhatsApp(input){
+    if(!input)return '';
+    let digits=String(input).replace(/\D/g,'');
+    if(!digits)return '';
+    if(digits.startsWith('0062'))digits=digits.substring(2);
+    while(digits.startsWith('6262'))digits='62'+digits.substring(4);
+    while(digits.startsWith('620'))digits='62'+digits.substring(3);
+    while(digits.startsWith('00'))digits=digits.substring(2);
+    if(digits.startsWith('0'))digits='62'+digits.substring(1);
+    else if(digits.startsWith('8'))digits='62'+digits;
+    else if(!digits.startsWith('62'))digits='62'+digits;
     return digits;
 }
-function formatWhatsAppDisplay(wa) {
-    if (!wa || wa.length < 10) return wa || '-';
-    const rest = wa.substring(2);
-    if (rest.length >= 9) return `+62 ${rest.substring(0, 3)}-${rest.substring(3, 7)}-${rest.substring(7)}`;
-    return '+' + wa;
+function formatWhatsAppDisplay(wa){
+    if(!wa||wa.length<10)return wa||'-';
+    const rest=wa.substring(2);
+    if(rest.length>=9)return `+62 ${rest.substring(0,3)}-${rest.substring(3,7)}-${rest.substring(7)}`;
+    return '+'+wa;
 }
 
-// ============================================
-// HELPERS: IMAGE
-// ============================================
-function loadImageFromBlob(blob) {
-    return new Promise((resolve, reject) => {
-        const url = URL.createObjectURL(blob);
-        const img = new Image();
-        img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Gagal decode gambar')); };
-        img.src = url;
+// ============ HELPERS: IMAGE ============
+function loadImageFromBlob(blob){
+    return new Promise((resolve,reject)=>{
+        const url=URL.createObjectURL(blob);
+        const img=new Image();
+        img.onload=()=>{URL.revokeObjectURL(url);resolve(img);};
+        img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Gagal decode gambar'));};
+        img.src=url;
     });
 }
-
-async function makeThumbnail(img, maxDim = PREVIEW_MAX_DIM) {
-    const iw = img.naturalWidth || img.width;
-    const ih = img.naturalHeight || img.height;
-    const scale = Math.min(1, maxDim / Math.max(iw, ih));
-    const w = Math.max(1, Math.round(iw * scale));
-    const h = Math.max(1, Math.round(ih * scale));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, w, h);
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, 0, 0, w, h);
-
-    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.72));
-    canvas.width = 0;
-    canvas.height = 0;
+async function makeThumbnail(img,maxDim=PREVIEW_MAX_DIM){
+    const iw=img.naturalWidth||img.width;
+    const ih=img.naturalHeight||img.height;
+    const scale=Math.min(1,maxDim/Math.max(iw,ih));
+    const w=Math.max(1,Math.round(iw*scale));
+    const h=Math.max(1,Math.round(ih*scale));
+    const canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d',{alpha:false});
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+    ctx.imageSmoothingQuality='high';
+    ctx.drawImage(img,0,0,w,h);
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.72));
+    canvas.width=0;canvas.height=0;
     return blob;
 }
-
-function cropTileToBlob(img, srcY, srcH, targetWidth = OCR_TARGET_WIDTH) {
-    return new Promise((resolve, reject) => {
-        const srcW = img.naturalWidth || img.width;
-        const scale = Math.min(1, targetWidth / srcW);
-        const w = Math.max(1, Math.round(srcW * scale));
-        const h = Math.max(1, Math.round(srcH * scale));
-
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d', { alpha: false });
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, w, h);
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, srcY, srcW, srcH, 0, 0, w, h);
-
-        canvas.toBlob(blob => {
-            canvas.width = 0;
-            canvas.height = 0;
-            if (blob) resolve(blob);
+function cropTileToBlob(img,srcY,srcH,targetWidth=OCR_TARGET_WIDTH){
+    return new Promise((resolve,reject)=>{
+        const srcW=img.naturalWidth||img.width;
+        const scale=Math.min(1,targetWidth/srcW);
+        const w=Math.max(1,Math.round(srcW*scale));
+        const h=Math.max(1,Math.round(srcH*scale));
+        const canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        const ctx=canvas.getContext('2d',{alpha:false});
+        ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+        ctx.imageSmoothingQuality='high';
+        ctx.drawImage(img,0,srcY,srcW,srcH,0,0,w,h);
+        canvas.toBlob(blob=>{
+            canvas.width=0;canvas.height=0;
+            if(blob)resolve(blob);
             else reject(new Error('Gagal crop tile'));
-        }, 'image/jpeg', JPEG_QUALITY);
+        },'image/jpeg',JPEG_QUALITY);
     });
 }
-
-function prepareNormalImage(source, maxDim = OCR_TARGET_WIDTH, quality = JPEG_QUALITY) {
-    return new Promise((resolve, reject) => {
-        const isUrl = typeof source === 'string';
-        const url = isUrl ? source : URL.createObjectURL(source);
-        const img = new Image();
-
-        const cleanup = () => {
-            if (!isUrl) { try { URL.revokeObjectURL(url); } catch (e) {} }
-            img.src = '';
-            img.onload = null;
-            img.onerror = null;
-        };
-
-        img.onload = () => {
-            let canvas = null;
-            try {
-                const iw = img.naturalWidth, ih = img.naturalHeight;
-                const scale = Math.min(1, maxDim / Math.max(iw, ih));
-                const w = Math.round(iw * scale);
-                const h = Math.round(ih * scale);
-                canvas = document.createElement('canvas');
-                canvas.width = w;
-                canvas.height = h;
-                const ctx = canvas.getContext('2d', { alpha: false });
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(0, 0, w, h);
-                ctx.drawImage(img, 0, 0, w, h);
-                canvas.toBlob(blob => {
-                    if (canvas) { canvas.width = 0; canvas.height = 0; canvas = null; }
+function prepareNormalImage(source,maxDim=OCR_TARGET_WIDTH,quality=JPEG_QUALITY){
+    return new Promise((resolve,reject)=>{
+        const isUrl=typeof source==='string';
+        const url=isUrl?source:URL.createObjectURL(source);
+        const img=new Image();
+        const cleanup=()=>{if(!isUrl){try{URL.revokeObjectURL(url);}catch(e){}}img.src='';img.onload=null;img.onerror=null;};
+        img.onload=()=>{
+            let canvas=null;
+            try{
+                const iw=img.naturalWidth,ih=img.naturalHeight;
+                const scale=Math.min(1,maxDim/Math.max(iw,ih));
+                const w=Math.round(iw*scale);
+                const h=Math.round(ih*scale);
+                canvas=document.createElement('canvas');
+                canvas.width=w;canvas.height=h;
+                const ctx=canvas.getContext('2d',{alpha:false});
+                ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+                ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+                ctx.drawImage(img,0,0,w,h);
+                canvas.toBlob(blob=>{
+                    if(canvas){canvas.width=0;canvas.height=0;canvas=null;}
                     cleanup();
-                    if (blob) resolve(blob);
+                    if(blob)resolve(blob);
                     else reject(new Error('Gagal membuat gambar'));
-                }, 'image/jpeg', quality);
-            } catch (err) {
-                if (canvas) { canvas.width = 0; canvas.height = 0; }
+                },'image/jpeg',quality);
+            }catch(err){
+                if(canvas){canvas.width=0;canvas.height=0;}
                 cleanup();
                 reject(err);
             }
         };
-        img.onerror = () => { cleanup(); reject(new Error('Gagal membaca gambar')); };
-        img.src = url;
+        img.onerror=()=>{cleanup();reject(new Error('Gagal membaca gambar'));};
+        img.src=url;
     });
 }
-
-function setPreview(blob, infoText) {
-    if (currentPreviewUrl) { try { URL.revokeObjectURL(currentPreviewUrl); } catch (e) {} }
-    currentPreviewUrl = URL.createObjectURL(blob);
-    const img = document.getElementById('preview-img');
-    img.src = currentPreviewUrl;
-    img.style.display = 'block';
-    const info = document.getElementById('preview-info');
-    info.style.display = 'block';
-    info.textContent = infoText;
-    document.getElementById('preview-container').style.display = 'block';
+function setPreview(blob,infoText){
+    if(currentPreviewUrl){try{URL.revokeObjectURL(currentPreviewUrl);}catch(e){}}
+    currentPreviewUrl=URL.createObjectURL(blob);
+    const img=document.getElementById('preview-img');
+    img.src=currentPreviewUrl;
+    img.style.display='block';
+    const info=document.getElementById('preview-info');
+    info.style.display='block';
+    info.textContent=infoText;
+    document.getElementById('preview-container').style.display='block';
 }
-
-function freeCurrentBlob() { currentImageBlob = null; }
-function freePreviewUrl() {
-    if (currentPreviewUrl) { try { URL.revokeObjectURL(currentPreviewUrl); } catch (e) {} currentPreviewUrl = null; }
+function freeCurrentBlob(){currentImageBlob=null;}
+function freePreviewUrl(){if(currentPreviewUrl){try{URL.revokeObjectURL(currentPreviewUrl);}catch(e){}currentPreviewUrl=null;}}
+function freeCurrentLongImage(){if(currentLongImage){currentLongImage.src='';currentLongImage=null;}currentLongInfo=null;}
+function updateMemInfo(){
+    const el=document.getElementById('progress-meta');
+    if(!el)return;
+    try{
+        if(performance.memory){
+            const used=(performance.memory.usedJSHeapSize/1024/1024).toFixed(0);
+            const limit=(performance.memory.jsHeapSizeLimit/1024/1024).toFixed(0);
+            el.textContent=`💾 ${used} / ${limit} MB`;
+        }else el.textContent='';
+    }catch(e){el.textContent='';}
 }
-function freeCurrentLongImage() {
-    if (currentLongImage) {
-        currentLongImage.src = '';
-        currentLongImage = null;
-    }
-    currentLongInfo = null;
-}
-
-function updateMemInfo() {
-    const el = document.getElementById('progress-meta');
-    if (!el) return;
-    try {
-        if (performance.memory) {
-            const used = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(0);
-            const limit = (performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(0);
-            el.textContent = `💾 ${used} / ${limit} MB`;
-        } else {
-            el.textContent = '';
-        }
-    } catch (e) { el.textContent = ''; }
-}
-
-// ============================================
-// WAKE LOCK
-// ============================================
-async function requestWakeLock() {
-    if ('wakeLock' in navigator) {
-        try {
-            wakeLock = await navigator.wakeLock.request('screen');
-            wakeLock.addEventListener('release', () => { wakeLock = null; });
-        } catch (e) {}
+async function requestWakeLock(){
+    if('wakeLock' in navigator){
+        try{wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null;});}catch(e){}
     }
 }
-function releaseWakeLock() {
-    if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; }
-}
+function releaseWakeLock(){if(wakeLock){try{wakeLock.release();}catch(e){}wakeLock=null;}}
 
-// ============================================
-// PARSER
-// ============================================
-function parseMultipleOrders(text) {
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    const orders = [];
-    let current = null;
-
-    const orderIdRegex = /\b([A-Z]{2,}\d{6,})\b/i;
-    const statusRegex = /(sedang\s+diproses|diproses|selesai|batal|pending|dikirim|dikemas)/i;
-
-    for (const line of lines) {
-        const idMatch = line.match(orderIdRegex);
-        if (idMatch) {
-            if (current) orders.push(current);
-            const statusMatch = line.match(statusRegex);
-            current = {
-                orderId: idMatch[1],
-                status: statusMatch ? statusMatch[1].toLowerCase() : '',
-                lines: []
-            };
-        } else if (current) {
+// ============ PARSER ============
+function parseMultipleOrders(text){
+    const lines=text.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+    const orders=[];
+    let current=null;
+    const orderIdRegex=/\b([A-Z]{2,}\d{6,})\b/i;
+    const statusRegex=/(sedang\s+diproses|diproses|selesai|batal|pending|dikirim|dikemas)/i;
+    for(const line of lines){
+        const idMatch=line.match(orderIdRegex);
+        if(idMatch){
+            if(current)orders.push(current);
+            const statusMatch=line.match(statusRegex);
+            current={orderId:idMatch[1],status:statusMatch?statusMatch[1].toLowerCase():'',lines:[]};
+        }else if(current){
             current.lines.push(line);
-            if (!current.status) {
-                const sm = line.match(statusRegex);
-                if (sm) current.status = sm[1].toLowerCase();
-            }
+            if(!current.status){const sm=line.match(statusRegex);if(sm)current.status=sm[1].toLowerCase();}
         }
     }
-    if (current) orders.push(current);
-
-    console.log(`[OCR] Blok order: ${orders.length}`);
-    const processed = orders.filter(o => {
-        const s = (o.status || '').toLowerCase();
-        if (/selesai|batal|dikirim|dikemas|pending/i.test(s)) return false;
+    if(current)orders.push(current);
+    const processed=orders.filter(o=>{
+        const s=(o.status||'').toLowerCase();
+        if(/selesai|batal|dikirim|dikemas|pending/i.test(s))return false;
         return /diproses/i.test(s);
     });
-    console.log(`[OCR] Setelah filter "Sedang diproses": ${processed.length}`);
-
-    return processed.map(o => {
-        const L = o.lines;
-        let nama = '', wa = '', alamat = '', waIdx = -1;
-
-        const waPatterns = [
-            /\(\+?62\)[\s\-\d]{8,}/,
-            /\+?62[\s\-\d]{9,}/,
-            /\b0\d{2}[\s\-]?\d{3,4}[\s\-]?\d{3,4}\b/,
-            /\b8\d{2}[\s\-]?\d{3,4}[\s\-]?\d{3,4}\b/
-        ];
-
-        for (let i = 0; i < L.length; i++) {
-            for (const p of waPatterns) {
-                if (p.test(L[i])) {
-                    wa = normalizeWhatsApp(L[i].replace(/\D/g, ''));
-                    waIdx = i;
-                    break;
-                }
+    return processed.map(o=>{
+        const L=o.lines;
+        let nama='',wa='',alamat='',waIdx=-1;
+        const waPatterns=[/\(\+?62\)[\s\-\d]{8,}/,/\+?62[\s\-\d]{9,}/,/\b0\d{2}[\s\-]?\d{3,4}[\s\-]?\d{3,4}\b/,/\b8\d{2}[\s\-]?\d{3,4}[\s\-]?\d{3,4}\b/];
+        for(let i=0;i<L.length;i++){
+            for(const p of waPatterns){
+                if(p.test(L[i])){wa=normalizeWhatsApp(L[i].replace(/\D/g,''));waIdx=i;break;}
             }
-            if (waIdx >= 0) break;
+            if(waIdx>=0)break;
         }
-        if (waIdx > 0) nama = L[waIdx - 1];
-        else if (waIdx === -1 && L.length > 0) nama = L[0];
-        if (waIdx >= 0 && waIdx < L.length - 1) alamat = L.slice(waIdx + 1).join(', ');
-
-        return {
-            nama: (nama || '').trim(),
-            wa,
-            alamat: (alamat || '').trim(),
-            catatan: `${o.orderId} - ${o.status}`
-        };
+        if(waIdx>0)nama=L[waIdx-1];
+        else if(waIdx===-1&&L.length>0)nama=L[0];
+        if(waIdx>=0&&waIdx<L.length-1)alamat=L.slice(waIdx+1).join(', ');
+        return{nama:(nama||'').trim(),wa,alamat:(alamat||'').trim(),catatan:`${o.orderId} - ${o.status}`};
     });
 }
-
-function dedupeOrders(orders) {
-    const map = new Map();
-    const noIdOrders = [];
-    const pickLonger = (a, b) => {
-        a = (a || '').trim(); b = (b || '').trim();
-        return b.length > a.length ? b : a;
-    };
-
-    for (const o of orders) {
-        const m = (o.catatan || '').match(/\b([A-Z]{2,}\d{6,})\b/i);
-        if (!m) {
-            const key = `${(o.nama || '').toLowerCase()}|${o.wa || ''}`;
-            if (o.nama || o.wa) {
-                const ex = map.get('__noid__' + key);
-                if (!ex) map.set('__noid__' + key, o);
-                else ex.alamat = pickLonger(ex.alamat, o.alamat);
-            } else {
-                noIdOrders.push(o);
-            }
+function dedupeOrders(orders){
+    const map=new Map();
+    const noIdOrders=[];
+    const pickLonger=(a,b)=>{a=(a||'').trim();b=(b||'').trim();return b.length>a.length?b:a;};
+    for(const o of orders){
+        const m=(o.catatan||'').match(/\b([A-Z]{2,}\d{6,})\b/i);
+        if(!m){
+            const key=`${(o.nama||'').toLowerCase()}|${o.wa||''}`;
+            if(o.nama||o.wa){
+                const ex=map.get('__noid__'+key);
+                if(!ex)map.set('__noid__'+key,o);
+                else ex.alamat=pickLonger(ex.alamat,o.alamat);
+            }else noIdOrders.push(o);
             continue;
         }
-        const id = m[1].toUpperCase();
-        const ex = map.get(id);
-        if (!ex) map.set(id, { ...o });
-        else {
-            ex.nama = pickLonger(ex.nama, o.nama);
-            ex.wa = ex.wa || o.wa;
-            ex.alamat = pickLonger(ex.alamat, o.alamat);
-        }
+        const id=m[1].toUpperCase();
+        const ex=map.get(id);
+        if(!ex)map.set(id,{...o});
+        else{ex.nama=pickLonger(ex.nama,o.nama);ex.wa=ex.wa||o.wa;ex.alamat=pickLonger(ex.alamat,o.alamat);}
     }
-    return [...noIdOrders, ...Array.from(map.values())];
+    return[...noIdOrders,...Array.from(map.values())];
 }
 
-// ============================================
-// FILE HANDLING
-// ============================================
-document.getElementById('file-input-camera').addEventListener('change', handleFileSelect);
-document.getElementById('file-input-all').addEventListener('change', handleFileSelect);
-document.getElementById('upload-zone').addEventListener('click', () => document.getElementById('file-input-all').click());
-document.getElementById('upload-zone').addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.background = 'var(--bg-alt)'; });
-document.getElementById('upload-zone').addEventListener('dragleave', (e) => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = ''; });
-document.getElementById('upload-zone').addEventListener('drop', (e) => {
-    e.preventDefault();
-    e.currentTarget.style.borderColor = '';
-    e.currentTarget.style.background = '';
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-});
+// ============ FILE HANDLING ============
+document.getElementById('file-input-camera').addEventListener('change',handleFileSelect);
+document.getElementById('file-input-all').addEventListener('change',handleFileSelect);
+document.getElementById('upload-zone').addEventListener('click',()=>document.getElementById('file-input-all').click());
+document.getElementById('upload-zone').addEventListener('dragover',(e)=>{e.preventDefault();e.currentTarget.style.borderColor='var(--primary)';e.currentTarget.style.background='var(--bg-alt)';});
+document.getElementById('upload-zone').addEventListener('dragleave',(e)=>{e.currentTarget.style.borderColor='';e.currentTarget.style.background='';});
+document.getElementById('upload-zone').addEventListener('drop',(e)=>{e.preventDefault();e.currentTarget.style.borderColor='';e.currentTarget.style.background='';const file=e.dataTransfer.files[0];if(file)processFile(file);});
 
-function handleFileSelect(e) {
-    const file = e.target.files[0];
-    if (file) processFile(file);
-    e.target.value = '';
-}
+function handleFileSelect(e){const file=e.target.files[0];if(file)processFile(file);e.target.value='';}
 
-async function processFile(file) {
-    freeCurrentBlob();
-    freePreviewUrl();
-    freeCurrentLongImage();
-    if (pdfDoc) { try { pdfDoc.destroy(); } catch (e) {} pdfDoc = null; }
-    pdfTotalPages = 0;
-    document.getElementById('longshot-info-wrap').style.display = 'none';
-
-    const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-    const isImage = file.type.startsWith('image/');
-
-    if (!isPDF && !isImage) {
-        alert('❌ Format tidak didukung.\nGunakan PDF, JPG, JPEG, PNG, atau screenshot.');
-        return;
-    }
-
-    if (file.size > 15 * 1024 * 1024 && LOW_MEMORY) {
-        if (!confirm(`⚠️ File besar (${(file.size / 1024 / 1024).toFixed(1)} MB) di device RAM terbatas.\n\nLanjutkan?`)) return;
-    }
-
-    try {
-        if (isImage) await processImageFile(file);
+async function processFile(file){
+    freeCurrentBlob();freePreviewUrl();freeCurrentLongImage();
+    if(pdfDoc){try{pdfDoc.destroy();}catch(e){}pdfDoc=null;}
+    pdfTotalPages=0;
+    document.getElementById('longshot-info-wrap').style.display='none';
+    const isPDF=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');
+    const isImage=file.type.startsWith('image/');
+    if(!isPDF&&!isImage){alert('❌ Format tidak didukung.\nGunakan PDF, JPG, JPEG, PNG, atau screenshot.');return;}
+    if(file.size>15*1024*1024&&LOW_MEMORY){if(!confirm(`⚠️ File besar (${(file.size/1024/1024).toFixed(1)} MB) di device RAM terbatas.\n\nLanjutkan?`))return;}
+    try{
+        if(isImage)await processImageFile(file);
         else await processPDFFile(file);
-    } catch (err) {
-        console.error('Process file error:', err);
-        alert('❌ Gagal memproses file: ' + err.message);
+    }catch(err){
+        alert('❌ Gagal memproses file: '+err.message);
         resetUpload();
     }
 }
-
-async function processImageFile(file) {
+async function processImageFile(file){
     document.getElementById('progress-wrap').classList.add('active');
-    document.getElementById('progress-fill').style.width = '10%';
-    document.getElementById('progress-text').textContent = 'Membaca gambar...';
-    document.getElementById('progress-meta').textContent = '';
-    document.getElementById('upload-card').style.display = 'none';
+    document.getElementById('progress-fill').style.width='10%';
+    document.getElementById('progress-text').textContent='Membaca gambar...';
+    document.getElementById('progress-meta').textContent='';
+    document.getElementById('upload-card').style.display='none';
     updateMemInfo();
-
-    const img = await loadImageFromBlob(file);
-    const iw = img.naturalWidth;
-    const ih = img.naturalHeight;
-    const aspectRatio = ih / iw;
-
-    const isLong = aspectRatio > LONGSCREENSHOT_ASPECT_THRESHOLD || ih > LONGSCREENSHOT_HEIGHT_THRESHOLD;
-
-    document.getElementById('progress-fill').style.width = '40%';
-
-    if (isLong) {
-        currentFileType = 'longshot';
-
-        const tileStride = Math.max(400, TILE_TARGET_HEIGHT - TILE_OVERLAP);
-        const tileCount = Math.max(1, Math.ceil((ih - TILE_OVERLAP) / tileStride));
-        currentLongInfo = { width: iw, height: ih, tileCount };
-        currentLongImage = img;
-
-        const thumb = await makeThumbnail(img, PREVIEW_MAX_DIM);
-        setPreview(thumb, `📱 Long screenshot ${iw}×${ih} px`);
-
-        const infoText = document.getElementById('longshot-info-text');
-        const estKB = Math.round((iw * ih * 0.15) / 1024);
-        infoText.innerHTML = `
-            <strong>${iw.toLocaleString()} × ${ih.toLocaleString()}</strong> px 
-            (rasio 1:${aspectRatio.toFixed(1)})<br>
-            Akan diproses dalam <strong>${tileCount} tile</strong> 
-            (tinggi tile ${TILE_TARGET_HEIGHT}px, overlap ${TILE_OVERLAP}px)<br>
-            <small>Hasil dari tiap tile digabung otomatis, order di perbatasan tidak dobel.</small>
-        `;
-        document.getElementById('longshot-info-wrap').style.display = 'block';
-
-        let statsHtml = `<div class="tile-info">`;
-        statsHtml += `<div class="stat"><div class="stat-num">${iw}</div><div class="stat-label">Lebar</div></div>`;
-        statsHtml += `<div class="stat"><div class="stat-num">${ih.toLocaleString()}</div><div class="stat-label">Tinggi</div></div>`;
-        statsHtml += `<div class="stat"><div class="stat-num">${tileCount}</div><div class="stat-label">Tile</div></div>`;
-        statsHtml += `<div class="stat"><div class="stat-num">${estKB}KB</div><div class="stat-label">Total tile</div></div>`;
-        statsHtml += `</div>`;
-        infoText.insertAdjacentHTML('afterend', statsHtml);
-
-        currentImageBlob = null;
-    } else {
-        currentFileType = 'image';
-        const optimizedBlob = await prepareNormalImage(img, OCR_TARGET_WIDTH);
-        img.src = '';
-        currentImageBlob = optimizedBlob;
-        const sizeKB = (optimizedBlob.size / 1024).toFixed(0);
-        setPreview(optimizedBlob, `📷 ${file.name.length > 25 ? file.name.substring(0, 25) + '...' : file.name} · ${sizeKB} KB · ${iw}×${ih}`);
+    const img=await loadImageFromBlob(file);
+    const iw=img.naturalWidth;
+    const ih=img.naturalHeight;
+    const aspectRatio=ih/iw;
+    const isLong=aspectRatio>LONGSCREENSHOT_ASPECT_THRESHOLD||ih>LONGSCREENSHOT_HEIGHT_THRESHOLD;
+    document.getElementById('progress-fill').style.width='40%';
+    if(isLong){
+        currentFileType='longshot';
+        const tileStride=Math.max(400,TILE_TARGET_HEIGHT-TILE_OVERLAP);
+        const tileCount=Math.max(1,Math.ceil((ih-TILE_OVERLAP)/tileStride));
+        currentLongInfo={width:iw,height:ih,tileCount};
+        currentLongImage=img;
+        const thumb=await makeThumbnail(img,PREVIEW_MAX_DIM);
+        setPreview(thumb,`📱 Long screenshot ${iw}×${ih} px`);
+        const infoText=document.getElementById('longshot-info-text');
+        const estKB=Math.round((iw*ih*0.15)/1024);
+        infoText.innerHTML=`<strong>${iw.toLocaleString()} × ${ih.toLocaleString()}</strong> px (rasio 1:${aspectRatio.toFixed(1)})<br>Akan diproses dalam <strong>${tileCount} tile</strong> (tinggi ${TILE_TARGET_HEIGHT}px, overlap ${TILE_OVERLAP}px)<br><small>Hasil digabung otomatis, order di perbatasan tidak dobel.</small>`;
+        document.getElementById('longshot-info-wrap').style.display='block';
+        let statsHtml=`<div class="tile-info">`;
+        statsHtml+=`<div class="stat"><div class="stat-num">${iw}</div><div class="stat-label">Lebar</div></div>`;
+        statsHtml+=`<div class="stat"><div class="stat-num">${ih.toLocaleString()}</div><div class="stat-label">Tinggi</div></div>`;
+        statsHtml+=`<div class="stat"><div class="stat-num">${tileCount}</div><div class="stat-label">Tile</div></div>`;
+        statsHtml+=`<div class="stat"><div class="stat-num">${estKB}KB</div><div class="stat-label">Total</div></div>`;
+        statsHtml+=`</div>`;
+        infoText.insertAdjacentHTML('afterend',statsHtml);
+        currentImageBlob=null;
+    }else{
+        currentFileType='image';
+        const optimizedBlob=await prepareNormalImage(img,OCR_TARGET_WIDTH);
+        img.src='';
+        currentImageBlob=optimizedBlob;
+        const sizeKB=(optimizedBlob.size/1024).toFixed(0);
+        setPreview(optimizedBlob,`📷 ${file.name.length>25?file.name.substring(0,25)+'...':file.name} · ${sizeKB} KB · ${iw}×${ih}`);
     }
-
-    document.getElementById('progress-fill').style.width = '100%';
-    document.getElementById('progress-text').textContent = '✓ Siap';
-    setTimeout(() => document.getElementById('progress-wrap').classList.remove('active'), 350);
-
-    document.getElementById('ocr-action-wrap').style.display = 'block';
-    document.getElementById('page-selector-wrap').style.display = 'none';
-    document.getElementById('result-form-wrap').style.display = 'none';
+    document.getElementById('progress-fill').style.width='100%';
+    document.getElementById('progress-text').textContent='✓ Siap';
+    setTimeout(()=>document.getElementById('progress-wrap').classList.remove('active'),350);
+    document.getElementById('ocr-action-wrap').style.display='block';
+    document.getElementById('page-selector-wrap').style.display='none';
+    document.getElementById('result-form-wrap').style.display='none';
 }
-
-async function processPDFFile(file) {
-    currentFileType = 'pdf';
+async function processPDFFile(file){
+    currentFileType='pdf';
     document.getElementById('progress-wrap').classList.add('active');
-    document.getElementById('progress-fill').style.width = '20%';
-    document.getElementById('progress-text').textContent = 'Membaca PDF...';
-    document.getElementById('upload-card').style.display = 'none';
-
-    const arrayBuffer = await file.arrayBuffer();
-    pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    pdfTotalPages = pdfDoc.numPages;
-
-    document.getElementById('progress-fill').style.width = '60%';
-    document.getElementById('progress-text').textContent = `Memuat halaman 1 dari ${pdfTotalPages}...`;
-
+    document.getElementById('progress-fill').style.width='20%';
+    document.getElementById('progress-text').textContent='Membaca PDF...';
+    document.getElementById('upload-card').style.display='none';
+    const arrayBuffer=await file.arrayBuffer();
+    pdfDoc=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+    pdfTotalPages=pdfDoc.numPages;
+    document.getElementById('progress-fill').style.width='60%';
+    document.getElementById('progress-text').textContent=`Memuat halaman 1 dari ${pdfTotalPages}...`;
     await renderPDFPage(1);
-
-    document.getElementById('progress-fill').style.width = '100%';
-    document.getElementById('progress-text').textContent = `✓ PDF dimuat (${pdfTotalPages} halaman)`;
-    setTimeout(() => document.getElementById('progress-wrap').classList.remove('active'), 400);
-
-    const info = `📄 ${file.name.length > 22 ? file.name.substring(0, 22) + '...' : file.name} · hal 1/${pdfTotalPages}`;
-    setPreview(currentImageBlob, info);
-
-    const select = document.getElementById('pdf-page-select');
-    select.innerHTML = '';
-    for (let i = 1; i <= pdfTotalPages; i++) {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = `Halaman ${i}`;
-        select.appendChild(opt);
-    }
-
-    document.getElementById('page-selector-wrap').style.display = pdfTotalPages > 1 ? 'block' : 'none';
-    document.getElementById('ocr-action-wrap').style.display = 'block';
-    document.getElementById('result-form-wrap').style.display = 'none';
+    document.getElementById('progress-fill').style.width='100%';
+    document.getElementById('progress-text').textContent=`✓ PDF dimuat (${pdfTotalPages} halaman)`;
+    setTimeout(()=>document.getElementById('progress-wrap').classList.remove('active'),400);
+    const info=`📄 ${file.name.length>22?file.name.substring(0,22)+'...':file.name} · hal 1/${pdfTotalPages}`;
+    setPreview(currentImageBlob,info);
+    const select=document.getElementById('pdf-page-select');
+    select.innerHTML='';
+    for(let i=1;i<=pdfTotalPages;i++){const opt=document.createElement('option');opt.value=i;opt.textContent=`Halaman ${i}`;select.appendChild(opt);}
+    document.getElementById('page-selector-wrap').style.display=pdfTotalPages>1?'block':'none';
+    document.getElementById('ocr-action-wrap').style.display='block';
+    document.getElementById('result-form-wrap').style.display='none';
 }
-
-async function renderPDFPage(pageNum, updatePreview = true) {
-    if (!pdfDoc) throw new Error('PDF belum dimuat');
-    const page = await pdfDoc.getPage(pageNum);
-    let canvas = null;
-    try {
-        const viewport = page.getViewport({ scale: 1.0 });
-        let scale = OCR_TARGET_WIDTH / viewport.width;
-        scale = Math.min(scale, LOW_MEMORY ? 2.0 : 2.5);
-        const scaledViewport = page.getViewport({ scale });
-        canvas = document.createElement('canvas');
-        canvas.width = Math.floor(scaledViewport.width);
-        canvas.height = Math.floor(scaledViewport.height);
-        const ctx = canvas.getContext('2d', { alpha: false });
-        await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', JPEG_QUALITY));
-        if (!blob) throw new Error('Gagal render');
-        canvas.width = 0; canvas.height = 0; canvas = null;
-        currentImageBlob = blob;
-        if (updatePreview) setPreview(blob, `📄 Hal ${pageNum}/${pdfTotalPages} · ${(blob.size / 1024).toFixed(0)} KB`);
+async function renderPDFPage(pageNum,updatePreview=true){
+    if(!pdfDoc)throw new Error('PDF belum dimuat');
+    const page=await pdfDoc.getPage(pageNum);
+    let canvas=null;
+    try{
+        const viewport=page.getViewport({scale:1.0});
+        let scale=OCR_TARGET_WIDTH/viewport.width;
+        scale=Math.min(scale,LOW_MEMORY?2.0:2.5);
+        const scaledViewport=page.getViewport({scale});
+        canvas=document.createElement('canvas');
+        canvas.width=Math.floor(scaledViewport.width);
+        canvas.height=Math.floor(scaledViewport.height);
+        const ctx=canvas.getContext('2d',{alpha:false});
+        await page.render({canvasContext:ctx,viewport:scaledViewport}).promise;
+        const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',JPEG_QUALITY));
+        if(!blob)throw new Error('Gagal render');
+        canvas.width=0;canvas.height=0;canvas=null;
+        currentImageBlob=blob;
+        if(updatePreview)setPreview(blob,`📄 Hal ${pageNum}/${pdfTotalPages} · ${(blob.size/1024).toFixed(0)} KB`);
         return blob;
-    } finally {
-        if (canvas) { canvas.width = 0; canvas.height = 0; }
-        try { page.cleanup(); } catch (e) {}
+    }finally{
+        if(canvas){canvas.width=0;canvas.height=0;}
+        try{page.cleanup();}catch(e){}
     }
 }
-
-document.getElementById('pdf-page-select').addEventListener('change', async (e) => {
-    const pageNum = parseInt(e.target.value);
-    if (!pdfDoc || !pageNum) return;
+document.getElementById('pdf-page-select').addEventListener('change',async(e)=>{
+    const pageNum=parseInt(e.target.value);
+    if(!pdfDoc||!pageNum)return;
     document.getElementById('progress-wrap').classList.add('active');
-    document.getElementById('progress-fill').style.width = '0%';
-    document.getElementById('progress-text').textContent = `Merender halaman ${pageNum}...`;
-    try {
+    document.getElementById('progress-fill').style.width='0%';
+    document.getElementById('progress-text').textContent=`Merender halaman ${pageNum}...`;
+    try{
         await renderPDFPage(pageNum);
-        document.getElementById('progress-fill').style.width = '100%';
-        document.getElementById('progress-text').textContent = `✓ Halaman ${pageNum} siap`;
-        setTimeout(() => document.getElementById('progress-wrap').classList.remove('active'), 400);
-    } catch (err) {
-        alert('❌ Gagal render halaman: ' + err.message);
+        document.getElementById('progress-fill').style.width='100%';
+        document.getElementById('progress-text').textContent=`✓ Halaman ${pageNum} siap`;
+        setTimeout(()=>document.getElementById('progress-wrap').classList.remove('active'),400);
+    }catch(err){
+        alert('❌ Gagal render halaman: '+err.message);
         document.getElementById('progress-wrap').classList.remove('active');
     }
 });
-
-document.getElementById('preview-remove').addEventListener('click', () => resetUpload());
-
-function resetUpload() {
-    freeCurrentBlob();
-    freePreviewUrl();
-    freeCurrentLongImage();
-    if (pdfDoc) { try { pdfDoc.destroy(); } catch (e) {} pdfDoc = null; }
-    pdfTotalPages = 0;
-    currentFileType = '';
-    document.getElementById('preview-img').src = '';
-    document.getElementById('preview-img').style.display = 'none';
-    document.getElementById('preview-container').style.display = 'none';
-    document.getElementById('ocr-action-wrap').style.display = 'none';
-    document.getElementById('page-selector-wrap').style.display = 'none';
-    document.getElementById('result-form-wrap').style.display = 'none';
-    document.getElementById('longshot-info-wrap').style.display = 'none';
+document.getElementById('preview-remove').addEventListener('click',()=>resetUpload());
+function resetUpload(){
+    freeCurrentBlob();freePreviewUrl();freeCurrentLongImage();
+    if(pdfDoc){try{pdfDoc.destroy();}catch(e){}pdfDoc=null;}
+    pdfTotalPages=0;
+    currentFileType='';
+    document.getElementById('preview-img').src='';
+    document.getElementById('preview-img').style.display='none';
+    document.getElementById('preview-container').style.display='none';
+    document.getElementById('ocr-action-wrap').style.display='none';
+    document.getElementById('page-selector-wrap').style.display='none';
+    document.getElementById('result-form-wrap').style.display='none';
+    document.getElementById('longshot-info-wrap').style.display='none';
     document.getElementById('progress-wrap').classList.remove('active');
-    document.getElementById('progress-meta').textContent = '';
-    document.getElementById('upload-card').style.display = 'block';
-    document.getElementById('abort-ocr-btn').style.display = 'none';
+    document.getElementById('progress-meta').textContent='';
+    document.getElementById('upload-card').style.display='block';
+    document.getElementById('abort-ocr-btn').style.display='none';
 }
 
-// ============================================
-// TESSERACT OCR
-// ============================================
-async function loadTesseract() {
-    if (tesseractLoaded && tesseractWorker) return tesseractWorker;
-    document.getElementById('progress-text').textContent = 'Memuat engine OCR...';
-    document.getElementById('progress-fill').style.width = '5%';
-    try {
-        tesseractWorker = await Tesseract.createWorker('ind', 1, {
-            logger: (m) => {
-                if (m.status === 'recognizing text') {
-                    const pct = Math.round((m.progress || 0) * 100);
-                    document.getElementById('progress-fill').style.width = pct + '%';
-                    const base = document.getElementById('progress-text').dataset.base || 'Membaca teks';
-                    document.getElementById('progress-text').textContent = `${base}... ${pct}%`;
-                } else if (m.status) {
-                    document.getElementById('progress-text').textContent = m.status + (m.progress ? ' ' + Math.round(m.progress * 100) + '%' : '');
+// ============ TESSERACT OCR ============
+async function loadTesseract(){
+    if(tesseractLoaded&&tesseractWorker)return tesseractWorker;
+    document.getElementById('progress-text').textContent='Memuat engine OCR...';
+    document.getElementById('progress-fill').style.width='5%';
+    try{
+        tesseractWorker=await Tesseract.createWorker('ind',1,{
+            logger:(m)=>{
+                if(m.status==='recognizing text'){
+                    const pct=Math.round((m.progress||0)*100);
+                    document.getElementById('progress-fill').style.width=pct+'%';
+                    const base=document.getElementById('progress-text').dataset.base||'Membaca teks';
+                    document.getElementById('progress-text').textContent=`${base}... ${pct}%`;
+                }else if(m.status){
+                    document.getElementById('progress-text').textContent=m.status+(m.progress?' '+Math.round(m.progress*100)+'%':'');
                 }
             }
         });
-        tesseractLoaded = true;
+        tesseractLoaded=true;
         return tesseractWorker;
-    } catch (err) {
-        tesseractLoaded = false;
-        tesseractWorker = null;
-        throw new Error('Gagal memuat OCR engine. Cek internet lalu refresh. ' + (err.message || ''));
+    }catch(err){
+        tesseractLoaded=false;
+        tesseractWorker=null;
+        throw new Error('Gagal memuat OCR engine. Cek internet lalu refresh. '+(err.message||''));
     }
 }
-
-async function ocrOneBlob(worker, blob, baseLabel) {
-    const txt = document.getElementById('progress-text');
-    txt.dataset.base = baseLabel;
-    txt.textContent = `${baseLabel}...`;
-    document.getElementById('progress-fill').style.width = '0%';
-    const result = await worker.recognize(blob, {}, { text: true, blocks: false, hocr: false, tsv: false });
-    const text = result.data.text || '';
-    result.data.text = '';
-    result.data = null;
+async function ocrOneBlob(worker,blob,baseLabel){
+    const txt=document.getElementById('progress-text');
+    txt.dataset.base=baseLabel;
+    txt.textContent=`${baseLabel}...`;
+    document.getElementById('progress-fill').style.width='0%';
+    const result=await worker.recognize(blob,{},{text:true,blocks:false,hocr:false,tsv:false});
+    const text=result.data.text||'';
+    result.data.text='';
+    result.data=null;
     return text;
 }
 
-// ============================================
-// TOMBOL EKSTRAK
-// ============================================
-document.getElementById('start-ocr-btn').addEventListener('click', async () => {
-    if (isProcessing) return;
-    if (currentFileType === 'longshot') {
-        if (!currentLongImage || !currentLongInfo) { alert('File belum siap'); return; }
+// ============ TOMBOL EKSTRAK ============
+document.getElementById('start-ocr-btn').addEventListener('click',async()=>{
+    if(isProcessing)return;
+    if(currentFileType==='longshot'){
+        if(!currentLongImage||!currentLongInfo){alert('File belum siap');return;}
         await runOCRLongScreenshot();
-    } else if (currentFileType === 'image' || currentFileType === 'pdf') {
-        if (!currentImageBlob) { alert('Pilih file dulu'); return; }
+    }else if(currentFileType==='image'||currentFileType==='pdf'){
+        if(!currentImageBlob){alert('Pilih file dulu');return;}
         await runOCRRegular();
-    } else {
-        alert('Pilih file dulu');
-    }
+    }else alert('Pilih file dulu');
 });
 
-async function runOCRRegular() {
-    isProcessing = true;
-    const btn = document.getElementById('start-ocr-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Memproses...';
+async function runOCRRegular(){
+    isProcessing=true;
+    const btn=document.getElementById('start-ocr-btn');
+    btn.disabled=true;
+    btn.innerHTML='<span class="spinner"></span> Memproses...';
     document.getElementById('progress-wrap').classList.add('active');
-    document.getElementById('progress-text').dataset.base = 'Membaca teks';
-    document.getElementById('progress-fill').style.width = '0%';
-    document.getElementById('progress-text').textContent = 'Menyiapkan...';
+    document.getElementById('progress-text').dataset.base='Membaca teks';
+    document.getElementById('progress-fill').style.width='0%';
+    document.getElementById('progress-text').textContent='Menyiapkan...';
     updateMemInfo();
-
-    try {
-        const worker = await loadTesseract();
-        const text = await ocrOneBlob(worker, currentImageBlob, 'Membaca teks');
-        document.getElementById('progress-fill').style.width = '100%';
-        document.getElementById('progress-text').textContent = '✓ Selesai';
-
-        const orders = parseMultipleOrders(text);
-        setTimeout(() => {
+    try{
+        const worker=await loadTesseract();
+        const text=await ocrOneBlob(worker,currentImageBlob,'Membaca teks');
+        document.getElementById('progress-fill').style.width='100%';
+        document.getElementById('progress-text').textContent='✓ Selesai';
+        const orders=parseMultipleOrders(text);
+        setTimeout(()=>{
             document.getElementById('progress-wrap').classList.remove('active');
-            if (orders.length === 0) {
+            if(orders.length===0){
                 alert('⚠️ Tidak ada order "Sedang diproses" yang terdeteksi.\n\nTips:\n• Pastikan screenshot menampilkan order ID + status\n• Coba crop lebih ketat');
                 return;
             }
-            if (orders.length === 1) {
-                const p = orders[0];
-                document.getElementById('ocr-name').value = p.nama;
-                document.getElementById('ocr-wa').value = p.wa;
-                document.getElementById('ocr-alamat').value = p.alamat;
-                document.getElementById('ocr-catatan').value = p.catatan;
-                document.getElementById('result-form-wrap').style.display = 'block';
-                document.getElementById('ocr-action-wrap').style.display = 'none';
-                document.getElementById('result-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
-            } else {
-                orders.forEach(o => items.push(o));
+            if(orders.length===1){
+                const p=orders[0];
+                document.getElementById('ocr-name').value=p.nama;
+                document.getElementById('ocr-wa').value=p.wa;
+                document.getElementById('ocr-alamat').value=p.alamat;
+                document.getElementById('ocr-catatan').value=p.catatan;
+                document.getElementById('result-form-wrap').style.display='block';
+                document.getElementById('ocr-action-wrap').style.display='none';
+                document.getElementById('result-form-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+            }else{
+                orders.forEach(o=>items.push(o));
                 renderItems();
                 alert(`✓ ${orders.length} order berhasil diekstrak.`);
-                document.getElementById('items-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                document.getElementById('items-list').scrollIntoView({behavior:'smooth',block:'start'});
             }
-        }, 300);
-    } catch (err) {
-        console.error('OCR error:', err);
-        alert('❌ Gagal OCR: ' + err.message);
+        },300);
+    }catch(err){
+        alert('❌ Gagal OCR: '+err.message);
         document.getElementById('progress-wrap').classList.remove('active');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '✨ Ekstrak Teks dari File Ini';
-        isProcessing = false;
+    }finally{
+        btn.disabled=false;
+        btn.innerHTML='✨ Ekstrak Teks dari File Ini';
+        isProcessing=false;
     }
 }
 
-async function runOCRLongScreenshot() {
-    const img = currentLongImage;
-    const info = currentLongInfo;
-    if (!img || !info) return;
-
-    if (LOW_MEMORY && info.tileCount > 20) {
-        if (!confirm(`⚠️ ${info.tileCount} tile di RAM terbatas.\nProses memakan waktu 5-15 menit.\n\nLanjutkan?`)) return;
-    }
-
-    isProcessing = true;
-    abortOCRAll = false;
-    const btn = document.getElementById('start-ocr-btn');
-    const abortBtn = document.getElementById('abort-ocr-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Memproses...';
-    abortBtn.style.display = 'block';
-
+async function runOCRLongScreenshot(){
+    const img=currentLongImage;
+    const info=currentLongInfo;
+    if(!img||!info)return;
+    if(LOW_MEMORY&&info.tileCount>20){if(!confirm(`⚠️ ${info.tileCount} tile di RAM terbatas.\nProses memakan waktu 5-15 menit.\n\nLanjutkan?`))return;}
+    isProcessing=true;
+    abortOCRAll=false;
+    const btn=document.getElementById('start-ocr-btn');
+    const abortBtn=document.getElementById('abort-ocr-btn');
+    btn.disabled=true;
+    btn.innerHTML='<span class="spinner"></span> Memproses...';
+    abortBtn.style.display='block';
     document.getElementById('progress-wrap').classList.add('active');
-    document.getElementById('progress-text').dataset.base = 'Menyiapkan OCR';
-    document.getElementById('progress-fill').style.width = '0%';
-    document.getElementById('progress-text').textContent = 'Menyiapkan OCR...';
-    document.getElementById('ocr-action-wrap').style.display = 'none';
-
+    document.getElementById('progress-text').dataset.base='Menyiapkan OCR';
+    document.getElementById('progress-fill').style.width='0%';
+    document.getElementById('progress-text').textContent='Menyiapkan OCR...';
+    document.getElementById('ocr-action-wrap').style.display='none';
     await requestWakeLock();
-
-    const iw = info.width;
-    const ih = info.height;
-    const stride = Math.max(400, TILE_TARGET_HEIGHT - TILE_OVERLAP);
-
-    let allOrders = [];
-    let processed = 0;
-    const failedTiles = [];
-    let totalOrders = 0;
-
-    try {
-        const worker = await loadTesseract();
-
-        for (let tileIdx = 0; tileIdx < info.tileCount; tileIdx++) {
-            if (abortOCRAll) break;
-
-            const srcY = tileIdx * stride;
-            const srcH = Math.min(TILE_TARGET_HEIGHT, ih - srcY);
-            if (srcH <= 0) break;
-
-            const pctBase = Math.round((tileIdx / info.tileCount) * 100);
-            document.getElementById('progress-fill').style.width = pctBase + '%';
-            document.getElementById('progress-text').dataset.base = `Tile ${tileIdx + 1}/${info.tileCount}`;
-            document.getElementById('progress-text').textContent = `Tile ${tileIdx + 1}/${info.tileCount} · memotong...`;
+    const ih=info.height;
+    const stride=Math.max(400,TILE_TARGET_HEIGHT-TILE_OVERLAP);
+    let allOrders=[];
+    let processed=0;
+    const failedTiles=[];
+    let totalOrders=0;
+    try{
+        const worker=await loadTesseract();
+        for(let tileIdx=0;tileIdx<info.tileCount;tileIdx++){
+            if(abortOCRAll)break;
+            const srcY=tileIdx*stride;
+            const srcH=Math.min(TILE_TARGET_HEIGHT,ih-srcY);
+            if(srcH<=0)break;
+            const pctBase=Math.round((tileIdx/info.tileCount)*100);
+            document.getElementById('progress-fill').style.width=pctBase+'%';
+            document.getElementById('progress-text').dataset.base=`Tile ${tileIdx+1}/${info.tileCount}`;
+            document.getElementById('progress-text').textContent=`Tile ${tileIdx+1}/${info.tileCount} · memotong...`;
             updateMemInfo();
-
-            try {
-                const tileBlob = await cropTileToBlob(img, srcY, srcH, OCR_TARGET_WIDTH);
-
-                if (currentPreviewUrl) { try { URL.revokeObjectURL(currentPreviewUrl); } catch (e) {} }
-                currentPreviewUrl = URL.createObjectURL(tileBlob);
-                document.getElementById('preview-img').src = currentPreviewUrl;
-                document.getElementById('preview-info').textContent = `📱 Tile ${tileIdx + 1}/${info.tileCount} · ${(tileBlob.size / 1024).toFixed(0)} KB`;
-
-                const text = await ocrOneBlob(worker, tileBlob, `Tile ${tileIdx + 1}/${info.tileCount}`);
-
-                const orders = parseMultipleOrders(text);
-                console.log(`[Tile ${tileIdx + 1}] ${orders.length} order ditemukan`);
+            try{
+                const tileBlob=await cropTileToBlob(img,srcY,srcH,OCR_TARGET_WIDTH);
+                if(currentPreviewUrl){try{URL.revokeObjectURL(currentPreviewUrl);}catch(e){}}
+                currentPreviewUrl=URL.createObjectURL(tileBlob);
+                document.getElementById('preview-img').src=currentPreviewUrl;
+                document.getElementById('preview-info').textContent=`📱 Tile ${tileIdx+1}/${info.tileCount} · ${(tileBlob.size/1024).toFixed(0)} KB`;
+                const text=await ocrOneBlob(worker,tileBlob,`Tile ${tileIdx+1}/${info.tileCount}`);
+                const orders=parseMultipleOrders(text);
                 allOrders.push(...orders);
-                totalOrders += orders.length;
+                totalOrders+=orders.length;
                 processed++;
-
-                await new Promise(r => setTimeout(r, 80));
-
-            } catch (tileErr) {
-                console.warn(`Tile ${tileIdx + 1} gagal:`, tileErr);
-                failedTiles.push(tileIdx + 1);
+                await new Promise(r=>setTimeout(r,80));
+            }catch(tileErr){
+                failedTiles.push(tileIdx+1);
             }
         }
-
-        document.getElementById('progress-fill').style.width = '100%';
-
-        const before = allOrders.length;
-        const unique = dedupeOrders(allOrders);
-        const dupCount = before - unique.length;
-
-        document.getElementById('progress-text').textContent = abortOCRAll
-            ? `⏹️ Dibatalkan (${processed}/${info.tileCount} tile)`
-            : `✓ Selesai (${unique.length} order unik)`;
-
-        await new Promise(r => setTimeout(r, 500));
+        document.getElementById('progress-fill').style.width='100%';
+        const before=allOrders.length;
+        const unique=dedupeOrders(allOrders);
+        const dupCount=before-unique.length;
+        document.getElementById('progress-text').textContent=abortOCRAll?`⏹️ Dibatalkan (${processed}/${info.tileCount} tile)`:`✓ Selesai (${unique.length} order unik)`;
+        await new Promise(r=>setTimeout(r,500));
         document.getElementById('progress-wrap').classList.remove('active');
-
-        if (unique.length === 0) {
-            alert(`⚠️ Tidak ada order "Sedang diproses" terdeteksi.\n\nDari ${processed} tile berhasil dibaca.\n\nTips:\n• Cek screenshot menampilkan order ID + status\n• Pastikan teks tidak terlalu kecil`);
+        if(unique.length===0){
+            alert(`⚠️ Tidak ada order "Sedang diproses" terdeteksi.\n\nDari ${processed} tile berhasil dibaca.`);
             return;
         }
-
-        let msg = `📱 Screenshot panjang selesai diproses!\n\n`;
-        msg += `✓ Tile diproses: ${processed}/${info.tileCount}\n`;
-        msg += `📋 Order ditemukan: ${totalOrders}\n`;
-        if (dupCount > 0) msg += `🔁 Duplikat (overlap): ${dupCount} dibuang\n`;
-        msg += `✨ Order unik final: ${unique.length}\n`;
-        if (failedTiles.length > 0) msg += `⚠️ Tile gagal: ${failedTiles.join(', ')}\n`;
-        if (abortOCRAll) msg += `⏹️ Dibatalkan user\n`;
-        msg += `\nTambahkan ${unique.length} order ke daftar?`;
-
-        if (confirm(msg)) {
-            unique.forEach(o => items.push(o));
+        let msg=`📱 Screenshot panjang selesai diproses!\n\n`;
+        msg+=`✓ Tile diproses: ${processed}/${info.tileCount}\n`;
+        msg+=`📋 Order ditemukan: ${totalOrders}\n`;
+        if(dupCount>0)msg+=`🔁 Duplikat (overlap): ${dupCount} dibuang\n`;
+        msg+=`✨ Order unik final: ${unique.length}\n`;
+        if(failedTiles.length>0)msg+=`⚠️ Tile gagal: ${failedTiles.join(', ')}\n`;
+        if(abortOCRAll)msg+=`⏹️ Dibatalkan user\n`;
+        msg+=`\nTambahkan ${unique.length} order ke daftar?`;
+        if(confirm(msg)){
+            unique.forEach(o=>items.push(o));
             renderItems();
-            document.getElementById('items-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else {
-            const thumb = await makeThumbnail(img, PREVIEW_MAX_DIM);
-            setPreview(thumb, `📱 Long screenshot ${iw}×${ih} px`);
-            document.getElementById('ocr-action-wrap').style.display = 'block';
+            document.getElementById('items-list').scrollIntoView({behavior:'smooth',block:'start'});
+        }else{
+            const thumb=await makeThumbnail(img,PREVIEW_MAX_DIM);
+            setPreview(thumb,`📱 Long screenshot ${info.width}×${ih} px`);
+            document.getElementById('ocr-action-wrap').style.display='block';
         }
-
-    } catch (err) {
-        console.error('OCR long error:', err);
-        alert('❌ Gagal OCR: ' + err.message);
+    }catch(err){
+        alert('❌ Gagal OCR: '+err.message);
         document.getElementById('progress-wrap').classList.remove('active');
-        document.getElementById('ocr-action-wrap').style.display = 'block';
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '✨ Ekstrak Teks dari File Ini';
-        abortBtn.style.display = 'none';
-        isProcessing = false;
-        abortOCRAll = false;
+        document.getElementById('ocr-action-wrap').style.display='block';
+    }finally{
+        btn.disabled=false;
+        btn.innerHTML='✨ Ekstrak Teks dari File Ini';
+        abortBtn.style.display='none';
+        isProcessing=false;
+        abortOCRAll=false;
         releaseWakeLock();
         updateMemInfo();
     }
 }
 
-document.getElementById('ocr-all-pages-btn').addEventListener('click', async () => {
-    if (!pdfDoc || pdfTotalPages === 0 || isProcessing) return;
-
-    if (LOW_MEMORY && pdfTotalPages > 15) {
-        if (!confirm(`⚠️ ${pdfTotalPages} halaman di RAM terbatas.\nLanjutkan?`)) return;
-    }
-
-    isProcessing = true;
-    abortOCRAll = false;
-    const btn = document.getElementById('ocr-all-pages-btn');
-    const abortBtn = document.getElementById('abort-ocr-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Memproses...';
-    abortBtn.style.display = 'block';
-
+document.getElementById('ocr-all-pages-btn').addEventListener('click',async()=>{
+    if(!pdfDoc||pdfTotalPages===0||isProcessing)return;
+    if(LOW_MEMORY&&pdfTotalPages>15){if(!confirm(`⚠️ ${pdfTotalPages} halaman di RAM terbatas.\nLanjutkan?`))return;}
+    isProcessing=true;
+    abortOCRAll=false;
+    const btn=document.getElementById('ocr-all-pages-btn');
+    const abortBtn=document.getElementById('abort-ocr-btn');
+    btn.disabled=true;
+    btn.innerHTML='<span class="spinner"></span> Memproses...';
+    abortBtn.style.display='block';
     document.getElementById('progress-wrap').classList.add('active');
-    document.getElementById('upload-card').style.display = 'none';
-
+    document.getElementById('upload-card').style.display='none';
     await requestWakeLock();
-
-    let successCount = 0;
-    const failedPages = [];
-
-    try {
-        const worker = await loadTesseract();
-
-        for (let i = 1; i <= pdfTotalPages; i++) {
-            if (abortOCRAll) break;
-            document.getElementById('progress-text').dataset.base = `Halaman ${i}/${pdfTotalPages}`;
-            document.getElementById('progress-text').textContent = `Halaman ${i}/${pdfTotalPages} · render...`;
-            document.getElementById('progress-fill').style.width = '0%';
+    let successCount=0;
+    const failedPages=[];
+    try{
+        const worker=await loadTesseract();
+        for(let i=1;i<=pdfTotalPages;i++){
+            if(abortOCRAll)break;
+            document.getElementById('progress-text').dataset.base=`Halaman ${i}/${pdfTotalPages}`;
+            document.getElementById('progress-text').textContent=`Halaman ${i}/${pdfTotalPages} · render...`;
+            document.getElementById('progress-fill').style.width='0%';
             updateMemInfo();
-
-            try {
-                await renderPDFPage(i, true);
-                const text = await ocrOneBlob(worker, currentImageBlob, `Halaman ${i}/${pdfTotalPages}`);
-                const orders = parseMultipleOrders(text);
-                orders.forEach(o => { items.push(o); successCount++; });
+            try{
+                await renderPDFPage(i,true);
+                const text=await ocrOneBlob(worker,currentImageBlob,`Halaman ${i}/${pdfTotalPages}`);
+                const orders=parseMultipleOrders(text);
+                orders.forEach(o=>{items.push(o);successCount++;});
                 freeCurrentBlob();
-                await new Promise(r => setTimeout(r, 100));
-            } catch (pageErr) {
-                console.warn(`Halaman ${i} gagal:`, pageErr);
+                await new Promise(r=>setTimeout(r,100));
+            }catch(pageErr){
                 failedPages.push(i);
                 freeCurrentBlob();
             }
         }
-
         renderItems();
         document.getElementById('progress-wrap').classList.remove('active');
-
-        let msg = `✓ Selesai.\n\nOrder ditemukan: ${successCount}`;
-        if (failedPages.length > 0) msg += `\nGagal: ${failedPages.join(', ')}`;
-        if (abortOCRAll) msg += `\n⏹️ Dibatalkan`;
+        let msg=`✓ Selesai.\n\nOrder ditemukan: ${successCount}`;
+        if(failedPages.length>0)msg+=`\nGagal: ${failedPages.join(', ')}`;
+        if(abortOCRAll)msg+=`\n⏹️ Dibatalkan`;
         alert(msg);
-    } catch (err) {
-        alert('❌ Error: ' + err.message);
+    }catch(err){
+        alert('❌ Error: '+err.message);
         document.getElementById('progress-wrap').classList.remove('active');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '📚 Ekstrak SEMUA Halaman';
-        abortBtn.style.display = 'none';
-        isProcessing = false;
-        abortOCRAll = false;
+    }finally{
+        btn.disabled=false;
+        btn.innerHTML='📚 Ekstrak SEMUA Halaman';
+        abortBtn.style.display='none';
+        isProcessing=false;
+        abortOCRAll=false;
         releaseWakeLock();
         updateMemInfo();
     }
 });
+document.getElementById('abort-ocr-btn').addEventListener('click',()=>{abortOCRAll=true;document.getElementById('progress-text').textContent='Membatalkan...';});
 
-document.getElementById('abort-ocr-btn').addEventListener('click', () => {
-    abortOCRAll = true;
-    document.getElementById('progress-text').textContent = 'Membatalkan...';
-});
-
-// ============================================
-// FORM ACTIONS
-// ============================================
-document.getElementById('add-item-btn').addEventListener('click', () => {
-    const nama = document.getElementById('ocr-name').value.trim();
-    const waRaw = document.getElementById('ocr-wa').value.trim();
-    const alamat = document.getElementById('ocr-alamat').value.trim();
-    const catatan = document.getElementById('ocr-catatan').value.trim();
-    if (!nama) { alert('Nama penerima wajib diisi'); return; }
-    const wa = waRaw ? normalizeWhatsApp(waRaw) : '';
-    items.push({ nama, wa, alamat, catatan });
+// ============ FORM ACTIONS ============
+document.getElementById('add-item-btn').addEventListener('click',()=>{
+    const nama=document.getElementById('ocr-name').value.trim();
+    const waRaw=document.getElementById('ocr-wa').value.trim();
+    const alamat=document.getElementById('ocr-alamat').value.trim();
+    const catatan=document.getElementById('ocr-catatan').value.trim();
+    if(!nama){alert('Nama penerima wajib diisi');return;}
+    const wa=waRaw?normalizeWhatsApp(waRaw):'';
+    items.push({nama,wa,alamat,catatan});
     renderItems();
     resetUpload();
-    document.getElementById('ocr-name').value = '';
-    document.getElementById('ocr-wa').value = '';
-    document.getElementById('ocr-alamat').value = '';
-    document.getElementById('ocr-catatan').value = '';
-    window.scrollTo({ top: document.getElementById('items-list').offsetTop - 100, behavior: 'smooth' });
+    document.getElementById('ocr-name').value='';
+    document.getElementById('ocr-wa').value='';
+    document.getElementById('ocr-alamat').value='';
+    document.getElementById('ocr-catatan').value='';
+    window.scrollTo({top:document.getElementById('items-list').offsetTop-100,behavior:'smooth'});
+});
+document.getElementById('reset-form-btn').addEventListener('click',()=>{
+    document.getElementById('ocr-name').value='';
+    document.getElementById('ocr-wa').value='';
+    document.getElementById('ocr-alamat').value='';
+    document.getElementById('ocr-catatan').value='';
 });
 
-document.getElementById('reset-form-btn').addEventListener('click', () => {
-    document.getElementById('ocr-name').value = '';
-    document.getElementById('ocr-wa').value = '';
-    document.getElementById('ocr-alamat').value = '';
-    document.getElementById('ocr-catatan').value = '';
-});
-
-// ============================================
-// RENDER ITEMS
-// ============================================
-function renderItems() {
-    const list = document.getElementById('items-list');
-    document.getElementById('items-count').textContent = items.length;
-    if (items.length === 0) {
-        list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>Belum ada item.<br>Upload file dan tap Ekstrak Teks.</div></div>';
-        document.getElementById('sticky-actions').style.display = 'none';
-        document.getElementById('clear-all-items').style.display = 'none';
+// ============ RENDER ITEMS ============
+function renderItems(){
+    const list=document.getElementById('items-list');
+    document.getElementById('items-count').textContent=items.length;
+    if(items.length===0){
+        list.innerHTML='<div class="empty-state"><div class="empty-state-icon">📭</div><div>Belum ada item.<br>Upload file dan tap Ekstrak Teks.</div></div>';
+        document.getElementById('sticky-actions').style.display='none';
+        document.getElementById('clear-all-items').style.display='none';
         return;
     }
-    document.getElementById('sticky-actions').style.display = 'flex';
-    document.getElementById('clear-all-items').style.display = 'inline-block';
-    list.innerHTML = items.map((item, i) => `
+    document.getElementById('sticky-actions').style.display='flex';
+    document.getElementById('clear-all-items').style.display='inline-block';
+    list.innerHTML=items.map((item,i)=>`
         <div class="item-card">
             <div>
-                <span class="item-num">${i + 1}</span>
+                <span class="item-num">${i+1}</span>
                 <span class="item-name">${escapeHtml(item.nama)}</span>
                 <span class="status-badge">✓ Sedang diproses</span>
             </div>
-            ${item.wa ? `<div class="item-row">📱 <span class="wa-badge">${formatWhatsAppDisplay(item.wa)}</span></div>` : ''}
-            ${item.alamat ? `<div class="item-row">📍 <strong>Alamat:</strong> ${escapeHtml(item.alamat)}</div>` : ''}
-            ${item.catatan ? `<div class="item-row">📝 <strong>Catatan:</strong> ${escapeHtml(item.catatan)}</div>` : ''}
+            ${item.wa?`<div class="item-row">📱 <span class="wa-badge">${formatWhatsAppDisplay(item.wa)}</span></div>`:''}
+            ${item.alamat?`<div class="item-row">📍 <strong>Alamat:</strong> ${escapeHtml(item.alamat)}</div>`:''}
+            ${item.catatan?`<div class="item-row">📝 <strong>Catatan:</strong> ${escapeHtml(item.catatan)}</div>`:''}
             <div class="item-actions">
                 <button onclick="editItem(${i})">✏️ Edit</button>
                 <button class="del" onclick="deleteItem(${i})">🗑️ Hapus</button>
@@ -1156,96 +913,73 @@ function renderItems() {
         </div>
     `).join('');
 }
-
-function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-function deleteItem(i) {
-    if (!confirm('Hapus item ini?')) return;
-    items.splice(i, 1);
-    renderItems();
-}
-document.getElementById('clear-all-items').addEventListener('click', () => {
-    if (items.length === 0) return;
-    if (!confirm(`Hapus semua ${items.length} item?`)) return;
-    items = [];
+function escapeHtml(str){return String(str).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function deleteItem(i){if(!confirm('Hapus item ini?'))return;items.splice(i,1);renderItems();}
+document.getElementById('clear-all-items').addEventListener('click',()=>{
+    if(items.length===0)return;
+    if(!confirm(`Hapus semua ${items.length} item?`))return;
+    items=[];
     renderItems();
 });
 
-// ============================================
-// MODAL EDIT
-// ============================================
-function editItem(i) {
-    editingIndex = i;
-    const item = items[i];
-    document.getElementById('edit-name').value = item.nama || '';
-    document.getElementById('edit-wa').value = item.wa || '';
-    document.getElementById('edit-alamat').value = item.alamat || '';
-    document.getElementById('edit-catatan').value = item.catatan || '';
+// ============ MODAL EDIT ============
+function editItem(i){
+    editingIndex=i;
+    const item=items[i];
+    document.getElementById('edit-name').value=item.nama||'';
+    document.getElementById('edit-wa').value=item.wa||'';
+    document.getElementById('edit-alamat').value=item.alamat||'';
+    document.getElementById('edit-catatan').value=item.catatan||'';
     document.getElementById('edit-modal').classList.add('active');
 }
-function closeEditModal() {
-    document.getElementById('edit-modal').classList.remove('active');
-    editingIndex = -1;
-}
-document.getElementById('save-edit-btn').addEventListener('click', () => {
-    if (editingIndex < 0) return;
-    const nama = document.getElementById('edit-name').value.trim();
-    if (!nama) { alert('Nama wajib diisi'); return; }
-    const waRaw = document.getElementById('edit-wa').value.trim();
-    items[editingIndex] = {
-        nama,
-        wa: waRaw ? normalizeWhatsApp(waRaw) : '',
-        alamat: document.getElementById('edit-alamat').value.trim(),
-        catatan: document.getElementById('edit-catatan').value.trim()
-    };
+function closeEditModal(){document.getElementById('edit-modal').classList.remove('active');editingIndex=-1;}
+document.getElementById('save-edit-btn').addEventListener('click',()=>{
+    if(editingIndex<0)return;
+    const nama=document.getElementById('edit-name').value.trim();
+    if(!nama){alert('Nama wajib diisi');return;}
+    const waRaw=document.getElementById('edit-wa').value.trim();
+    items[editingIndex]={nama,wa:waRaw?normalizeWhatsApp(waRaw):'',alamat:document.getElementById('edit-alamat').value.trim(),catatan:document.getElementById('edit-catatan').value.trim()};
     renderItems();
     closeEditModal();
 });
 
-// ============================================
-// EXPORT CSV
-// ============================================
-function generateCSV() {
-    const headers = ['nama', 'no_wa', 'alamat', 'catatan'];
-    const rows = items.map(it => [it.nama || '', it.wa || '', it.alamat || '', it.catatan || '']);
-    let csv = headers.join(',') + '\n';
-    rows.forEach(row => {
-        csv += row.map(cell => {
-            if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"') || cell.includes('\n'))) {
-                return '"' + cell.replace(/"/g, '""') + '"';
-            }
+// ============ EXPORT CSV ============
+function generateCSV(){
+    const headers=['nama','no_wa','alamat','catatan'];
+    const rows=items.map(it=>[it.nama||'',it.wa||'',it.alamat||'',it.catatan||'']);
+    let csv=headers.join(',')+'\n';
+    rows.forEach(row=>{
+        csv+=row.map(cell=>{
+            if(typeof cell==='string'&&(cell.includes(',')||cell.includes('"')||cell.includes('\n')))return '"'+cell.replace(/"/g,'""')+'"';
             return cell;
-        }).join(',') + '\n';
+        }).join(',')+'\n';
     });
     return csv;
 }
-
-document.getElementById('export-csv-btn').addEventListener('click', () => {
-    if (items.length === 0) { alert('Belum ada item'); return; }
-    const csv = generateCSV();
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    const d = new Date();
-    const fname = `kurirq-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.csv`;
-    link.download = fname;
+document.getElementById('export-csv-btn').addEventListener('click',()=>{
+    if(items.length===0){alert('Belum ada item');return;}
+    const csv=generateCSV();
+    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;
+    const d=new Date();
+    const fname=`kurirq-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.csv`;
+    link.download=fname;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 });
-
-document.getElementById('copy-csv-btn').addEventListener('click', async () => {
-    if (items.length === 0) { alert('Belum ada item'); return; }
-    const csv = generateCSV();
-    try {
+document.getElementById('copy-csv-btn').addEventListener('click',async()=>{
+    if(items.length===0){alert('Belum ada item');return;}
+    const csv=generateCSV();
+    try{
         await navigator.clipboard.writeText(csv);
         alert('✓ CSV disalin.');
-    } catch (e) {
-        const ta = document.createElement('textarea');
-        ta.value = csv;
+    }catch(e){
+        const ta=document.createElement('textarea');
+        ta.value=csv;
         document.body.appendChild(ta);
         ta.select();
         document.execCommand('copy');
@@ -1254,20 +988,15 @@ document.getElementById('copy-csv-btn').addEventListener('click', async () => {
     }
 });
 
-// ============================================
-// CLEANUP
-// ============================================
-window.addEventListener('beforeunload', () => {
-    if (tesseractWorker) { try { tesseractWorker.terminate(); } catch (e) {} }
-    if (pdfDoc) { try { pdfDoc.destroy(); } catch (e) {} }
+// ============ CLEANUP ============
+window.addEventListener('beforeunload',()=>{
+    if(tesseractWorker){try{tesseractWorker.terminate();}catch(e){}}
+    if(pdfDoc){try{pdfDoc.destroy();}catch(e){}}
     freePreviewUrl();
     freeCurrentLongImage();
     releaseWakeLock();
 });
 
-// ============================================
-// INIT
-// ============================================
 renderItems();
 </script>
 </body>
