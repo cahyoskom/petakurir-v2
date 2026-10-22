@@ -195,6 +195,9 @@ input[type=number]{-moz-appearance:textfield}
 <option value="default">Default (Terbaru dulu)</option><option value="nama-asc">Nama A → Z</option><option value="nama-desc">Nama Z → A</option><option value="tanggal-baru">Tanggal Dibuat (Terbaru)</option><option value="tanggal-lama">Tanggal Dibuat (Terlama)</option><option value="kunjungan">Paling Sering Dikunjungi</option>
 </select>
 </div>
+<div style="padding:6px 12px;background:var(--bg);display:flex;gap:8px;border-bottom:1px solid var(--border)">
+<button onclick="showMergeRecipientsModal()" style="flex:1;padding:8px;background:#a78bfa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">🔍 Auto-Detect Alamat Sama</button>
+</div>
 <div id="bulk-section" style="display:none;background:var(--bg-alt);padding:12px;border-radius:6px;margin-bottom:12px">
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
 <label style="font-weight:600;font-size:13px"><input type="checkbox" id="bulk-select-all" style="cursor:pointer;margin-right:6px">Pilih Semua (<span id="bulk-count">0</span>)</label>
@@ -206,7 +209,7 @@ input[type=number]{-moz-appearance:textfield}
 <button id="bulk-status-berhasil" style="flex:1;min-width:60px;padding:8px;background:#10b981;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">✓ Berhasil</button>
 <button id="bulk-status-gagal" style="flex:1;min-width:60px;padding:8px;background:#ef4444;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">❌ Gagal</button>
 </div>
-<button id="bulk-merge-btn" style="width:100%;padding:8px;margin-top:6px;background:#a78bfa;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">📌 Gabung Record Alamat Sama</button>
+<button id="bulk-merge-btn" style="width:100%;padding:8px;margin-top:6px;background:#a78bfa;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">📌 Gabung Alamat Terpilih (min. 2)</button>
 <button id="optimize-route-btn" style="width:100%;padding:8px;margin-top:6px;background:#06b6d4;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">🗺️ Optimasi Rute Belum Selesai</button>
 <button id="bulk-delete-btn" style="width:100%;padding:8px;margin-top:6px;background:#ef4444;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">🗑️ Hapus Terpilih</button>
 </div>
@@ -262,7 +265,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="info-box"><strong>Kurir-Q v1.0</strong><br>Buku alamat pribadi kurir berbasis GPS + peta.<br><br><strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.</div>
 <h3 style="margin-bottom:12px;margin-top:20px">Fitur</h3>
 <div style="font-size:13px;color:var(--text-light);line-height:1.8">
-✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WA + tombol chat<br>✓ 2 foto alamat (kamera/galeri)<br>✓ Mode Panorama (1/2/3 foto stitch)<br>✓ Zoom foto + enhance AI-like<br>✓ Auto-save state<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline<br>✓ Backup/restore JSON<br>✓ Navigasi multi-app
+✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WA + tombol chat<br>✓ 2 foto alamat (kamera/galeri)<br>✓ Mode Panorama (1/2/3 foto stitch)<br>✓ Zoom foto + enhance AI-like<br>✓ Auto-save state<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline<br>✓ Backup/restore JSON<br>✓ Navigasi multi-app<br>✓ Gabung alamat (auto/checklist)
 </div>
 </div>
 </div>
@@ -1268,6 +1271,193 @@ async function executeMergeRecipients(groupKey){
     });
 }
 
+// ============ MERGE BULK (YANG DIPILIH VIA CHECKBOX) ============
+function escapeHtmlMerge(str){
+    return String(str||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function mergeBulkSelected(){
+    if(bulkSelectedIds.size<2){showModal('Info','Pilih minimal 2 alamat dulu (centang checkbox di list).');return;}
+    const selectedIds=Array.from(bulkSelectedIds);
+    const all=await getAllAddresses();
+    const selected=all.filter(a=>selectedIds.includes(a.id));
+    if(selected.length<2){showModal('Error','Alamat terpilih tidak ditemukan.\nMungkin ada yang sudah dihapus.');return;}
+
+    const uniqueAddresses=new Set(selected.map(a=>`${(a.gang||'').toLowerCase().trim()}|${(a.house_number||'').toLowerCase().trim()}`));
+    const sameAddress=uniqueAddresses.size===1;
+    const totalRecipients=selected.reduce((s,a)=>s+(a.recipients?.length||1),0);
+
+    let warnMsg='';
+    if(!sameAddress){
+        warnMsg=`<div style="background:#fef3c7;color:#92400e;padding:8px;border-radius:4px;margin-top:10px;font-size:12px;line-height:1.5">⚠️ <b>Alamat BERBEDA</b><br>Field alamat/gang/nomor akan pakai data dari alamat utama yang dipilih.</div>`;
+    }
+
+    const html=`
+        <div style="padding:16px">
+            <h2 style="margin-bottom:12px;font-size:16px">📌 Gabung Alamat Terpilih</h2>
+            <div style="background:var(--bg-alt);padding:12px;border-radius:6px;font-size:13px;line-height:1.7;margin-bottom:16px">
+                <strong>${selected.length}</strong> alamat akan digabung jadi 1<br>
+                <strong>${totalRecipients}</strong> penerima total
+            </div>
+            ${warnMsg}
+            <div style="font-weight:600;font-size:13px;margin:16px 0 8px">📍 Pilih alamat UTAMA (data alamatnya dipakai):</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;max-height:280px;overflow-y:auto">
+                ${selected.map((a,idx)=>`
+                    <label class="merge-main-opt" style="display:flex;gap:8px;padding:10px;background:var(--bg-alt);border-radius:6px;cursor:pointer;border:2px solid ${idx===0?'var(--primary)':'var(--border)'}">
+                        <input type="radio" name="merge-main" value="${a.id}" ${idx===0?'checked':''} style="margin-top:3px;cursor:pointer;flex-shrink:0">
+                        <div style="flex:1;font-size:12px;line-height:1.5">
+                            <strong>${escapeHtmlMerge(a.recipient_name||'-')}</strong><br>
+                            ${escapeHtmlMerge(a.gang||'')} ${a.house_number?'No. '+escapeHtmlMerge(a.house_number):''}
+                            ${a.rt?' · RT '+a.rt+'/RW '+a.rw:''}
+                            ${a.kelurahan?' · Kel. '+escapeHtmlMerge(a.kelurahan):''}
+                            ${a.landmark?'<br>📍 '+escapeHtmlMerge(a.landmark):''}
+                            <br><small style="color:var(--text-light)">${(a.recipients?.length||1)} penerima · ${extractAddressPhotos(a).length} foto</small>
+                        </div>
+                    </label>
+                `).join('')}
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closeModal()">Batal</button>
+                <button class="btn-primary" onclick="executeMergeBulk()">📌 Gabung</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('modal-content').innerHTML=html;
+    document.getElementById('modal').classList.add('active');
+    window._mergeBulkSelected=selected;
+
+    setTimeout(()=>{
+        document.querySelectorAll('input[name="merge-main"]').forEach(r=>{
+            r.addEventListener('change',()=>{
+                document.querySelectorAll('.merge-main-opt').forEach(lbl=>{
+                    const inp=lbl.querySelector('input');
+                    lbl.style.borderColor=inp.checked?'var(--primary)':'var(--border)';
+                });
+            });
+        });
+    },50);
+}
+
+async function executeMergeBulk(){
+    const selected=window._mergeBulkSelected;
+    if(!selected||selected.length<2)return;
+
+    const mainRadio=document.querySelector('input[name="merge-main"]:checked');
+    if(!mainRadio){showModal('Error','Pilih alamat utama');return;}
+    const mainId=mainRadio.value;
+    const main=selected.find(a=>a.id===mainId);
+    if(!main){showModal('Error','Alamat utama tidak ditemukan');return;}
+
+    closeModal();
+
+    // Merge recipients (dedupe by name)
+    const recipientMap=new Map();
+    selected.forEach(a=>{
+        const recs=(a.recipients&&a.recipients.length>0)?a.recipients:(a.recipient_name?[{name:a.recipient_name,status:a.delivery_status||'berhasil',added_at:a.created_at}]:[]);
+        recs.forEach(r=>{
+            const key=(r.name||'').toLowerCase().trim();
+            if(!key)return;
+            if(!recipientMap.has(key)){
+                recipientMap.set(key,{...r});
+            }else{
+                const ex=recipientMap.get(key);
+                if(r.photo&&!ex.photo)ex.photo=r.photo;
+                if(!ex.updated_at&&r.updated_at)ex.updated_at=r.updated_at;
+                const statusPriority={'berhasil':4,'tidak order':3,'gagal':2,'belum selesai':1};
+                const pEx=statusPriority[ex.status]||0;
+                const pNew=statusPriority[r.status]||0;
+                if(pNew>pEx)ex.status=r.status;
+            }
+        });
+    });
+    const recipients=Array.from(recipientMap.values());
+
+    // Merge photos (max 2, dedupe)
+    const photoSet=[];
+    selected.forEach(a=>{
+        extractAddressPhotos(a).forEach(p=>{
+            if(photoSet.length<2&&!photoSet.includes(p))photoSet.push(p);
+        });
+    });
+
+    // Field priorities
+    const mergedWa=selected.map(a=>a.whatsapp).filter(w=>w&&w.length>5)[0]||main.whatsapp||'';
+
+    const payPriority={'cod':5,'cod-transfer':4,'transfer':3,'other':2,'belum':1};
+    let bestPay=main.payment_status||'belum';
+    selected.forEach(a=>{
+        const p=a.payment_status||'belum';
+        if((payPriority[p]||0)>(payPriority[bestPay]||0))bestPay=p;
+    });
+
+    const locPriority={'sulit':4,'patokan':3,'nitip':2,'jelas':1};
+    let bestLoc=main.location_type||'jelas';
+    selected.forEach(a=>{
+        const t=a.location_type||'jelas';
+        if((locPriority[t]||0)>(locPriority[bestLoc]||0))bestLoc=t;
+    });
+
+    const problemSet=new Set(main.problem_tags||[]);
+    selected.forEach(a=>(a.problem_tags||[]).forEach(t=>problemSet.add(t)));
+
+    const descSet=new Set();
+    selected.forEach(a=>{if(a.description&&a.description.trim())descSet.add(a.description.trim());});
+    const mergedDesc=Array.from(descSet).join(' · ');
+
+    const totalVisits=selected.reduce((s,a)=>s+(a.visit_count||0),0);
+    const lastVisits=selected.map(a=>a.last_visit_at||a.created_at).filter(Boolean).sort((a,b)=>new Date(b)-new Date(a));
+
+    // Build merged
+    main.recipients=recipients;
+    main.recipient_name=recipients.map(r=>r.name).join(', ');
+    main.whatsapp=mergedWa;
+    main.payment_status=bestPay;
+    main.location_type=bestLoc;
+    main.problem_tags=Array.from(problemSet);
+    main.description=mergedDesc;
+    main.visit_count=totalVisits||1;
+    if(lastVisits.length>0)main.last_visit_at=lastVisits[0];
+    if(photoSet.length>0){
+        main.photos=photoSet;
+        main.photo=photoSet[0];
+    }
+
+    const statuses=recipients.map(r=>r.status);
+    if(statuses.includes('tidak order'))main.delivery_status='tidak order';
+    else if(statuses.includes('belum selesai'))main.delivery_status='belum selesai';
+    else if(statuses.includes('gagal'))main.delivery_status='gagal';
+    else main.delivery_status='berhasil';
+
+    if(!main.history)main.history=[];
+    const mergedNames=selected.filter(a=>a.id!==mainId).map(a=>a.recipient_name).filter(Boolean);
+    main.history.push({
+        date:new Date().toISOString(),
+        status:'merge',
+        notes:`📌 Gabung ${selected.length} alamat${mergedNames.length>0?': '+mergedNames.join(', '):''}`
+    });
+    main.updated_at=new Date().toISOString();
+
+    await saveAddress(main);
+    for(const a of selected){
+        if(a.id!==mainId)await deleteAddress(a.id);
+    }
+
+    bulkSelectedIds.clear();
+    updateBulkUI();
+    updateMapMarkers();
+    updateAddressList();
+    window._mergeBulkSelected=null;
+
+    showModal('Sukses',
+        `✓ ${selected.length} alamat digabung jadi 1!\n\n`+
+        `👥 Total penerima: ${recipients.length}\n`+
+        `📸 Foto: ${photoSet.length}\n`+
+        `📍 Alamat utama: ${main.recipient_name}\n`+
+        `🔢 Total kunjungan: ${totalVisits}`
+    );
+}
+
 function calculateDistanceHaversine(lat1,lon1,lat2,lon2){
     const R=6371;
     const dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
@@ -1996,7 +2186,6 @@ async function processCSVImport(count){
     updateMapMarkers();updateAddressList();closeModal();
     let msg=`✓ Import selesai\n\nUpdate: ${up}\nBaru: ${add}`;
     if(mode==='sync')msg+=`\nDihapus: ${deleted}`;
-    // ===== VALIDASI NOMOR WA =====
     const issues=analyzeWhatsAppNumbers(window.importNewAddresses);
     const warnings=[];
     if(issues.double62.length>0)warnings.push(`🔁 ${issues.double62.length} nomor dengan "62-62" dobel`);
@@ -2441,7 +2630,7 @@ document.getElementById('bulk-status-tidak-order').addEventListener('click',()=>
 document.getElementById('bulk-status-belum').addEventListener('click',()=>bulkUpdateStatus('belum selesai'));
 document.getElementById('bulk-status-berhasil').addEventListener('click',()=>bulkUpdateStatus('berhasil'));
 document.getElementById('bulk-status-gagal').addEventListener('click',()=>bulkUpdateStatus('gagal'));
-document.getElementById('bulk-merge-btn').addEventListener('click',showMergeRecipientsModal);
+document.getElementById('bulk-merge-btn').addEventListener('click',mergeBulkSelected);
 document.getElementById('optimize-route-btn').addEventListener('click',showOptimizeRouteModal);
 document.getElementById('bulk-delete-btn').addEventListener('click',bulkDeleteSelected);
 document.getElementById('import-json-btn').addEventListener('click',importJSON);
@@ -2505,7 +2694,7 @@ async function init(){
         setTimeout(bootHide,150);
         if(!sessionStorage.getItem('kurirq_welcomed')){
             sessionStorage.setItem('kurirq_welcomed','1');
-            setTimeout(()=>{showModal('Selamat Datang','👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n📱 No. WA + tombol chat\n📤 Import CSV: Merge / Sync\n🔍 Tap foto untuk zoom\n🎞️ Mode Panorama: 1-3 foto (1 foto = simpan langsung)\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Backup JSON rutin!');},600);
+            setTimeout(()=>{showModal('Selamat Datang','👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n📱 No. WA + tombol chat\n📤 Import CSV: Merge / Sync\n🔍 Tap foto untuk zoom\n🎞️ Mode Panorama: 1-3 foto\n📌 Gabung alamat via checklist atau auto-detect\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Backup JSON rutin!');},600);
         }
     }catch(err){console.error('Init error:',err);bootHide();showModal('Error','Gagal inisialisasi: '+err.message);}
 }
