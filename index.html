@@ -265,7 +265,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="info-box"><strong>Kurir-Q v1.0</strong><br>Buku alamat pribadi kurir berbasis GPS + peta.<br><br><strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.</div>
 <h3 style="margin-bottom:12px;margin-top:20px">Fitur</h3>
 <div style="font-size:13px;color:var(--text-light);line-height:1.8">
-✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WA + tombol chat<br>✓ 2 foto alamat (kamera/galeri)<br>✓ Mode Panorama (1/2/3 foto stitch)<br>✓ Zoom foto + enhance AI-like<br>✓ Auto-save state<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline<br>✓ Backup/restore JSON<br>✓ Navigasi multi-app<br>✓ Gabung alamat (auto/checklist)
+✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WA + tombol chat<br>✓ 2 foto alamat (kamera/galeri)<br>✓ Mode Panorama (1/2/3 foto stitch)<br>✓ Zoom foto + enhance AI-like<br>✓ Auto-save state<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline<br>✓ Backup/restore JSON<br>✓ Navigasi multi-app<br>✓ Gabung alamat (auto/checklist)<br>✓ Import CSV preserve lat/lng/foto
 </div>
 </div>
 </div>
@@ -520,6 +520,11 @@ let ROUTING_PROVIDERS=[
     {name:'Mapbox',id:'mb',apiKey:'',url:'https://api.mapbox.com/directions/v5/mapbox/driving',type:'mb',freeTier:'100.000 req/bulan',signUpUrl:'https://account.mapbox.com/auth/signup/'}
 ];
 let distanceCache={};
+
+// ============ HELPERS ============
+function isEmptyText(v){return v===null||v===undefined||String(v).trim()==='';}
+function isValidLat(v){const n=Number(v);return isFinite(n)&&n!==0&&n>=-90&&n<=90;}
+function isValidLng(v){const n=Number(v);return isFinite(n)&&n!==0&&n>=-180&&n<=180;}
 
 async function loadRoutingApiKeys(){
     return new Promise((resolve)=>{
@@ -813,7 +818,6 @@ function normalizeWhatsApp(input){
 }
 function formatWhatsAppDisplay(wa){if(!wa||wa.length<10)return wa||'-';const rest=wa.substring(2);if(rest.length>=9)return `+62 ${rest.substring(0,3)}-${rest.substring(3,7)}-${rest.substring(7)}`;return '+'+wa;}
 
-// ============ WA NUMBER ANALYSIS ============
 function analyzeWhatsAppNumbers(addresses){
     const issues={double62:[],leading62_0:[],fixedLine:[],tooShort:[],tooLong:[]};
     (addresses||[]).forEach(a=>{
@@ -1351,7 +1355,6 @@ async function executeMergeBulk(){
 
     closeModal();
 
-    // Merge recipients (dedupe by name)
     const recipientMap=new Map();
     selected.forEach(a=>{
         const recs=(a.recipients&&a.recipients.length>0)?a.recipients:(a.recipient_name?[{name:a.recipient_name,status:a.delivery_status||'berhasil',added_at:a.created_at}]:[]);
@@ -1373,7 +1376,6 @@ async function executeMergeBulk(){
     });
     const recipients=Array.from(recipientMap.values());
 
-    // Merge photos (max 2, dedupe)
     const photoSet=[];
     selected.forEach(a=>{
         extractAddressPhotos(a).forEach(p=>{
@@ -1381,22 +1383,14 @@ async function executeMergeBulk(){
         });
     });
 
-    // Field priorities
     const mergedWa=selected.map(a=>a.whatsapp).filter(w=>w&&w.length>5)[0]||main.whatsapp||'';
-
     const payPriority={'cod':5,'cod-transfer':4,'transfer':3,'other':2,'belum':1};
     let bestPay=main.payment_status||'belum';
-    selected.forEach(a=>{
-        const p=a.payment_status||'belum';
-        if((payPriority[p]||0)>(payPriority[bestPay]||0))bestPay=p;
-    });
+    selected.forEach(a=>{const p=a.payment_status||'belum';if((payPriority[p]||0)>(payPriority[bestPay]||0))bestPay=p;});
 
     const locPriority={'sulit':4,'patokan':3,'nitip':2,'jelas':1};
     let bestLoc=main.location_type||'jelas';
-    selected.forEach(a=>{
-        const t=a.location_type||'jelas';
-        if((locPriority[t]||0)>(locPriority[bestLoc]||0))bestLoc=t;
-    });
+    selected.forEach(a=>{const t=a.location_type||'jelas';if((locPriority[t]||0)>(locPriority[bestLoc]||0))bestLoc=t;});
 
     const problemSet=new Set(main.problem_tags||[]);
     selected.forEach(a=>(a.problem_tags||[]).forEach(t=>problemSet.add(t)));
@@ -1408,7 +1402,6 @@ async function executeMergeBulk(){
     const totalVisits=selected.reduce((s,a)=>s+(a.visit_count||0),0);
     const lastVisits=selected.map(a=>a.last_visit_at||a.created_at).filter(Boolean).sort((a,b)=>new Date(b)-new Date(a));
 
-    // Build merged
     main.recipients=recipients;
     main.recipient_name=recipients.map(r=>r.name).join(', ');
     main.whatsapp=mergedWa;
@@ -1418,10 +1411,7 @@ async function executeMergeBulk(){
     main.description=mergedDesc;
     main.visit_count=totalVisits||1;
     if(lastVisits.length>0)main.last_visit_at=lastVisits[0];
-    if(photoSet.length>0){
-        main.photos=photoSet;
-        main.photo=photoSet[0];
-    }
+    if(photoSet.length>0){main.photos=photoSet;main.photo=photoSet[0];}
 
     const statuses=recipients.map(r=>r.status);
     if(statuses.includes('tidak order'))main.delivery_status='tidak order';
@@ -2111,7 +2101,7 @@ async function showImportModal(newAddresses,type){
     if(type==='json'){
         document.getElementById('modal-content').innerHTML=`<h2>🔄 Full Restore</h2><div class="info-box" style="background:#fef3c7;color:#92400e;margin:16px 0">⚠️ Semua data sekarang akan DIHAPUS diganti backup.</div><p>Ditemukan <strong>${newAddresses.length}</strong> alamat.</p><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-danger" onclick="confirmImport('json', ${newAddresses.length})">🔄 Restore</button></div>`;
     }else{
-        document.getElementById('modal-content').innerHTML=`<h2>📤 Import CSV</h2><p>Ditemukan <strong>${newAddresses.length}</strong> baris.</p><div style="font-weight:600;font-size:13px;color:var(--text-light);margin-bottom:8px">PILIH MODE:</div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"><label style="display:flex;gap:10px;padding:12px;border:2px solid var(--primary);border-radius:8px;cursor:pointer;background:rgba(37,99,235,.05)"><input type="radio" name="import-mode" value="merge" checked><div><strong>🔀 Merge (aman)</strong><br><small>Tidak ada yang dihapus. Foto aman.</small></div></label><label style="display:flex;gap:10px;padding:12px;border:2px solid var(--border);border-radius:8px;cursor:pointer"><input type="radio" name="import-mode" value="sync"><div><strong>🔄 Sync (ganti total)</strong><br><small>Hapus record lama yang tidak ada di CSV.</small></div></label></div><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-primary" onclick="confirmImportWithMode(${newAddresses.length})">📤 Import</button></div>`;
+        document.getElementById('modal-content').innerHTML=`<h2>📤 Import CSV</h2><p>Ditemukan <strong>${newAddresses.length}</strong> baris.</p><div style="font-weight:600;font-size:13px;color:var(--text-light);margin-bottom:8px">PILIH MODE:</div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"><label style="display:flex;gap:10px;padding:12px;border:2px solid var(--primary);border-radius:8px;cursor:pointer;background:rgba(37,99,235,.05)"><input type="radio" name="import-mode" value="merge" checked><div><strong>🔀 Merge (aman)</strong><br><small>Tidak ada yang dihapus. Foto & koordinat aman.</small></div></label><label style="display:flex;gap:10px;padding:12px;border:2px solid var(--border);border-radius:8px;cursor:pointer"><input type="radio" name="import-mode" value="sync"><div><strong>🔄 Sync (ganti total)</strong><br><small>Hapus record lama yang tidak ada di CSV.</small></div></label></div><div class="modal-buttons"><button class="btn-secondary" onclick="closeModal()">Batal</button><button class="btn-primary" onclick="confirmImportWithMode(${newAddresses.length})">📤 Import</button></div>`;
     }
     window.importNewAddresses=newAddresses;
     document.getElementById('modal').classList.add('active');
@@ -2134,46 +2124,116 @@ async function confirmImport(type,count){
         });
     }else await processCSVImport(count);
 }
+
+// ⭐ PROCESS CSV IMPORT - PRESERVE lat/lng, foto, history, tapi status reset
 async function processCSVImport(count){
     const mode=window._importMode||'merge';
     document.getElementById('modal-content').innerHTML=`<div style="padding:40px;text-align:center"><h2 style="margin-bottom:20px">⏳ Import ${count}...</h2><div style="width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto"></div></div>`;
     document.getElementById('modal').classList.add('active');
     const ex=await getAllAddresses();
-    let up=0,add=0,deleted=0;
+    let up=0, add=0, deleted=0;
+    let coordPreserved=0, photoPreserved=0;
     const touchedIds=new Set();
-    const isEmpty=(v)=>!v||String(v).trim()===''||v===0;
+
     for(const na of window.importNewAddresses){
         const nm=(na.recipient_name||'').trim();
-        if(!nm)continue;
+        if(!nm) continue;
         const nl=nm.toLowerCase();
         const nw=(na.whatsapp||'').trim();
-        const csvId=(na.id&&na.id.startsWith('addr_'))?na.id:null;
+        const csvId=(na.id && na.id.startsWith('addr_')) ? na.id : null;
         let e=null;
-        if(csvId)e=ex.find(a=>a.id===csvId);
-        if(!e&&nw&&nw.length>5)e=ex.find(a=>{const nameMatch=(a.recipient_name||'').toLowerCase().trim()===nl||(a.recipients&&a.recipients.some(r=>(r.name||'').toLowerCase().trim()===nl));const waMatch=a.whatsapp===nw;return nameMatch&&waMatch;});
-        if(!e)e=ex.find(a=>(a.recipient_name||'').toLowerCase().trim()===nl||(a.recipients&&a.recipients.some(r=>(r.name||'').toLowerCase().trim()===nl)));
+        if(csvId) e=ex.find(a=>a.id===csvId);
+        if(!e && nw && nw.length>5) e=ex.find(a=>{
+            const nameMatch=(a.recipient_name||'').toLowerCase().trim()===nl ||
+                (a.recipients && a.recipients.some(r=>(r.name||'').toLowerCase().trim()===nl));
+            return nameMatch && a.whatsapp===nw;
+        });
+        if(!e) e=ex.find(a=>
+            (a.recipient_name||'').toLowerCase().trim()===nl ||
+            (a.recipients && a.recipients.some(r=>(r.name||'').toLowerCase().trim()===nl))
+        );
+
         if(e){
             touchedIds.add(e.id);
+
+            // Status → reset ke "belum selesai" (expected behavior)
             e.delivery_status='belum selesai';
-            if(e.recipients&&e.recipients.length>0){const tr=e.recipients.find(r=>(r.name||'').toLowerCase().trim()===nl);if(tr){tr.status='belum selesai';tr.updated_at=new Date().toISOString();}else{e.recipients.push({name:nm,status:'belum selesai',added_at:new Date().toISOString()});}}
-            else e.recipients=[{name:e.recipient_name||nm,status:'belum selesai',added_at:e.created_at||new Date().toISOString()}];
-            if(isEmpty(e.whatsapp)&&!isEmpty(na.whatsapp))e.whatsapp=na.whatsapp;
-            if(isEmpty(e.address)&&!isEmpty(na.address))e.address=na.address;
-            if(isEmpty(e.gang)&&!isEmpty(na.gang))e.gang=na.gang;
-            if(isEmpty(e.house_number)&&!isEmpty(na.house_number))e.house_number=na.house_number;
-            if(isEmpty(e.rt)&&!isEmpty(na.rt))e.rt=na.rt;
-            if(isEmpty(e.rw)&&!isEmpty(na.rw))e.rw=na.rw;
-            if(isEmpty(e.kelurahan)&&!isEmpty(na.kelurahan))e.kelurahan=na.kelurahan;
-            if(isEmpty(e.landmark)&&!isEmpty(na.landmark))e.landmark=na.landmark;
-            if(isEmpty(e.latitude)&&!isEmpty(na.latitude)){e.latitude=na.latitude;e.longitude=na.longitude;}
-            if(!e.history)e.history=[];
-            e.history.push({date:new Date().toISOString(),status:'belum selesai',notes:'CSV import'});
+            if(e.recipients && e.recipients.length>0){
+                const tr=e.recipients.find(r=>(r.name||'').toLowerCase().trim()===nl);
+                if(tr){ tr.status='belum selesai'; tr.updated_at=new Date().toISOString(); }
+                else { e.recipients.push({name:nm,status:'belum selesai',added_at:new Date().toISOString()}); }
+            } else {
+                e.recipients=[{name:e.recipient_name||nm,status:'belum selesai',added_at:e.created_at||new Date().toISOString()}];
+            }
+
+            // String fields: isi kalau kosong, PRESERVE nilai lama
+            if(isEmptyText(e.whatsapp)     && !isEmptyText(na.whatsapp))     e.whatsapp=na.whatsapp;
+            if(isEmptyText(e.address)      && !isEmptyText(na.address))      e.address=na.address;
+            if(isEmptyText(e.gang)         && !isEmptyText(na.gang))         e.gang=na.gang;
+            if(isEmptyText(e.house_number) && !isEmptyText(na.house_number)) e.house_number=na.house_number;
+            if(isEmptyText(e.rt)           && !isEmptyText(na.rt))           e.rt=na.rt;
+            if(isEmptyText(e.rw)           && !isEmptyText(na.rw))           e.rw=na.rw;
+            if(isEmptyText(e.kelurahan)    && !isEmptyText(na.kelurahan))    e.kelurahan=na.kelurahan;
+            if(isEmptyText(e.landmark)     && !isEmptyText(na.landmark))     e.landmark=na.landmark;
+            if(isEmptyText(e.description)  && !isEmptyText(na.description))  e.description=na.description;
+
+            // ⭐ CRITICAL: lat & lng update INDEPENDEN
+            // Hanya isi kalau existing INVALID + CSV VALID
+            if(!isValidLat(e.latitude) && isValidLat(na.latitude)) e.latitude = na.latitude;
+            if(!isValidLng(e.longitude) && isValidLng(na.longitude)) e.longitude = na.longitude;
+            if(isValidLat(e.latitude) && isValidLng(e.longitude)) coordPreserved++;
+
+            // Payment & location: hanya upgrade (jangan downgrade)
+            if((!e.payment_status || e.payment_status==='belum') && na.payment_status && na.payment_status!=='belum'){
+                e.payment_status=na.payment_status;
+            }
+            if((!e.location_type || e.location_type==='jelas') && na.location_type && na.location_type!=='jelas'){
+                e.location_type=na.location_type;
+            }
+
+            // ⭐ CRITICAL: foto TIDAK PERNAH dihapus
+            if(na.photos && Array.isArray(na.photos) && na.photos.length>0){
+                if(!e.photos || e.photos.length===0){
+                    e.photos = na.photos;
+                    e.photo = na.photos[0];
+                } else {
+                    photoPreserved++;
+                }
+            }
+
+            // History: APPEND only
+            if(!e.history) e.history=[];
+            e.history.push({
+                date:new Date().toISOString(),
+                status:'belum selesai',
+                notes:'CSV import'
+            });
+            if(e.history.length>20) e.history=e.history.slice(-20);
+
+            e.updated_at=new Date().toISOString();
             await saveAddress(e);
             up++;
-        }else{
-            const newId=csvId||('addr_'+Date.now()+'_'+Math.random().toString(36).substr(2,5));
-            const ca={...na,id:newId,delivery_status:'belum selesai',recipients:(na.recipients||[]).map(r=>({name:r.name,status:'belum selesai',added_at:r.added_at||new Date().toISOString()})),created_at:new Date().toISOString(),updated_at:new Date().toISOString(),visit_count:0,last_visit_at:null,history:[{date:new Date().toISOString(),status:'belum selesai',notes:'Import dari CSV'}]};
-            if(ca.recipients.length===0)ca.recipients=[{name:nm,status:'belum selesai',added_at:new Date().toISOString()}];
+        } else {
+            // Data BARU
+            const newId=csvId || ('addr_'+Date.now()+'_'+Math.random().toString(36).substr(2,5));
+            const ca={
+                ...na,
+                id:newId,
+                delivery_status:'belum selesai',
+                recipients:(na.recipients||[]).map(r=>({
+                    name:r.name,
+                    status:'belum selesai',
+                    added_at:r.added_at || new Date().toISOString()
+                })),
+                created_at:new Date().toISOString(),
+                updated_at:new Date().toISOString(),
+                visit_count:0,
+                last_visit_at:null,
+                history:[{date:new Date().toISOString(),status:'belum selesai',notes:'Import dari CSV'}]
+            };
+            if(ca.recipients.length===0){
+                ca.recipients=[{name:nm,status:'belum selesai',added_at:new Date().toISOString()}];
+            }
             ca.recipient_name=nm;
             await saveAddress(ca);
             ex.push(ca);
@@ -2181,22 +2241,39 @@ async function processCSVImport(count){
             add++;
         }
     }
-    if(mode==='sync'){const allNow=await getAllAddresses();for(const a of allNow){if(!touchedIds.has(a.id)){await deleteAddress(a.id);deleted++;}}}
+
+    if(mode==='sync'){
+        const allNow=await getAllAddresses();
+        for(const a of allNow){
+            if(!touchedIds.has(a.id)){
+                await deleteAddress(a.id);
+                deleted++;
+            }
+        }
+    }
+
     window._importMode=null;
-    updateMapMarkers();updateAddressList();closeModal();
-    let msg=`✓ Import selesai\n\nUpdate: ${up}\nBaru: ${add}`;
-    if(mode==='sync')msg+=`\nDihapus: ${deleted}`;
+    updateMapMarkers(); updateAddressList(); closeModal();
+
+    let msg=`✓ Import selesai\n\n`;
+    msg+=`📋 Mode: ${mode==='sync'?'🔄 SYNC':'🔀 MERGE'}\n\n`;
+    msg+=`🔔 Update: ${up}\n`;
+    msg+=`➕ Baru: ${add}\n`;
+    if(mode==='sync') msg+=`🗑️ Dihapus: ${deleted}\n`;
+    if(coordPreserved>0) msg+=`\n✅ Koordinat lama dipertahankan: ${coordPreserved}`;
+    if(photoPreserved>0) msg+=`\n✅ Foto lama dipertahankan: ${photoPreserved}`;
+    msg+=`\n\n💡 Semua status = "Belum Selesai"`;
+
     const issues=analyzeWhatsAppNumbers(window.importNewAddresses);
     const warnings=[];
-    if(issues.double62.length>0)warnings.push(`🔁 ${issues.double62.length} nomor dengan "62-62" dobel`);
-    if(issues.leading62_0.length>0)warnings.push(`⚠️ ${issues.leading62_0.length} nomor dengan "62-0..."`);
-    if(issues.fixedLine.length>0)warnings.push(`📞 ${issues.fixedLine.length} nomor terdeteksi nomor telpon rumah:\n   ${issues.fixedLine.slice(0,3).map(x=>`• ${x.name}: ${x.wa}`).join('\n   ')}`);
-    if(issues.tooShort.length>0)warnings.push(`❓ ${issues.tooShort.length} nomor terlalu pendek (< 10 digit)`);
+    if(issues.double62.length>0)warnings.push(`🔁 ${issues.double62.length} nomor "62-62" dobel`);
+    if(issues.leading62_0.length>0)warnings.push(`⚠️ ${issues.leading62_0.length} nomor "62-0..."`);
+    if(issues.fixedLine.length>0)warnings.push(`📞 ${issues.fixedLine.length} nomor telpon rumah`);
     if(warnings.length>0){
-        msg+='\n\n━━━━━━━━━━━━━━━\n⚠️ PERHATIAN NOMOR WA:\n'+warnings.join('\n\n');
-        msg+='\n\n💡 Nomor WA mobile: 628xxxxxxxxx\n📞 Nomor rumah Jakarta: 6221xxx (BUKAN WA)';
+        msg+='\n\n━━━━━━━━━━━━━━━\n⚠️ NOMOR WA:\n'+warnings.join('\n');
     }
-    showModal('✓ Selesai',msg);
+
+    showModal('✓ Selesai', msg);
 }
 
 async function openCompressPhotosModal(){
