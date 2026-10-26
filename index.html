@@ -265,7 +265,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="info-box"><strong>Kurir-Q v1.0</strong><br>Buku alamat pribadi kurir berbasis GPS + peta.<br><br><strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.</div>
 <h3 style="margin-bottom:12px;margin-top:20px">Fitur</h3>
 <div style="font-size:13px;color:var(--text-light);line-height:1.8">
-✓ GPS manual + input lat/lng<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WA + tombol chat<br>✓ 2 foto alamat (kamera/galeri)<br>✓ Mode Panorama (1/2/3 foto stitch)<br>✓ Zoom foto + enhance AI-like<br>✓ Auto-save state<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline<br>✓ Backup/restore JSON<br>✓ Navigasi multi-app<br>✓ Gabung alamat (auto/checklist)<br>✓ Import CSV preserve lat/lng/foto
+✓ GPS manual + input lat/lng<br>✓ 📋 Auto-parse koordinat dari paste<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WA + tombol chat<br>✓ 2 foto alamat (kamera/galeri)<br>✓ Mode Panorama (1/2/3 foto stitch)<br>✓ Zoom foto + enhance AI-like<br>✓ Auto-save state<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline<br>✓ Backup/restore JSON<br>✓ Navigasi multi-app<br>✓ Gabung alamat (auto/checklist)<br>✓ Import CSV preserve lat/lng/foto
 </div>
 </div>
 </div>
@@ -525,6 +525,86 @@ let distanceCache={};
 function isEmptyText(v){return v===null||v===undefined||String(v).trim()==='';}
 function isValidLat(v){const n=Number(v);return isFinite(n)&&n!==0&&n>=-90&&n<=90;}
 function isValidLng(v){const n=Number(v);return isFinite(n)&&n!==0&&n>=-180&&n<=180;}
+
+// ============ AUTO-PARSE KOORDINAT ============
+function parseCoordsText(input){
+    if(!input)return null;
+    const text=String(input).trim();
+    if(!text)return null;
+    const numRegex=/-?\d{1,3}[.,]\d+/g;
+    const matches=text.match(numRegex)||[];
+    const toFloat=(s)=>parseFloat(String(s).replace(',','.'));
+    if(matches.length>=2){
+        const a=toFloat(matches[0]);
+        const b=toFloat(matches[1]);
+        if(isNaN(a)||isNaN(b))return null;
+        if(Math.abs(a)<=90&&Math.abs(b)<=180)return{lat:a,lon:b};
+        if(Math.abs(b)<=90&&Math.abs(a)<=180)return{lat:b,lon:a,swapped:true};
+        return null;
+    }
+    const intRegex=/(-?\d{1,3})[,;\s]+(-?\d{1,3})/;
+    const intMatch=text.match(intRegex);
+    if(intMatch){
+        const a=parseFloat(intMatch[1]);
+        const b=parseFloat(intMatch[2]);
+        if(Math.abs(a)<=90&&Math.abs(b)<=180)return{lat:a,lon:b};
+        if(Math.abs(b)<=90&&Math.abs(a)<=180)return{lat:b,lon:a,swapped:true};
+    }
+    return null;
+}
+function applyParsedCoords(result){
+    if(!result)return false;
+    const latInput=document.getElementById('edit-lat');
+    const lonInput=document.getElementById('edit-lon');
+    if(latInput)latInput.value=result.lat.toFixed(6);
+    if(lonInput)lonInput.value=result.lon.toFixed(6);
+    currentLocation={latitude:result.lat,longitude:result.lon};
+    if(adjustmentMarker)adjustmentMarker.setLatLng([result.lat,result.lon]);
+    if(adjustmentMap)adjustmentMap.setView([result.lat,result.lon],17);
+    if(latInput){latInput.style.borderColor='#10b981';setTimeout(()=>latInput.style.borderColor='',1000);}
+    if(lonInput){lonInput.style.borderColor='#10b981';setTimeout(()=>lonInput.style.borderColor='',1000);}
+    return true;
+}
+function parseCoordsFromPaste(){
+    const input=document.getElementById('coords-paste-input');
+    const status=document.getElementById('coords-parse-status');
+    if(!input)return;
+    const text=input.value.trim();
+    if(!text){if(status){status.textContent='⚠️ Paste koordinat dulu';status.style.color='var(--warning)';}return;}
+    const result=parseCoordsText(text);
+    if(!result){
+        if(status){status.innerHTML='❌ Format tidak dikenali. Contoh:<br>• -6,3485733, 106,7968733<br>• -6.3485733, 106.7968733';status.style.color='var(--danger)';}
+        return;
+    }
+    applyParsedCoords(result);
+    if(status){
+        const sw=result.swapped?' <span style="color:var(--warning)">(lat/lon ditukar)</span>':'';
+        status.innerHTML=`✅ Lat: <strong>${result.lat.toFixed(6)}</strong>, Lon: <strong>${result.lon.toFixed(6)}</strong>${sw}`;
+        status.style.color='var(--secondary)';
+    }
+}
+function attachCoordsPasteHandlers(){
+    const input=document.getElementById('coords-paste-input');
+    if(!input||input.dataset.handlersAttached)return;
+    input.dataset.handlersAttached='1';
+    input.addEventListener('keypress',(e)=>{if(e.key==='Enter'){e.preventDefault();parseCoordsFromPaste();}});
+    input.addEventListener('paste',()=>{
+        setTimeout(()=>{
+            const val=input.value.trim();
+            if(!val)return;
+            const result=parseCoordsText(val);
+            if(result){
+                applyParsedCoords(result);
+                const status=document.getElementById('coords-parse-status');
+                if(status){
+                    const sw=result.swapped?' <span style="color:var(--warning)">(lat/lon ditukar)</span>':'';
+                    status.innerHTML=`✅ Lat: <strong>${result.lat.toFixed(6)}</strong>, Lon: <strong>${result.lon.toFixed(6)}</strong>${sw}`;
+                    status.style.color='var(--secondary)';
+                }
+            }
+        },60);
+    });
+}
 
 async function loadRoutingApiKeys(){
     return new Promise((resolve)=>{
@@ -802,7 +882,6 @@ function normalizeSearchText(s){return String(s||'').toLowerCase().replace(/\b(g
 function buildSearchHaystack(addr){if(!addr)return'';const gang=addr.gang||'';const nomor=addr.house_number||'';const parts=[addr.recipient_name||'',gang,nomor,addr.rt||'',addr.rw||'',addr.kelurahan||'',`${gang} ${nomor}`,`${gang}${nomor}`,addr.address||'',addr.landmark||'',addr.description||''];if(addr.recipients)addr.recipients.forEach(r=>parts.push(r.name||''));return normalizeSearchText(parts.join(' '));}
 function matchesSearch(addr,query){if(!query)return true;const q=normalizeSearchText(query);if(!q)return true;const hay=buildSearchHaystack(addr);const tokens=q.split(' ').filter(t=>t.length>0);return tokens.every(t=>hay.includes(t));}
 
-// ============ WHATSAPP NORMALIZATION (FIXED) ============
 function normalizeWhatsApp(input){
     if(!input)return '';
     let digits=String(input).replace(/\D/g,'');
@@ -951,7 +1030,18 @@ function initLocationAdjustment(){
     if(!adjustmentMap){
         if(!currentLocation)currentLocation={latitude:-6.2088,longitude:106.8650};
         const lv=currentLocation.latitude.toFixed(6),ov=currentLocation.longitude.toFixed(6);
-        container.innerHTML=`<div style="margin:-16px -16px 10px;height:200px;background:#f3f4f6" id="adjustment-map"></div><div style="text-align:center;font-size:12px;color:var(--text-light);margin-bottom:10px">Geser pin, tap peta, atau ketik manual</div><div style="display:flex;gap:8px;margin-bottom:6px"><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LAT</label><input type="number" id="edit-lat" step="0.000001" inputmode="decimal" value="${lv}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LON</label><input type="number" id="edit-lon" step="0.000001" inputmode="decimal" value="${ov}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div></div><div style="display:flex;gap:6px;margin-bottom:10px"><button type="button" class="btn-primary" style="flex:1;padding:9px;font-size:12px" onclick="useCurrentLocationInForm()">🎯 Lokasi Sekarang</button><button type="button" class="btn-secondary" style="flex:1;padding:9px;font-size:12px" onclick="applyManualCoordsInForm()">✓ Terapkan</button></div>`;
+        container.innerHTML=`<div style="margin:-16px -16px 10px;height:200px;background:#f3f4f6" id="adjustment-map"></div>
+<div style="text-align:center;font-size:12px;color:var(--text-light);margin-bottom:10px">Geser pin, tap peta, atau ketik manual</div>
+<div style="margin-bottom:10px;padding:10px;background:var(--bg-alt);border-radius:6px;border:1px dashed var(--border)">
+<div style="font-size:10px;color:var(--text-light);font-weight:700;margin-bottom:5px">📋 PASTE KOORDINAT</div>
+<div style="display:flex;gap:6px">
+<input type="text" id="coords-paste-input" placeholder="Contoh: -6,3485733, 106,7968733" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px;font-family:monospace;box-sizing:border-box;min-width:0">
+<button type="button" onclick="parseCoordsFromPaste()" style="padding:8px 12px;background:var(--primary);color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;white-space:nowrap">✨ Parse</button>
+</div>
+<div id="coords-parse-status" style="color:var(--text-light);font-size:10px;margin-top:4px;min-height:12px;line-height:1.4"></div>
+</div>
+<div style="display:flex;gap:8px;margin-bottom:6px"><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LAT</label><input type="number" id="edit-lat" step="0.000001" inputmode="decimal" value="${lv}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LON</label><input type="number" id="edit-lon" step="0.000001" inputmode="decimal" value="${ov}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div></div><div style="display:flex;gap:6px;margin-bottom:10px"><button type="button" class="btn-primary" style="flex:1;padding:9px;font-size:12px" onclick="useCurrentLocationInForm()">🎯 Lokasi Sekarang</button><button type="button" class="btn-secondary" style="flex:1;padding:9px;font-size:12px" onclick="applyManualCoordsInForm()">✓ Terapkan</button></div>`;
+        attachCoordsPasteHandlers();
         try{
             adjustmentMap=L.map('adjustment-map',{dragging:true,touchZoom:true,tap:true,zoomControl:true,preferCanvas:true}).setView([currentLocation.latitude,currentLocation.longitude],16);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19}).addTo(adjustmentMap);
@@ -980,7 +1070,18 @@ function useCurrentLocationInForm(){
 function initManualLocationInput(){
     const c=document.getElementById('gps-status');
     if(!currentLocation)currentLocation={latitude:-6.2088,longitude:106.8650};
-    c.innerHTML=`<div style="padding:8px 0"><div style="background:#fef3c7;color:#92400e;padding:10px;border-radius:6px;font-size:12px;margin-bottom:12px;line-height:1.5">⚠️ GPS tidak tersedia. Ketik manual atau tap tombol.</div><button type="button" class="btn-primary" id="retry-gps-btn" style="width:100%;padding:10px;font-size:13px;margin-bottom:12px">🎯 Coba Ambil Lokasi GPS</button><div style="display:flex;gap:8px;margin-bottom:6px"><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LAT</label><input type="number" id="edit-lat" step="0.000001" inputmode="decimal" value="${currentLocation.latitude.toFixed(6)}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LON</label><input type="number" id="edit-lon" step="0.000001" inputmode="decimal" value="${currentLocation.longitude.toFixed(6)}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div></div><button type="button" class="btn-secondary" style="width:100%;padding:9px;font-size:13px" onclick="applyManualCoordsInForm()">✓ Terapkan</button></div>`;
+    c.innerHTML=`<div style="padding:8px 0"><div style="background:#fef3c7;color:#92400e;padding:10px;border-radius:6px;font-size:12px;margin-bottom:12px;line-height:1.5">⚠️ GPS tidak tersedia. Ketik manual atau tap tombol.</div>
+<button type="button" class="btn-primary" id="retry-gps-btn" style="width:100%;padding:10px;font-size:13px;margin-bottom:12px">🎯 Coba Ambil Lokasi GPS</button>
+<div style="margin-bottom:10px;padding:10px;background:var(--bg-alt);border-radius:6px;border:1px dashed var(--border)">
+<div style="font-size:10px;color:var(--text-light);font-weight:700;margin-bottom:5px">📋 PASTE KOORDINAT</div>
+<div style="display:flex;gap:6px">
+<input type="text" id="coords-paste-input" placeholder="Contoh: -6,3485733, 106,7968733" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px;font-family:monospace;box-sizing:border-box;min-width:0">
+<button type="button" onclick="parseCoordsFromPaste()" style="padding:8px 12px;background:var(--primary);color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;white-space:nowrap">✨ Parse</button>
+</div>
+<div id="coords-parse-status" style="color:var(--text-light);font-size:10px;margin-top:4px;min-height:12px;line-height:1.4"></div>
+</div>
+<div style="display:flex;gap:8px;margin-bottom:6px"><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LAT</label><input type="number" id="edit-lat" step="0.000001" inputmode="decimal" value="${currentLocation.latitude.toFixed(6)}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div><div style="flex:1"><label style="font-size:10px;color:var(--text-light);font-weight:700">LON</label><input type="number" id="edit-lon" step="0.000001" inputmode="decimal" value="${currentLocation.longitude.toFixed(6)}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div></div><button type="button" class="btn-secondary" style="width:100%;padding:9px;font-size:13px" onclick="applyManualCoordsInForm()">✓ Terapkan</button></div>`;
+    attachCoordsPasteHandlers();
     const rb=document.getElementById('retry-gps-btn');
     if(rb)rb.onclick=()=>{
         if(!navigator.geolocation){showModal('Error','Browser tidak support');return;}
@@ -2125,7 +2226,6 @@ async function confirmImport(type,count){
     }else await processCSVImport(count);
 }
 
-// ⭐ PROCESS CSV IMPORT - PRESERVE lat/lng, foto, history, tapi status reset
 async function processCSVImport(count){
     const mode=window._importMode||'merge';
     document.getElementById('modal-content').innerHTML=`<div style="padding:40px;text-align:center"><h2 style="margin-bottom:20px">⏳ Import ${count}...</h2><div style="width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto"></div></div>`;
@@ -2155,8 +2255,6 @@ async function processCSVImport(count){
 
         if(e){
             touchedIds.add(e.id);
-
-            // Status → reset ke "belum selesai" (expected behavior)
             e.delivery_status='belum selesai';
             if(e.recipients && e.recipients.length>0){
                 const tr=e.recipients.find(r=>(r.name||'').toLowerCase().trim()===nl);
@@ -2166,7 +2264,6 @@ async function processCSVImport(count){
                 e.recipients=[{name:e.recipient_name||nm,status:'belum selesai',added_at:e.created_at||new Date().toISOString()}];
             }
 
-            // String fields: isi kalau kosong, PRESERVE nilai lama
             if(isEmptyText(e.whatsapp)     && !isEmptyText(na.whatsapp))     e.whatsapp=na.whatsapp;
             if(isEmptyText(e.address)      && !isEmptyText(na.address))      e.address=na.address;
             if(isEmptyText(e.gang)         && !isEmptyText(na.gang))         e.gang=na.gang;
@@ -2177,13 +2274,10 @@ async function processCSVImport(count){
             if(isEmptyText(e.landmark)     && !isEmptyText(na.landmark))     e.landmark=na.landmark;
             if(isEmptyText(e.description)  && !isEmptyText(na.description))  e.description=na.description;
 
-            // ⭐ CRITICAL: lat & lng update INDEPENDEN
-            // Hanya isi kalau existing INVALID + CSV VALID
             if(!isValidLat(e.latitude) && isValidLat(na.latitude)) e.latitude = na.latitude;
             if(!isValidLng(e.longitude) && isValidLng(na.longitude)) e.longitude = na.longitude;
             if(isValidLat(e.latitude) && isValidLng(e.longitude)) coordPreserved++;
 
-            // Payment & location: hanya upgrade (jangan downgrade)
             if((!e.payment_status || e.payment_status==='belum') && na.payment_status && na.payment_status!=='belum'){
                 e.payment_status=na.payment_status;
             }
@@ -2191,7 +2285,6 @@ async function processCSVImport(count){
                 e.location_type=na.location_type;
             }
 
-            // ⭐ CRITICAL: foto TIDAK PERNAH dihapus
             if(na.photos && Array.isArray(na.photos) && na.photos.length>0){
                 if(!e.photos || e.photos.length===0){
                     e.photos = na.photos;
@@ -2201,20 +2294,14 @@ async function processCSVImport(count){
                 }
             }
 
-            // History: APPEND only
             if(!e.history) e.history=[];
-            e.history.push({
-                date:new Date().toISOString(),
-                status:'belum selesai',
-                notes:'CSV import'
-            });
+            e.history.push({date:new Date().toISOString(),status:'belum selesai',notes:'CSV import'});
             if(e.history.length>20) e.history=e.history.slice(-20);
 
             e.updated_at=new Date().toISOString();
             await saveAddress(e);
             up++;
         } else {
-            // Data BARU
             const newId=csvId || ('addr_'+Date.now()+'_'+Math.random().toString(36).substr(2,5));
             const ca={
                 ...na,
@@ -2771,7 +2858,7 @@ async function init(){
         setTimeout(bootHide,150);
         if(!sessionStorage.getItem('kurirq_welcomed')){
             sessionStorage.setItem('kurirq_welcomed','1');
-            setTimeout(()=>{showModal('Selamat Datang','👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n📱 No. WA + tombol chat\n📤 Import CSV: Merge / Sync\n🔍 Tap foto untuk zoom\n🎞️ Mode Panorama: 1-3 foto\n📌 Gabung alamat via checklist atau auto-detect\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Backup JSON rutin!');},600);
+            setTimeout(()=>{showModal('Selamat Datang','👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n📋 Auto-parse koordinat (paste)\n📱 No. WA + tombol chat\n📤 Import CSV: Merge / Sync\n🔍 Tap foto untuk zoom\n🎞️ Mode Panorama: 1-3 foto\n📌 Gabung alamat via checklist\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Backup JSON rutin!');},600);
         }
     }catch(err){console.error('Init error:',err);bootHide();showModal('Error','Gagal inisialisasi: '+err.message);}
 }
