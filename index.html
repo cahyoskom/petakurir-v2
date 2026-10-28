@@ -164,12 +164,14 @@ input[type=number]{-moz-appearance:textfield}
 <div class="container">
 <header><h1>📦 Kurir-Q</h1><button class="menu-btn" id="menu-btn">☰</button></header>
 <main>
-<div class="page active" id="map-page">
+<!-- PETA: Hapus class active -->
+<div class="page" id="map-page">
 <div class="search-bar"><input type="text" id="search-input" placeholder="Cari nama / gang / no / alamat / rt / rw / kelurahan"><button id="search-btn">Cari</button></div>
 <div class="search-filter-chips" id="map-search-chips">
     <button class="search-chip" data-field="nama" onclick="toggleSearchField(this)">📛 Nama</button>
     <button class="search-chip" data-field="alamat" onclick="toggleSearchField(this)">🏠 Alamat</button>
     <button class="search-chip" data-field="gang" onclick="toggleSearchField(this)">🛣️ Gang</button>
+    <button class="search-chip" data-field="nomor" onclick="toggleSearchField(this)">🔢 Nomor</button>
     <button class="search-chip" data-field="rt" onclick="toggleSearchField(this)">🚪 RT</button>
     <button class="search-chip" data-field="rw" onclick="toggleSearchField(this)">🚪 RW</button>
 </div>
@@ -188,12 +190,14 @@ input[type=number]{-moz-appearance:textfield}
 <div class="fab-container"><button class="fab" id="record-btn" title="Catat Selesai">✓</button></div>
 </div>
 
-<div class="page" id="list-page">
+<!-- DAFTAR ALAMAT: Tambahkan class active -->
+<div class="page active" id="list-page">
 <div class="search-bar"><input type="text" id="list-search-input" placeholder="Cari nama / gang / no / alamat / rt / rw / kelurahan..."><button id="list-search-btn">Cari</button><button id="voice-search-btn" title="Voice search" style="padding:8px 12px;background:var(--secondary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">🎤</button></div>
 <div class="search-filter-chips" id="list-search-chips">
     <button class="search-chip" data-field="nama" onclick="toggleSearchField(this)">📛 Nama</button>
     <button class="search-chip" data-field="alamat" onclick="toggleSearchField(this)">🏠 Alamat</button>
     <button class="search-chip" data-field="gang" onclick="toggleSearchField(this)">🛣️ Gang</button>
+    <button class="search-chip" data-field="nomor" onclick="toggleSearchField(this)">🔢 Nomor</button>
     <button class="search-chip" data-field="rt" onclick="toggleSearchField(this)">🚪 RT</button>
     <button class="search-chip" data-field="rw" onclick="toggleSearchField(this)">🚪 RW</button>
 </div>
@@ -283,7 +287,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="info-box"><strong>Kurir-Q v1.0</strong><br>Buku alamat pribadi kurir berbasis GPS + peta.<br><br><strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.</div>
 <h3 style="margin-bottom:12px;margin-top:20px">Fitur</h3>
 <div style="font-size:13px;color:var(--text-light);line-height:1.8">
-✓ GPS manual + input lat/lng<br>✓ 📋 Auto-parse koordinat dari paste<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WA + tombol chat<br>✓ 2 foto alamat (kamera/galeri)<br>✓ Mode Panorama (1/2/3 foto stitch)<br>✓ Zoom foto + enhance AI-like<br>✓ Auto-save state<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline<br>✓ Backup/restore JSON<br>✓ Navigasi multi-app<br>✓ Gabung alamat (auto/checklist)<br>✓ Import CSV preserve lat/lng/foto<br>✓ Multi-Filter Search (Nama, Alamat, RT, RW)
+✓ GPS manual + input lat/lng<br>✓ 📋 Auto-parse koordinat dari paste<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WA + tombol chat<br>✓ 2 foto alamat (kamera/galeri)<br>✓ Mode Panorama (1/2/3 foto stitch)<br>✓ Zoom foto + enhance AI-like<br>✓ Auto-save state<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline<br>✓ Backup/restore JSON<br>✓ Navigasi multi-app<br>✓ Gabung alamat (auto/checklist)<br>✓ Import CSV preserve lat/lng/foto<br>✓ Multi-Filter Search (Nama, Alamat, Nomor, RT, RW)
 </div>
 </div>
 </div>
@@ -678,7 +682,7 @@ function saveAppState(){
     try{
         const scrolls={};
         document.querySelectorAll('.page').forEach(p=>{if(p.id)scrolls[p.id]=p.scrollTop||0;});
-        const state={v:2,currentFilter,currentMapFilter,currentSort,mapCenter:map?{lat:map.getCenter().lat,lng:map.getCenter().lng}:null,mapZoom:map?map.getZoom():null,activePage:document.querySelector('.page.active')?.id||'map-page',mapSearch:document.getElementById('search-input')?.value||'',listSearch:document.getElementById('list-search-input')?.value||'',currentDetailId:currentDetailId||null,scrolls,bulkIds:Array.from(bulkSelectedIds||[]),timestamp:Date.now()};
+        const state={v:2,currentFilter,currentMapFilter,currentSort,mapCenter:map?{lat:map.getCenter().lat,lng:map.getCenter().lng}:null,mapZoom:map?map.getZoom():null,activePage:document.querySelector('.page.active')?.id||'list-page',mapSearch:document.getElementById('search-input')?.value||'',listSearch:document.getElementById('list-search-input')?.value||'',currentDetailId:currentDetailId||null,scrolls,bulkIds:Array.from(bulkSelectedIds||[]),timestamp:Date.now()};
         sessionStorage.setItem(STATE_KEY,JSON.stringify(state));
     }catch(e){}
 }
@@ -695,7 +699,7 @@ function restoreAppState(){
         document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b.dataset.filter===currentFilter));
         if(document.getElementById('sort-select'))document.getElementById('sort-select').value=currentSort;
         if(s.mapCenter&&s.mapZoom){window._pendingMapState={center:s.mapCenter,zoom:s.mapZoom};window._mapInitiallyCentered=true;}
-        if(s.activePage&&s.activePage!=='map-page')window._pendingActivePage=s.activePage;
+        if(s.activePage&&s.activePage!=='list-page')window._pendingActivePage=s.activePage;
         if(s.mapSearch&&document.getElementById('search-input')){document.getElementById('search-input').value=s.mapSearch;window._pendingMapSearch=s.mapSearch;}
         if(s.listSearch&&document.getElementById('list-search-input'))document.getElementById('list-search-input').value=s.listSearch;
         if(s.scrolls)window._pendingScrolls=s.scrolls;
@@ -935,12 +939,15 @@ function buildSearchHaystack(addr) {
         if (addr.recipients) addr.recipients.forEach(r => parts.push(r.name || ''));
     }
     
+    if (wantAll || searchFields.has('nomor')) {
+        parts.push(addr.house_number || '');
+    }
+    
     if (wantAll || searchFields.has('alamat')) {
         parts.push(addr.address || '');
         parts.push(addr.landmark || '');
         parts.push(addr.kelurahan || '');
         parts.push(addr.description || '');
-        parts.push(addr.house_number || '');
     }
     
     if (wantAll || searchFields.has('gang')) {
@@ -1239,7 +1246,7 @@ async function saveRecord(){
     if(vp.length>0){na.photos=vp;na.photo=vp[0];na.photo_ref=generatePhotoFileName(name);}
     const dup=await checkDuplicate(currentLocation.latitude,currentLocation.longitude,na);
     if(dup)showDuplicateModal(dup,na);
-    else{await saveAddress(na);closeRecordSheet();updateMapMarkers();showModal('Sukses','✓ Alamat disimpan!');}
+    else{await saveAddress(na);closeRecordSheet();updateMapMarkers();updateAddressList();showModal('Sukses','✓ Alamat disimpan!');}
 }
 function showDuplicateModal(existing,newData){document.getElementById('modal-content').innerHTML=`<h2>⚠️ Duplikat</h2><p>Alamat ini kemungkinan sudah ada:</p><div class="info-box" style="margin:16px 0"><strong>${existing.recipient_name}</strong><br>${existing.gang||''} ${existing.house_number||''}<br><small>${existing.landmark||''}</small></div><div class="modal-buttons"><button class="btn-secondary" onclick="closeDuplicateModal()">Batal</button><button class="btn-primary" onclick="mergeDuplicate()">Gabungkan</button><button class="btn-secondary" onclick="saveDuplicateNew()">Simpan Baru</button></div>`;window.duplicateExisting=existing;window.duplicateNewData=newData;document.getElementById('modal').classList.add('active');}
 async function mergeDuplicate(){
@@ -1257,9 +1264,9 @@ async function mergeDuplicate(){
     if(nd.description)ex.description=nd.description;
     ex.delivery_status='belum selesai';
     if(nd.photos&&nd.photos.length>0){const cur=extractAddressPhotos(ex);const m=[...cur];nd.photos.forEach((p)=>{if(m.length<2&&!m.includes(p))m.push(p);});if(m.length>0){ex.photos=m;ex.photo=m[0];}}
-    await saveAddress(ex);closeRecordSheet();updateMapMarkers();closeDuplicateModal();showModal('Sukses','✓ Digabungkan!');
+    await saveAddress(ex);closeRecordSheet();updateMapMarkers();updateAddressList();closeDuplicateModal();showModal('Sukses','✓ Digabungkan!');
 }
-async function saveDuplicateNew(){await saveAddress(window.duplicateNewData);closeRecordSheet();updateMapMarkers();closeDuplicateModal();showModal('Sukses','✓ Alamat baru disimpan!');}
+async function saveDuplicateNew(){await saveAddress(window.duplicateNewData);closeRecordSheet();updateMapMarkers();updateAddressList();closeDuplicateModal();showModal('Sukses','✓ Alamat baru disimpan!');}
 function closeDuplicateModal(){document.getElementById('modal').classList.remove('active');}
 
 async function showAddressDetail(id){
@@ -2944,10 +2951,13 @@ async function init(){
         if(window._pendingDetailId){const did=window._pendingDetailId;window._pendingDetailId=null;setTimeout(()=>{getAddressById(did).then(a=>{if(a)showAddressDetail(did);});},400);}
         if(window._pendingActivePage){const ap=window._pendingActivePage;window._pendingActivePage=null;setTimeout(()=>showPage(ap),200);}
         setTimeout(bootHide,150);
-        if(!sessionStorage.getItem('kurirq_welcomed')){
-            sessionStorage.setItem('kurirq_welcomed','1');
-            setTimeout(()=>{showModal('Selamat Datang','👋 Kurir-Q siap!\n\n📍 Peta auto-ke lokasi Anda\n🔔 Filter default: Belum Selesai\n📋 Auto-parse koordinat (paste)\n📱 No. WA + tombol chat\n📤 Import CSV: Merge / Sync\n🔍 Tap foto untuk zoom\n🎞️ Mode Panorama: 1-3 foto\n📌 Gabung alamat via checklist\n\n💡 Tips:\n• Tombol 🎯 bisa digeser\n• Backup JSON rutin!');},600);
+        
+        // Load Address List if that's the active page
+        if (document.getElementById('list-page').classList.contains('active')) {
+            updateAddressList();
         }
+
+        // Popup Selamat Datang dihapus sesuai permintaan
     }catch(err){console.error('Init error:',err);bootHide();showModal('Error','Gagal inisialisasi: '+err.message);}
 }
 window.addEventListener('load',()=>setTimeout(init,50));
