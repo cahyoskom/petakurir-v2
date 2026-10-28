@@ -32,6 +32,10 @@ main{flex:1;display:flex;overflow:hidden}
 .search-bar input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px}
 .search-bar input::placeholder{color:var(--text-light)}
 .search-bar button{padding:8px 12px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600}
+.search-filter-chips{display:flex;gap:6px;padding:0 12px 10px;overflow-x:auto;flex-wrap:nowrap;background:var(--bg-alt);border-bottom:1px solid var(--border);flex-shrink:0}
+.search-filter-chips::-webkit-scrollbar{display:none}
+.search-chip{padding:4px 12px;border:1px solid var(--border);background:var(--bg);color:var(--text-light);border-radius:16px;font-size:11px;cursor:pointer;white-space:nowrap;font-weight:600;transition:all .2s;outline:none}
+.search-chip.active{background:var(--primary);color:white;border-color:var(--primary)}
 .fab-container{position:fixed;bottom:20px;right:20px;padding-bottom:env(safe-area-inset-bottom,0px);z-index:100;display:flex;flex-direction:column;gap:12px;align-items:flex-end}
 .fab{background:var(--primary);color:#fff;border:none;border-radius:50%;width:60px;height:60px;font-size:24px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;transition:transform .2s}
 .fab:active{transform:scale(.95)}
@@ -162,6 +166,13 @@ input[type=number]{-moz-appearance:textfield}
 <main>
 <div class="page active" id="map-page">
 <div class="search-bar"><input type="text" id="search-input" placeholder="Cari nama / gang / no / alamat / rt / rw / kelurahan"><button id="search-btn">Cari</button></div>
+<div class="search-filter-chips" id="map-search-chips">
+    <button class="search-chip" data-field="nama" onclick="toggleSearchField(this)">📛 Nama</button>
+    <button class="search-chip" data-field="alamat" onclick="toggleSearchField(this)">🏠 Alamat</button>
+    <button class="search-chip" data-field="gang" onclick="toggleSearchField(this)">🛣️ Gang</button>
+    <button class="search-chip" data-field="rt" onclick="toggleSearchField(this)">🚪 RT</button>
+    <button class="search-chip" data-field="rw" onclick="toggleSearchField(this)">🚪 RW</button>
+</div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-map-filter="belum">🔔 Belum Selesai</button>
 <button class="filter-btn" data-map-filter="semua">Semua</button>
@@ -179,6 +190,13 @@ input[type=number]{-moz-appearance:textfield}
 
 <div class="page" id="list-page">
 <div class="search-bar"><input type="text" id="list-search-input" placeholder="Cari nama / gang / no / alamat / rt / rw / kelurahan..."><button id="list-search-btn">Cari</button><button id="voice-search-btn" title="Voice search" style="padding:8px 12px;background:var(--secondary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">🎤</button></div>
+<div class="search-filter-chips" id="list-search-chips">
+    <button class="search-chip" data-field="nama" onclick="toggleSearchField(this)">📛 Nama</button>
+    <button class="search-chip" data-field="alamat" onclick="toggleSearchField(this)">🏠 Alamat</button>
+    <button class="search-chip" data-field="gang" onclick="toggleSearchField(this)">🛣️ Gang</button>
+    <button class="search-chip" data-field="rt" onclick="toggleSearchField(this)">🚪 RT</button>
+    <button class="search-chip" data-field="rw" onclick="toggleSearchField(this)">🚪 RW</button>
+</div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-filter="semua">Semua</button>
 <button class="filter-btn" data-filter="tidak-order">Tidak Order</button>
@@ -265,7 +283,7 @@ input[type=number]{-moz-appearance:textfield}
 <div class="info-box"><strong>Kurir-Q v1.0</strong><br>Buku alamat pribadi kurir berbasis GPS + peta.<br><br><strong>Privasi:</strong> Data disimpan di perangkat. Tidak ada server. Tidak ada login.</div>
 <h3 style="margin-bottom:12px;margin-top:20px">Fitur</h3>
 <div style="font-size:13px;color:var(--text-light);line-height:1.8">
-✓ GPS manual + input lat/lng<br>✓ 📋 Auto-parse koordinat dari paste<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WA + tombol chat<br>✓ 2 foto alamat (kamera/galeri)<br>✓ Mode Panorama (1/2/3 foto stitch)<br>✓ Zoom foto + enhance AI-like<br>✓ Auto-save state<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline<br>✓ Backup/restore JSON<br>✓ Navigasi multi-app<br>✓ Gabung alamat (auto/checklist)<br>✓ Import CSV preserve lat/lng/foto
+✓ GPS manual + input lat/lng<br>✓ 📋 Auto-parse koordinat dari paste<br>✓ Tombol 🎯 bisa digeser<br>✓ Voice input<br>✓ No. WA + tombol chat<br>✓ 2 foto alamat (kamera/galeri)<br>✓ Mode Panorama (1/2/3 foto stitch)<br>✓ Zoom foto + enhance AI-like<br>✓ Auto-save state<br>✓ Routing dari lokasi saat ini<br>✓ Import CSV (Merge / Sync)<br>✓ Export rute: GMap/KML/GPX<br>✓ Peta offline<br>✓ Backup/restore JSON<br>✓ Navigasi multi-app<br>✓ Gabung alamat (auto/checklist)<br>✓ Import CSV preserve lat/lng/foto<br>✓ Multi-Filter Search (Nama, Alamat, RT, RW)
 </div>
 </div>
 </div>
@@ -513,6 +531,9 @@ let _photoHandlersAttached=false;
 window.addressPhotos=[null,null];
 window._mapInitiallyCentered=false;
 const OCR_URL='https://kurirmap.pages.dev/ocr.html';
+
+// Search Multi-Filter State
+let searchFields = new Set();
 
 let ROUTING_PROVIDERS=[
     {name:'OpenRouteService',id:'ors',apiKey:'',url:'https://api.openrouteservice.org/v2/directions/driving-car',type:'ors',freeTier:'2000 req/hari',signUpUrl:'https://openrouteservice.org/dev/#/signup'},
@@ -879,8 +900,75 @@ function clearField(id){
 }
 
 function normalizeSearchText(s){return String(s||'').toLowerCase().replace(/\b(gg|gg\.|gang)\b/g,'gang').replace(/\b(no|nomor|nomer)\b/g,'no').replace(/\b(rt|rw)\b/g,'').replace(/[^\w\s]/g,' ').replace(/\s+/g,' ').trim();}
-function buildSearchHaystack(addr){if(!addr)return'';const gang=addr.gang||'';const nomor=addr.house_number||'';const parts=[addr.recipient_name||'',gang,nomor,addr.rt||'',addr.rw||'',addr.kelurahan||'',`${gang} ${nomor}`,`${gang}${nomor}`,addr.address||'',addr.landmark||'',addr.description||''];if(addr.recipients)addr.recipients.forEach(r=>parts.push(r.name||''));return normalizeSearchText(parts.join(' '));}
-function matchesSearch(addr,query){if(!query)return true;const q=normalizeSearchText(query);if(!q)return true;const hay=buildSearchHaystack(addr);const tokens=q.split(' ').filter(t=>t.length>0);return tokens.every(t=>hay.includes(t));}
+
+function toggleSearchField(btn) {
+    const field = btn.dataset.field;
+    if (searchFields.has(field)) {
+        searchFields.delete(field);
+        btn.classList.remove('active');
+    } else {
+        searchFields.add(field);
+        btn.classList.add('active');
+    }
+    
+    document.querySelectorAll('.search-chip').forEach(el => {
+        if (el.dataset.field === field) {
+            el.classList.toggle('active', searchFields.has(field));
+        }
+    });
+    
+    if (document.getElementById('list-page').classList.contains('active')) {
+        updateAddressList();
+    } else if (document.getElementById('map-page').classList.contains('active')) {
+        const mapQ = document.getElementById('search-input').value.toLowerCase().trim();
+        if (mapQ) updateMapMarkers(mapQ);
+    }
+}
+
+function buildSearchHaystack(addr) {
+    if (!addr) return '';
+    const wantAll = searchFields.size === 0;
+    const parts = [];
+    
+    if (wantAll || searchFields.has('nama')) {
+        parts.push(addr.recipient_name || '');
+        if (addr.recipients) addr.recipients.forEach(r => parts.push(r.name || ''));
+    }
+    
+    if (wantAll || searchFields.has('alamat')) {
+        parts.push(addr.address || '');
+        parts.push(addr.landmark || '');
+        parts.push(addr.kelurahan || '');
+        parts.push(addr.description || '');
+        parts.push(addr.house_number || '');
+    }
+    
+    if (wantAll || searchFields.has('gang')) {
+        const g = addr.gang || '';
+        const n = addr.house_number || '';
+        parts.push(g);
+        if (g && n) parts.push(`${g} ${n}`);
+    }
+    
+    if (wantAll || searchFields.has('rt')) {
+        parts.push(addr.rt || '');
+    }
+    
+    if (wantAll || searchFields.has('rw')) {
+        parts.push(addr.rw || '');
+    }
+    
+    return normalizeSearchText(parts.join(' '));
+}
+
+function matchesSearch(addr, query) {
+    if (!query) return true;
+    const q = normalizeSearchText(query);
+    if (!q) return true;
+    const hay = buildSearchHaystack(addr);
+    const tokens = q.split(' ').filter(t => t.length > 0);
+    return tokens.every(t => hay.includes(t));
+}
 
 function normalizeWhatsApp(input){
     if(!input)return '';
