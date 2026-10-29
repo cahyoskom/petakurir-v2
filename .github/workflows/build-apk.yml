@@ -7,14 +7,11 @@ concurrency:
 on:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout
@@ -34,7 +31,6 @@ jobs:
       - name: Install dependencies
         run: |
           npm install
-          # Pastikan CLI, platform Android, dan plugin terpasang
           npm install @capacitor/cli@6
           npm install @capacitor/android@6
           npm install @capacitor/geolocation@6
@@ -48,31 +44,25 @@ jobs:
           cp ocr.html www/
           cp -r lib www/
 
-      # ⬇️ INI STEP PENTING: Buat folder android jika belum ada
-      - name: Add Android Platform (jika belum ada)
+      - name: Add Android Platform
         run: |
           if [ ! -f "android/app/build.gradle" ]; then
-            echo "=========================================="
-            echo "Folder android/ belum ada, membuat baru..."
-            echo "=========================================="
             rm -rf android
             npx cap add android
-          else
-            echo "Folder android/ sudah ada, skip."
           fi
 
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Modify AndroidManifest for Background Service
+      - name: Modify AndroidManifest
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
           sed -i '/<application/i \
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n\
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />\n\
               <uses-permission android:name="android.permission.WAKE_LOCK" />\n\
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n\
               <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />' $MANIFEST
-          
           sed -i '/<\/application>/i \
               <service android:name="com.capawesome.capacitorjs.plugins.foregroundservice.ForegroundService" android:foregroundServiceType="dataSync" android:exported="false" />' $MANIFEST
 
@@ -86,37 +76,22 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      - name: Decode keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.jks
-
-      - name: Build Release APK
+      # ⬇️ INI KUNCINYA: build DEBUG, bukan release
+      - name: Build Debug APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace \
-            -Pandroid.injected.signing.store.file=$(pwd)/app/release.jks \
-            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
-            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
-            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+          ./gradlew assembleDebug --stacktrace
 
       - name: Prepare APK
         run: |
           mkdir -p output
           COMMIT=$(echo ${{ github.sha }} | cut -c1-7)
-          cp android/app/build/outputs/apk/release/app-release.apk \
-             output/kurir-q-build-${{ github.run_number }}-${COMMIT}.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             output/kurir-q-debug-${{ github.run_number }}-${COMMIT}.apk
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kurir-q-build-${{ github.run_number }}
+          name: kurir-q-debug-${{ github.run_number }}
           path: output/*.apk
-
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: output/*.apk
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
