@@ -26,7 +26,7 @@ jobs:
           node-version: 20
 
       - name: Setup Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -34,10 +34,9 @@ jobs:
       - name: Install dependencies
         run: |
           npm install
-          # Instal plugin Anti-Kill (Foreground Service)
-          npm install @capawesome-team/capacitor-android-foreground-service
-          # Instal App plugin (untuk handle tombol back)
-          npm install @capacitor/app
+          # Pin versi plugin agar kompatibel dengan Capacitor 6
+          npm install @capawesome-team/capacitor-android-foreground-service@6.2.0
+          npm install @capacitor/app@6
 
       - name: Prepare Web Assets for Capacitor
         run: |
@@ -49,19 +48,19 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      # ⬇️ INI BAGIAN PENTING UNTUK MENCEGAH REALME MEMBUNUH APP ⬇️
       - name: Modify AndroidManifest for Background Service
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
-          # Tambahkan permission Foreground Service & Wake Lock
+          # Tambahkan permission yang diperlukan
           sed -i '/<application/i \
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n\
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />\n\
               <uses-permission android:name="android.permission.WAKE_LOCK" />\n\
               <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />' $MANIFEST
-              
-          # Tambahkan service plugin ke dalam application
+          
+          # Tambahkan service plugin foreground service
           sed -i '/<\/application>/i \
-              <service android:name="com.capawesome.capacitorjs.plugins.foregroundservice.ForegroundService" android:foregroundServiceType="dataSync" />' $MANIFEST
+              <service android:name="com.capawesome.capacitorjs.plugins.foregroundservice.ForegroundService" android:foregroundServiceType="dataSync" android:exported="false" />' $MANIFEST
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -73,6 +72,9 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
+      - name: Clean Gradle Cache
+        run: rm -rf ~/.gradle/caches
+
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.jks
 
@@ -80,7 +82,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease \
+          ./gradlew assembleRelease --stacktrace \
             -Pandroid.injected.signing.store.file=$(pwd)/app/release.jks \
             -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
