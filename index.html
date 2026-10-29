@@ -2847,6 +2847,73 @@ function compressImageFromBlob(blob,maxWidth=400,quality=0.5){
     });
 }
 
+// ============ NATIVE CAPABILITIES (FOREGROUND & BACK BUTTON) ============
+async function setupNativeCapabilities() {
+    if (!window.Capacitor || !window.Capacitor.isNativePlatform()) return;
+
+    try {
+        // 1. SETUP FOREGROUND SERVICE (Anti-Kill Realme)
+        const ForegroundService = window.Capacitor.Plugins.ForegroundService;
+        if (ForegroundService) {
+            await ForegroundService.requestPermissions();
+            await ForegroundService.start({
+                id: 123,
+                title: "Kurir-Q Aktif",
+                message: "Aplikasi berjalan di latar belakang...",
+                importance: "low",
+                notificationIcon: "ic_launcher"
+            });
+        }
+
+        // 2. SETUP TOMBOL BACK
+        const App = window.Capacitor.Plugins.App;
+        if (App) {
+            history.pushState({ page: 'list-page' }, '', '');
+
+            App.addListener('backButton', () => {
+                // Tutup viewer foto jika terbuka
+                if (document.getElementById('photo-viewer').classList.contains('active')) {
+                    closePhotoViewer();
+                    history.pushState({ page: 'list-page' }, '', '');
+                    return;
+                }
+                // Tutup modal jika terbuka
+                if (document.getElementById('modal').classList.contains('active')) {
+                    closeModal();
+                    history.pushState({ page: 'list-page' }, '', '');
+                    return;
+                }
+                // Tutup bottom sheet jika terbuka
+                const activeSheet = document.querySelector('.bottom-sheet.active');
+                if (activeSheet) {
+                    if (activeSheet.id === 'record-sheet') closeRecordSheet();
+                    else if (activeSheet.id === 'panorama-sheet') closePanoramaSheet();
+                    else activeSheet.classList.remove('active');
+                    history.pushState({ page: 'list-page' }, '', '');
+                    return;
+                }
+                // Jika sedang di halaman selain list-page, kembali ke list-page
+                if (!document.getElementById('list-page').classList.contains('active')) {
+                    showPage('list-page');
+                    history.pushState({ page: 'list-page' }, '', '');
+                    return;
+                }
+                
+                // Jika di list-page, konfirmasi keluar
+                if (!confirm('Keluar dari aplikasi Kurir-Q?')) {
+                    history.pushState({ page: 'list-page' }, '', '');
+                } else {
+                    if (window.Capacitor.Plugins.ForegroundService) {
+                        window.Capacitor.Plugins.ForegroundService.stop();
+                    }
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('Native setup error:', e);
+    }
+}
+
 // ============ EVENT LISTENERS ============
 document.getElementById('menu-btn').addEventListener('click',showSidebar);
 document.getElementById('menu-overlay').addEventListener('click',closeSidebar);
@@ -2957,7 +3024,9 @@ async function init(){
             updateAddressList();
         }
 
-        // Popup Selamat Datang dihapus sesuai permintaan
+        // Setup native capabilities (Background Service & Back Button)
+        setupNativeCapabilities();
+
     }catch(err){console.error('Init error:',err);bootHide();showModal('Error','Gagal inisialisasi: '+err.message);}
 }
 window.addEventListener('load',()=>setTimeout(init,50));
