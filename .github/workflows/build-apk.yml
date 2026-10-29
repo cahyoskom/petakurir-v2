@@ -9,6 +9,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  APP_NAME: "Kurir-Q"
+  APP_EMOJI: "🛵"
+  ICON_BG: "#2563eb"
+  ICON_TEXT: "KQ"
+  ICON_TEXT_COLOR: "#ffffff"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,6 +35,11 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick curl
+
       - name: Install dependencies
         run: |
           npm install
@@ -45,73 +57,90 @@ jobs:
           cp ocr.html www/
           cp -r lib www/
 
+      - name: Generate Icon & Splash PNG
+        env:
+          APP_EMOJI: ${{ env.APP_EMOJI }}
+          ICON_BG: ${{ env.ICON_BG }}
+          ICON_TEXT: ${{ env.ICON_TEXT }}
+          ICON_TEXT_COLOR: ${{ env.ICON_TEXT_COLOR }}
+          APP_NAME: ${{ env.APP_NAME }}
+        run: |
+          mkdir -p resources
+          declare -A EMOJI_HEX=(
+            ["🛵"]="1f6f5"  ["📦"]="1f4e6"  ["🚚"]="1f69a"  ["🏍️"]="1f3cd"
+            ["📮"]="1f4ee"  ["🎯"]="1f3af"  ["⚡"]="26a1"   ["🚗"]="1f697"
+            ["🛺"]="1f6fa"  ["📱"]="1f4f1"  ["📍"]="1f4cd"  ["🛒"]="1f6d2"
+            ["🚀"]="1f680"  ["⭐"]="2b50"   ["🔥"]="1f525"
+          )
+          HEX="${EMOJI_HEX[$APP_EMOJI]}"
+          EMOJI_OK=0
+          if [ -n "$HEX" ] && curl -fsSL "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/${HEX}.png" -o /tmp/emoji.png; then
+            EMOJI_OK=1
+          fi
+
+          convert -size 1024x1024 xc:"${ICON_BG}" /tmp/base.png
+          if [ "$EMOJI_OK" = "1" ]; then
+            convert /tmp/emoji.png -resize 600x600 /tmp/emoji-big.png
+            convert /tmp/base.png /tmp/emoji-big.png -gravity center -composite \
+              -background "${ICON_BG}" -flatten resources/icon.png
+          else
+            convert /tmp/base.png -gravity center -font DejaVu-Sans-Bold \
+              -pointsize 500 -fill "${ICON_TEXT_COLOR}" -annotate +0+0 "${ICON_TEXT}" \
+              resources/icon.png
+          fi
+
+          convert -size 2732x2732 xc:"${ICON_BG}" /tmp/splash-base.png
+          if [ "$EMOJI_OK" = "1" ]; then
+            convert /tmp/emoji.png -resize 1200x1200 /tmp/emoji-splash.png
+            convert /tmp/splash-base.png /tmp/emoji-splash.png -gravity center -composite \
+              -font DejaVu-Sans-Bold -pointsize 180 -fill "${ICON_TEXT_COLOR}" \
+              -gravity center -annotate +0+800 "${APP_NAME}" \
+              -background "${ICON_BG}" -flatten resources/splash.png
+          else
+            convert /tmp/splash-base.png -gravity center -font DejaVu-Sans-Bold \
+              -pointsize 1000 -fill "${ICON_TEXT_COLOR}" -annotate +0-200 "${ICON_TEXT}" \
+              -pointsize 180 -annotate +0+600 "${APP_NAME}" \
+              resources/splash.png
+          fi
+
+          ls -lh resources/icon.png resources/splash.png
+
       - name: Add Android Platform
         run: |
           if [ ! -f "android/app/build.gradle" ]; then
-            echo "Membuat folder android baru..."
             rm -rf android
             npx cap add android
-          else
-            echo "Folder android sudah ada, skip."
           fi
 
       - name: Sync Capacitor
         run: npx cap sync android
 
-      # ============================================================
-      # PATCH MANIFEST: Tambah semua izin yang dibutuhkan
-      # ============================================================
-      - name: Patch AndroidManifest (GPS + Service + Notifikasi)
+      - name: Generate Android Assets
+        run: |
+          npm install @capacitor/assets@3
+          npx capacitor-assets generate --android
+          ls -lh android/app/src/main/res/mipmap-xxxhdpi/ || true
+
+      - name: Patch AndroidManifest
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
-          echo "===== MANIFEST SEBELUM ====="
-          cat $MANIFEST
-          
-          # 1) IZIN LOKASI (FIX "ijin GPS ditolak")
-          grep -q "ACCESS_FINE_LOCATION" $MANIFEST || \
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST
-          
-          grep -q "ACCESS_COARSE_LOCATION" $MANIFEST || \
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST
-          
-          grep -q "ACCESS_BACKGROUND_LOCATION" $MANIFEST || \
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST
-          
-          # 2) IZIN FOREGROUND SERVICE (untuk background tracking)
-          grep -q "FOREGROUND_SERVICE\"" $MANIFEST || \
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />' $MANIFEST
-          
-          grep -q "FOREGROUND_SERVICE_DATA_SYNC" $MANIFEST || \
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />' $MANIFEST
-          
-          # 3) IZIN NOTIFIKASI (Android 13+ wajib untuk foreground service)
-          grep -q "POST_NOTIFICATIONS" $MANIFEST || \
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
-          
-          # 4) WAKE LOCK + BATTERY OPTIMIZATION
-          grep -q "WAKE_LOCK" $MANIFEST || \
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.WAKE_LOCK" />' $MANIFEST
-          
-          grep -q "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" $MANIFEST || \
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />' $MANIFEST
-          
-          # 5) DAFTARKAN FOREGROUND SERVICE
+          add_perm() {
+            grep -q "android.permission.$1" $MANIFEST || \
+              sed -i "s|<application|<uses-permission android:name=\"android.permission.$1\" />\n    <application|" $MANIFEST
+          }
+          add_perm "ACCESS_FINE_LOCATION"
+          add_perm "ACCESS_COARSE_LOCATION"
+          add_perm "ACCESS_BACKGROUND_LOCATION"
+          add_perm "FOREGROUND_SERVICE"
+          add_perm "FOREGROUND_SERVICE_DATA_SYNC"
+          add_perm "POST_NOTIFICATIONS"
+          add_perm "WAKE_LOCK"
+          add_perm "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+
           grep -q "foregroundservice.ForegroundService" $MANIFEST || \
-            sed -i '/<\/application>/i \    <service android:name="com.capawesome.capacitorjs.plugins.foregroundservice.ForegroundService" android:foregroundServiceType="dataSync|location" android:exported="false" />' $MANIFEST
-          
-          # 6) FEATURE GPS (optional, agar Play Store tahu)
-          grep -q "android.hardware.location.gps" $MANIFEST || \
-            sed -i '/<uses-permission/a \    <uses-feature android:name="android.hardware.location.gps" android:required="false" />' $MANIFEST
-          
-          echo "===== MANIFEST SESUDAH ====="
-          cat $MANIFEST
-          
-          # Validasi
-          if ! grep -q "ACCESS_FINE_LOCATION" $MANIFEST; then
-            echo "❌ GAGAL: ACCESS_FINE_LOCATION tidak tertambahkan!"
-            exit 1
-          fi
-          echo "✅ Semua izin berhasil ditambahkan"
+            sed -i 's|</application>|<service android:name="com.capawesome.capacitorjs.plugins.foregroundservice.ForegroundService" android:foregroundServiceType="dataSync\|location" android:exported="false" />\n</application>|' $MANIFEST
+
+          echo "✅ Manifest OK"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -123,9 +152,6 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      # ============================================================
-      # BUILD DEBUG APK (tanpa keystore/secret)
-      # ============================================================
       - name: Build Debug APK
         working-directory: android
         run: |
