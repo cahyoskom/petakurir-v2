@@ -33,6 +33,7 @@ jobs:
           npm install
           npm install @capacitor/cli@6
           npm install @capacitor/android@6
+          npm install @capacitor/core@6
           npm install @capacitor/geolocation@6
           npm install @capacitor/app@6
           npm install @capawesome-team/capacitor-android-foreground-service@6.2.0
@@ -47,24 +48,70 @@ jobs:
       - name: Add Android Platform
         run: |
           if [ ! -f "android/app/build.gradle" ]; then
+            echo "Membuat folder android baru..."
             rm -rf android
             npx cap add android
+          else
+            echo "Folder android sudah ada, skip."
           fi
 
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Modify AndroidManifest
+      # ============================================================
+      # PATCH MANIFEST: Tambah semua izin yang dibutuhkan
+      # ============================================================
+      - name: Patch AndroidManifest (GPS + Service + Notifikasi)
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
-          sed -i '/<application/i \
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n\
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />\n\
-              <uses-permission android:name="android.permission.WAKE_LOCK" />\n\
-              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n\
-              <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />' $MANIFEST
-          sed -i '/<\/application>/i \
-              <service android:name="com.capawesome.capacitorjs.plugins.foregroundservice.ForegroundService" android:foregroundServiceType="dataSync" android:exported="false" />' $MANIFEST
+          echo "===== MANIFEST SEBELUM ====="
+          cat $MANIFEST
+          
+          # 1) IZIN LOKASI (FIX "ijin GPS ditolak")
+          grep -q "ACCESS_FINE_LOCATION" $MANIFEST || \
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST
+          
+          grep -q "ACCESS_COARSE_LOCATION" $MANIFEST || \
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST
+          
+          grep -q "ACCESS_BACKGROUND_LOCATION" $MANIFEST || \
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST
+          
+          # 2) IZIN FOREGROUND SERVICE (untuk background tracking)
+          grep -q "FOREGROUND_SERVICE\"" $MANIFEST || \
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />' $MANIFEST
+          
+          grep -q "FOREGROUND_SERVICE_DATA_SYNC" $MANIFEST || \
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />' $MANIFEST
+          
+          # 3) IZIN NOTIFIKASI (Android 13+ wajib untuk foreground service)
+          grep -q "POST_NOTIFICATIONS" $MANIFEST || \
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
+          
+          # 4) WAKE LOCK + BATTERY OPTIMIZATION
+          grep -q "WAKE_LOCK" $MANIFEST || \
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.WAKE_LOCK" />' $MANIFEST
+          
+          grep -q "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" $MANIFEST || \
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />' $MANIFEST
+          
+          # 5) DAFTARKAN FOREGROUND SERVICE
+          grep -q "foregroundservice.ForegroundService" $MANIFEST || \
+            sed -i '/<\/application>/i \    <service android:name="com.capawesome.capacitorjs.plugins.foregroundservice.ForegroundService" android:foregroundServiceType="dataSync|location" android:exported="false" />' $MANIFEST
+          
+          # 6) FEATURE GPS (optional, agar Play Store tahu)
+          grep -q "android.hardware.location.gps" $MANIFEST || \
+            sed -i '/<uses-permission/a \    <uses-feature android:name="android.hardware.location.gps" android:required="false" />' $MANIFEST
+          
+          echo "===== MANIFEST SESUDAH ====="
+          cat $MANIFEST
+          
+          # Validasi
+          if ! grep -q "ACCESS_FINE_LOCATION" $MANIFEST; then
+            echo "❌ GAGAL: ACCESS_FINE_LOCATION tidak tertambahkan!"
+            exit 1
+          fi
+          echo "✅ Semua izin berhasil ditambahkan"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -76,7 +123,9 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      # ⬇️ INI KUNCINYA: build DEBUG, bukan release
+      # ============================================================
+      # BUILD DEBUG APK (tanpa keystore/secret)
+      # ============================================================
       - name: Build Debug APK
         working-directory: android
         run: |
@@ -89,9 +138,11 @@ jobs:
           COMMIT=$(echo ${{ github.sha }} | cut -c1-7)
           cp android/app/build/outputs/apk/debug/app-debug.apk \
              output/kurir-q-debug-${{ github.run_number }}-${COMMIT}.apk
+          ls -lh output/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: kurir-q-debug-${{ github.run_number }}
           path: output/*.apk
+          retention-days: 30
