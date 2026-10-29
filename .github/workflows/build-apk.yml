@@ -34,16 +34,32 @@ jobs:
       - name: Install dependencies
         run: |
           npm install
-          # Pin versi plugin agar kompatibel dengan Capacitor 6
-          npm install @capawesome-team/capacitor-android-foreground-service@6.2.0
+          # Pastikan CLI, platform Android, dan plugin terpasang
+          npm install @capacitor/cli@6
+          npm install @capacitor/android@6
+          npm install @capacitor/geolocation@6
           npm install @capacitor/app@6
+          npm install @capawesome-team/capacitor-android-foreground-service@6.2.0
 
-      - name: Prepare Web Assets for Capacitor
+      - name: Prepare Web Assets
         run: |
           mkdir -p www
           cp index.html www/
           cp ocr.html www/
           cp -r lib www/
+
+      # ⬇️ INI STEP PENTING: Buat folder android jika belum ada
+      - name: Add Android Platform (jika belum ada)
+        run: |
+          if [ ! -f "android/app/build.gradle" ]; then
+            echo "=========================================="
+            echo "Folder android/ belum ada, membuat baru..."
+            echo "=========================================="
+            rm -rf android
+            npx cap add android
+          else
+            echo "Folder android/ sudah ada, skip."
+          fi
 
       - name: Sync Capacitor
         run: npx cap sync android
@@ -51,14 +67,12 @@ jobs:
       - name: Modify AndroidManifest for Background Service
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
-          # Tambahkan permission yang diperlukan
           sed -i '/<application/i \
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n\
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />\n\
               <uses-permission android:name="android.permission.WAKE_LOCK" />\n\
               <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />' $MANIFEST
           
-          # Tambahkan service plugin foreground service
           sed -i '/<\/application>/i \
               <service android:name="com.capawesome.capacitorjs.plugins.foregroundservice.ForegroundService" android:foregroundServiceType="dataSync" android:exported="false" />' $MANIFEST
 
@@ -71,9 +85,6 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*') }}
           restore-keys: |
             gradle-${{ runner.os }}-
-
-      - name: Clean Gradle Cache
-        run: rm -rf ~/.gradle/caches
 
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.jks
