@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Kurir-Q">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%232563eb' width='180' height='180'/><text x='90' y='110' font-size='100' fill='white' text-anchor='middle' dominant-baseline='middle'>📦</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%232563eb' width='180' height='180'/><text x='90' y='110' font-size='100' fill='white' text-anchor='middle' dominant-baseline='middle'>🛵</text></svg>">
 <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Kurir-Q%22,%22short_name%22:%22Kurir-Q%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fff%22,%22theme_color%22:%22%232563eb%22,%22orientation%22:%22portrait%22}">
 <title>Kurir-Q v1.0</title>
 <script>
@@ -153,7 +153,7 @@ input[type=number]{-moz-appearance:textfield}
 <body>
 
 <div id="boot-splash">
-    <div style="font-size:72px;margin-bottom:12px;animation:bootPulse 1.5s infinite">📦</div>
+    <div style="font-size:72px;margin-bottom:12px;animation:bootPulse 1.5s infinite">🛵</div>
     <div style="font-size:20px;font-weight:600;margin-bottom:6px">Kurir-Q</div>
     <div id="boot-status" style="font-size:12px;opacity:.85;margin-bottom:20px">Memuat...</div>
     <div style="width:220px;height:3px;background:rgba(255,255,255,.25);border-radius:2px;overflow:hidden">
@@ -162,7 +162,7 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 
 <div class="container">
-<header><h1>📦 Kurir-Q</h1><button class="menu-btn" id="menu-btn">☰</button></header>
+<header><h1>🛵 Kurir-Q</h1><button class="menu-btn" id="menu-btn">☰</button></header>
 <main>
 <!-- PETA: Hapus class active -->
 <div class="page" id="map-page">
@@ -982,27 +982,55 @@ function normalizeWhatsApp(input){
     let digits=String(input).replace(/\D/g,'');
     if(!digits)return '';
     if(digits.startsWith('0062'))digits=digits.substring(2);
+    while(digits.startsWith('00'))digits=digits.substring(2);
     while(digits.startsWith('6262'))digits='62'+digits.substring(4);
     while(digits.startsWith('620'))digits='62'+digits.substring(3);
-    while(digits.startsWith('00'))digits=digits.substring(2);
     if(digits.startsWith('0'))digits='62'+digits.substring(1);
     else if(digits.startsWith('8'))digits='62'+digits;
     else if(!digits.startsWith('62'))digits='62'+digits;
     return digits;
 }
+function validateWAFormat(wa){
+    if(!wa||!String(wa).trim())return{type:'empty',valid:false,reason:'Nomor kosong'};
+    const digits=String(wa).replace(/\D/g,'');
+    if(/^628[1-9]\d{6,12}$/.test(digits))return{type:'mobile',valid:true,reason:'Mobile OK'};
+    if(/^62[2-9]\d{6,11}$/.test(digits))return{type:'landline',valid:false,reason:'Telepon rumah'};
+    if(digits.length<10)return{type:'invalid',valid:false,reason:'Terlalu pendek'};
+    if(digits.length>15)return{type:'invalid',valid:false,reason:'Terlalu panjang'};
+    if(digits.startsWith('62'))return{type:'unknown',valid:true,reason:'Format aneh'};
+    return{type:'invalid',valid:false,reason:'Format aneh'};
+}
+function importNormalizeWA(rawInput){
+    if(!rawInput||!String(rawInput).trim())return{wa:'',warning:null};
+    const normalized=normalizeWhatsApp(rawInput);
+    const check=validateWAFormat(normalized);
+    if(check.type==='mobile')return{wa:normalized,warning:null};
+    if(check.type==='landline')return{wa:normalized,warning:`Landline: "${rawInput}"`,type:'landline'};
+    return{wa:normalized,warning:`Aneh: "${rawInput}" -> "${normalized}"`,type:'unknown'};
+}
 function formatWhatsAppDisplay(wa){if(!wa||wa.length<10)return wa||'-';const rest=wa.substring(2);if(rest.length>=9)return `+62 ${rest.substring(0,3)}-${rest.substring(3,7)}-${rest.substring(7)}`;return '+'+wa;}
 
 function analyzeWhatsAppNumbers(addresses){
-    const issues={double62:[],leading62_0:[],fixedLine:[],tooShort:[],tooLong:[]};
+    const issues={valid:[],double62:[],leading62_0:[],fixedLine:[],tooShort:[],tooLong:[],unknown:[],empty:[]};
     (addresses||[]).forEach(a=>{
-        const wa=a.whatsapp||'';
-        if(!wa)return;
+        const raw=(a.whatsapp||'').trim();
         const name=a.recipient_name||'(tanpa nama)';
-        if(/^6262/.test(wa))issues.double62.push({name,wa});
-        else if(/^620/.test(wa))issues.leading62_0.push({name,wa});
-        else if(/^62(2[1-9]|3[1-9]|4[1-9]|5[1-9]|6[1-9]|7[1-9])/.test(wa))issues.fixedLine.push({name,wa});
-        else if(wa.length<10)issues.tooShort.push({name,wa});
-        else if(wa.length>15)issues.tooLong.push({name,wa});
+        if(!raw){issues.empty.push({name,raw});return;}
+        const rawDigits=raw.replace(/\D/g,'');
+        const normalized=normalizeWhatsApp(raw);
+        const check=validateWAFormat(normalized);
+        if(/^6262/.test(rawDigits)){issues.double62.push({name,raw,fixed:normalized});return;}
+        if(/^620/.test(rawDigits)){issues.leading62_0.push({name,raw,fixed:normalized});return;}
+        switch(check.type){
+            case 'mobile':issues.valid.push({name,raw,fixed:normalized});break;
+            case 'landline':issues.fixedLine.push({name,raw,fixed:normalized,reason:check.reason});break;
+            case 'invalid':
+                if(check.reason.indexOf('pendek')>=0)issues.tooShort.push({name,raw,fixed:normalized});
+                else if(check.reason.indexOf('panjang')>=0)issues.tooLong.push({name,raw,fixed:normalized});
+                else issues.unknown.push({name,raw,fixed:normalized});
+                break;
+            default:issues.unknown.push({name,raw,fixed:normalized});
+        }
     });
     return issues;
 }
@@ -1226,7 +1254,7 @@ async function saveRecord(){
     document.querySelectorAll('#problems-group .checkbox-item.checked').forEach((item)=>problems.push(item.textContent.trim()));
     const na={
         recipient_name:name,latitude:currentLocation.latitude,longitude:currentLocation.longitude,
-        whatsapp:waRaw?normalizeWhatsApp(waRaw):'',
+        whatsapp:(function(){const r=importNormalizeWA(waRaw);return r.wa;})(),
         gang:document.getElementById('form-gang').value,
         house_number:document.getElementById('form-house-number').value,
         rt:document.getElementById('form-rt').value.trim(),
@@ -2284,7 +2312,7 @@ document.getElementById('file-import-csv').addEventListener('change',(e)=>{
                 const recs=[{name:nm,status:'belum selesai',added_at:new Date().toISOString()},...ar];
                 const ur=[],seen=new Set();
                 recs.forEach(x=>{if(!seen.has(x.name.toLowerCase())){seen.add(x.name.toLowerCase());ur.push(x);}});
-                addresses.push({id:rawId||'addr_'+Date.now()+'_'+Math.random().toString(36).substr(2,9),recipient_name:nm,whatsapp:waRaw?normalizeWhatsApp(waRaw):'',gang:g('gang',3),house_number:g('nomor',4),rt:g('rt',5),rw:g('rw',6),kelurahan:g('kelurahan',7),address:g('alamat',8),latitude:parseFloat(g('latitude',9))||0,longitude:parseFloat(g('longitude',10))||0,landmark:g('patokan',11),payment_status:g('status_pembayaran',12)||'belum',problem_tags:(g('masalah',13)||'').split(';').map(t=>t.trim()).filter(t=>t),location_type:g('tipe_lokasi',14)||'jelas',visit_count:1,description:g('catatan',17)||'',delivery_status:'belum selesai',recipients:ur,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),history:[],raw_voice_note:''});
+                addresses.push({id:rawId||'addr_'+Date.now()+'_'+Math.random().toString(36).substr(2,9),recipient_name:nm,whatsapp:(function(){const r=importNormalizeWA(waRaw);return r.wa;})(),gang:g('gang',3),house_number:g('nomor',4),rt:g('rt',5),rw:g('rw',6),kelurahan:g('kelurahan',7),address:g('alamat',8),latitude:parseFloat(g('latitude',9))||0,longitude:parseFloat(g('longitude',10))||0,landmark:g('patokan',11),payment_status:g('status_pembayaran',12)||'belum',problem_tags:(g('masalah',13)||'').split(';').map(t=>t.trim()).filter(t=>t),location_type:g('tipe_lokasi',14)||'jelas',visit_count:1,description:g('catatan',17)||'',delivery_status:'belum selesai',recipients:ur,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),history:[],raw_voice_note:''});
             }
             if(addresses.length===0){showModal('Error','❌ Tidak ada data valid');return;}
             showImportModal(addresses,'csv');
@@ -2450,7 +2478,14 @@ async function processCSVImport(count){
     const warnings=[];
     if(issues.double62.length>0)warnings.push(`🔁 ${issues.double62.length} nomor "62-62" dobel`);
     if(issues.leading62_0.length>0)warnings.push(`⚠️ ${issues.leading62_0.length} nomor "62-0..."`);
-    if(issues.fixedLine.length>0)warnings.push(`📞 ${issues.fixedLine.length} nomor telpon rumah`);
+    if(issues.valid.length>0)warnings.push(`✅ ${issues.valid.length} mobile valid`);
+    if(issues.double62.length>0)warnings.push(`🔁 ${issues.double62.length} nomor "62-62" dobel`);
+    if(issues.leading62_0.length>0)warnings.push(`⚠️ ${issues.leading62_0.length} nomor "62-0..."`);
+    if(issues.fixedLine.length>0)warnings.push(`📞 ${issues.fixedLine.length} TELEPON RUMAH (tidak bisa WA)`);
+    if(issues.tooShort.length>0)warnings.push(`📏 ${issues.tooShort.length} terlalu pendek`);
+    if(issues.tooLong.length>0)warnings.push(`📏 ${issues.tooLong.length} terlalu panjang`);
+    if(issues.unknown.length>0)warnings.push(`❓ ${issues.unknown.length} format aneh`);
+    if(issues.empty.length>0)warnings.push(`📭 ${issues.empty.length} kosong`);
     if(warnings.length>0){
         msg+='\n\n━━━━━━━━━━━━━━━\n⚠️ NOMOR WA:\n'+warnings.join('\n');
     }
