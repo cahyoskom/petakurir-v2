@@ -728,20 +728,8 @@ function initDB(){
 }
 
 function registerServiceWorker(){
-    if('serviceWorker' in navigator){
-        const swCode=`
-const CACHE_NAME='kurir-q-v1';
-self.addEventListener('install',(e)=>self.skipWaiting());
-self.addEventListener('activate',(e)=>{e.waitUntil(caches.keys().then((names)=>Promise.all(names.filter((n)=>n!==CACHE_NAME).filter((n)=>!n.startsWith('kurir-q-tiles')).filter((n)=>!n.startsWith('kurir-q-cdn')).map((n)=>caches.delete(n)))));self.clients.claim();});
-self.addEventListener('fetch',(e)=>{
-  if(e.request.url.includes('leaflet')||e.request.url.includes('cdnjs')||e.request.url.includes('jsdelivr')){e.respondWith(caches.open('kurir-q-cdn-v1').then((c)=>c.match(e.request).then((r)=>r||fetch(e.request).then((resp)=>{if(resp.ok&&e.request.method==='GET')c.put(e.request,resp.clone());return resp;}).catch(()=>new Response('',{status:404})))));return;}
-  if(e.request.url.includes('tile.openstreetmap')){e.respondWith(caches.open('kurir-q-tiles-v1').then((tc)=>tc.match(e.request).then((c)=>c||fetch(e.request).then((r)=>{if(r.ok&&e.request.method==='GET')tc.put(e.request,r.clone());return r;}).catch(()=>new Response('',{status:404})))));return;}
-  if(e.request.url.includes('googleapis'))return;
-  if(e.request.mode==='navigate')return;
-  e.respondWith(caches.match(e.request).then((r)=>r||fetch(e.request).catch(()=>new Response('Offline'))));
-});`;
-        const blob=new Blob([swCode],{type:'application/javascript'});
-        navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(e=>{});
+    if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
+        navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('SW gagal:',e));
     }
 }
 
