@@ -42,20 +42,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install
-          npm install @capacitor/cli@6
-          npm install @capacitor/android@6
-          npm install @capacitor/core@6
-          npm install @capacitor/geolocation@6
-          npm install @capacitor/app@6
-          npm install @capawesome-team/capacitor-android-foreground-service@6.2.0
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
       - name: Prepare Web Assets
         run: |
           mkdir -p www
-          cp index.html www/
-          cp ocr.html www/
+          cp index.html sw.js www/
           cp -r lib www/
+          rm -f www/lib/note www/lib/images/readme
 
       - name: Generate Icon & Splash PNG
         env:
@@ -117,7 +111,6 @@ jobs:
 
       - name: Generate Android Assets
         run: |
-          npm install @capacitor/assets@3
           npx capacitor-assets generate --android
           ls -lh android/app/src/main/res/mipmap-xxxhdpi/ || true
 
@@ -130,16 +123,6 @@ jobs:
           }
           add_perm "ACCESS_FINE_LOCATION"
           add_perm "ACCESS_COARSE_LOCATION"
-          add_perm "ACCESS_BACKGROUND_LOCATION"
-          add_perm "FOREGROUND_SERVICE"
-          add_perm "FOREGROUND_SERVICE_DATA_SYNC"
-          add_perm "POST_NOTIFICATIONS"
-          add_perm "WAKE_LOCK"
-          add_perm "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
-
-          grep -q "foregroundservice.ForegroundService" $MANIFEST || \
-            sed -i 's|</application>|<service android:name="com.capawesome.capacitorjs.plugins.foregroundservice.ForegroundService" android:foregroundServiceType="dataSync\|location" android:exported="false" />\n</application>|' $MANIFEST
-
           echo "✅ Manifest OK"
 
       - name: Cache Gradle

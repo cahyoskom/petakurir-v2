@@ -1,0 +1,58 @@
+name: Patch index.html (One-Time)
+
+# Jalankan manual dari tab Actions. Tidak ada trigger otomatis.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pastikan sw.js sudah ada
+        run: test -f sw.js || { echo "❌ sw.js belum diupload ke root repo"; exit 1; }
+
+      - name: Patch registerServiceWorker di index.html
+        run: |
+          python3 - <<'PY'
+          import sys
+          p = 'index.html'
+          s = open(p, encoding='utf-8').read()
+          a = s.find('function registerServiceWorker(){')
+          b = s.find('function initMap(){')
+          if a < 0 or b < 0 or b < a:
+              sys.exit('❌ penanda fungsi tidak ditemukan, index.html tidak diubah')
+          if "register('./sw.js')" in s[a:b]:
+              print('✅ sudah dipatch sebelumnya')
+              sys.exit(0)
+          new = (
+              "function registerServiceWorker(){\n"
+              "    if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){\n"
+              "        navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('SW gagal:',e));\n"
+              "    }\n"
+              "}\n\n"
+          )
+          open(p, 'w', encoding='utf-8').write(s[:a] + new + s[b:])
+          print('✅ index.html dipatch')
+          PY
+
+      - name: Hapus file placeholder
+        run: git rm -q --ignore-unmatch lib/note lib/images/readme
+
+      - name: Commit perubahan
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "✅ Tidak ada perubahan"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: daftarkan sw.js, hapus placeholder"
+            git push
+            echo "✅ Di-commit ke repo"
+          fi
