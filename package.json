@@ -2,16 +2,18 @@
   "name": "kurir-q",
   "version": "1.0.0",
   "description": "Kurir-Q - Buku alamat kurir",
+  "private": true,
   "scripts": {
     "build": "echo 'Static build'"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
-    "@capacitor/core": "^6.0.0",
     "@capacitor/browser": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
     "@capacitor/geolocation": "^6.0.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.0",
     "@capacitor/cli": "^6.0.0"
   }
 }
