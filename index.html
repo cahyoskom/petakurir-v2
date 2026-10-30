@@ -1008,6 +1008,24 @@ function importNormalizeWA(rawInput){
     if(check.type==='landline')return{wa:normalized,warning:`Landline: "${rawInput}"`,type:'landline'};
     return{wa:normalized,warning:`Aneh: "${rawInput}" -> "${normalized}"`,type:'unknown'};
 }
+function validateWAFormat(wa){
+    if(!wa||!String(wa).trim())return{type:'empty',valid:false,reason:'Nomor kosong'};
+    const digits=String(wa).replace(/\D/g,'');
+    if(/^628[1-9]\d{6,12}$/.test(digits))return{type:'mobile',valid:true,reason:'Mobile OK'};
+    if(/^62[2-9]\d{6,11}$/.test(digits))return{type:'landline',valid:false,reason:'Telepon rumah'};
+    if(digits.length<10)return{type:'invalid',valid:false,reason:'Terlalu pendek'};
+    if(digits.length>15)return{type:'invalid',valid:false,reason:'Terlalu panjang'};
+    if(digits.startsWith('62'))return{type:'unknown',valid:true,reason:'Format aneh'};
+    return{type:'invalid',valid:false,reason:'Format aneh'};
+}
+function importNormalizeWA(rawInput){
+    if(!rawInput||!String(rawInput).trim())return{wa:'',warning:null};
+    const normalized=normalizeWhatsApp(rawInput);
+    const check=validateWAFormat(normalized);
+    if(check.type==='mobile')return{wa:normalized,warning:null};
+    if(check.type==='landline')return{wa:normalized,warning:`Landline: "${rawInput}"`,type:'landline'};
+    return{wa:normalized,warning:`Aneh: "${rawInput}" -> "${normalized}"`,type:'unknown'};
+}
 function formatWhatsAppDisplay(wa){if(!wa||wa.length<10)return wa||'-';const rest=wa.substring(2);if(rest.length>=9)return `+62 ${rest.substring(0,3)}-${rest.substring(3,7)}-${rest.substring(7)}`;return '+'+wa;}
 
 function analyzeWhatsAppNumbers(addresses){
