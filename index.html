@@ -965,23 +965,45 @@ function matchesSearch(addr, query) {
     return tokens.every(t => hay.includes(t));
 }
 
-function normalizeWhatsApp(input){
-    if(!input)return '';
-    let digits=String(input).replace(/\D/g,'');
-    if(!digits)return '';
-    if(digits.startsWith('0062'))digits=digits.substring(2);
-    while(digits.startsWith('6262'))digits='62'+digits.substring(4);
-    while(digits.startsWith('620'))digits='62'+digits.substring(3);
-    while(digits.startsWith('00'))digits=digits.substring(2);
-    if(digits.startsWith('0'))digits='62'+digits.substring(1);
-    else if(digits.startsWith('8'))digits='62'+digits;
-    else if(!digits.startsWith('62'))digits='62'+digits;
-    return digits;
+/*WA-v4*/
+function normalizeWhatsAppEx(input){
+    const out=(n,g)=>({n:n,guess:!!g});
+    if(input===null||input===undefined)return out('');
+    let raw=String(input).trim();
+    if(!raw)return out('');
+    // notasi ilmiah Excel (6.28E+11): digit sudah hilang, tidak bisa dipulihkan
+    if(/^[\d.,]+\s*e\s*[+-]?\d+$/i.test(raw))return out('');
+    // beberapa nomor dalam satu sel -> ambil yang pertama
+    const parts=raw.split(/[\/;,|\n]|\s+(?:atau|dan)\s+/i);
+    const withNum=parts.filter(x=>x.replace(/\D/g,'').length>=8);
+    if(withNum.length>=2)raw=withNum[0];
+    // "628123456789.0" (angka dari spreadsheet)
+    if(/^\+?\d+[.,]0+$/.test(raw))raw=raw.replace(/[.,]0+$/,'');
+    let d=raw.replace(/\D/g,'');
+    if(!d)return out('');
+    for(let i=0;i<12;i++){
+        if(d.startsWith('00'))d=d.substring(2);
+        else if(d.startsWith('0'))d=d.substring(1);
+        else if(d.startsWith('620'))d=d.substring(2);
+        else if(d.startsWith('6262'))d=d.substring(2);
+        else break;
+    }
+    if(!d)return out('');
+    if(!d.startsWith('62'))d='62'+d;
+    // 621xxxxxxx dibiarkan apa adanya (bukan HP, kemungkinan telepon rumah 021): tidak ditebak
+    return out(d);
+}
+function normalizeWhatsApp(input){return normalizeWhatsAppEx(input).n;}
+function waImportNorm(list,name,raw){
+    const r=normalizeWhatsAppEx(raw);
+    if(!r.n){(list._waBad=list._waBad||[]).push(name+' ('+raw+')');return '';}
+    if(r.guess)(list._waGuess=list._waGuess||[]).push(name+' ('+raw+' → '+r.n+')');
+    return r.n;
 }
 function formatWhatsAppDisplay(wa){if(!wa||wa.length<10)return wa||'-';const rest=wa.substring(2);if(rest.length>=9)return `+62 ${rest.substring(0,3)}-${rest.substring(3,7)}-${rest.substring(7)}`;return '+'+wa;}
 
 function analyzeWhatsAppNumbers(addresses){
-    const issues={double62:[],leading62_0:[],fixedLine:[],tooShort:[],tooLong:[]};
+    const issues={double62:[],leading62_0:[],fixedLine:[],tooShort:[],tooLong:[],invalid:[]};
     (addresses||[]).forEach(a=>{
         const wa=a.whatsapp||'';
         if(!wa)return;
@@ -991,6 +1013,7 @@ function analyzeWhatsAppNumbers(addresses){
         else if(/^62(2[1-9]|3[1-9]|4[1-9]|5[1-9]|6[1-9]|7[1-9])/.test(wa))issues.fixedLine.push({name,wa});
         else if(wa.length<10)issues.tooShort.push({name,wa});
         else if(wa.length>15)issues.tooLong.push({name,wa});
+        else if(!/^628\d{8,11}$/.test(wa))issues.invalid.push({name,wa});
     });
     return issues;
 }
@@ -2272,7 +2295,7 @@ document.getElementById('file-import-csv').addEventListener('change',(e)=>{
                 const recs=[{name:nm,status:'belum selesai',added_at:new Date().toISOString()},...ar];
                 const ur=[],seen=new Set();
                 recs.forEach(x=>{if(!seen.has(x.name.toLowerCase())){seen.add(x.name.toLowerCase());ur.push(x);}});
-                addresses.push({id:rawId||'addr_'+Date.now()+'_'+Math.random().toString(36).substr(2,9),recipient_name:nm,whatsapp:waRaw?normalizeWhatsApp(waRaw):'',gang:g('gang',3),house_number:g('nomor',4),rt:g('rt',5),rw:g('rw',6),kelurahan:g('kelurahan',7),address:g('alamat',8),latitude:parseFloat(g('latitude',9))||0,longitude:parseFloat(g('longitude',10))||0,landmark:g('patokan',11),payment_status:g('status_pembayaran',12)||'belum',problem_tags:(g('masalah',13)||'').split(';').map(t=>t.trim()).filter(t=>t),location_type:g('tipe_lokasi',14)||'jelas',visit_count:1,description:g('catatan',17)||'',delivery_status:'belum selesai',recipients:ur,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),history:[],raw_voice_note:''});
+                addresses.push({id:rawId||'addr_'+Date.now()+'_'+Math.random().toString(36).substr(2,9),recipient_name:nm,whatsapp:waRaw?waImportNorm(addresses,nm,waRaw):'',gang:g('gang',3),house_number:g('nomor',4),rt:g('rt',5),rw:g('rw',6),kelurahan:g('kelurahan',7),address:g('alamat',8),latitude:parseFloat(g('latitude',9))||0,longitude:parseFloat(g('longitude',10))||0,landmark:g('patokan',11),payment_status:g('status_pembayaran',12)||'belum',problem_tags:(g('masalah',13)||'').split(';').map(t=>t.trim()).filter(t=>t),location_type:g('tipe_lokasi',14)||'jelas',visit_count:1,description:g('catatan',17)||'',delivery_status:'belum selesai',recipients:ur,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),history:[],raw_voice_note:''});
             }
             if(addresses.length===0){showModal('Error','❌ Tidak ada data valid');return;}
             showImportModal(addresses,'csv');
@@ -2329,7 +2352,7 @@ async function processCSVImport(count){
         if(!e && nw && nw.length>5) e=ex.find(a=>{
             const nameMatch=(a.recipient_name||'').toLowerCase().trim()===nl ||
                 (a.recipients && a.recipients.some(r=>(r.name||'').toLowerCase().trim()===nl));
-            return nameMatch && a.whatsapp===nw;
+            return nameMatch && normalizeWhatsApp(a.whatsapp)===nw;
         });
         if(!e) e=ex.find(a=>
             (a.recipient_name||'').toLowerCase().trim()===nl ||
@@ -2347,7 +2370,7 @@ async function processCSVImport(count){
                 e.recipients=[{name:e.recipient_name||nm,status:'belum selesai',added_at:e.created_at||new Date().toISOString()}];
             }
 
-            if(isEmptyText(e.whatsapp)     && !isEmptyText(na.whatsapp))     e.whatsapp=na.whatsapp;
+            if(isEmptyText(e.whatsapp)     && !isEmptyText(na.whatsapp))     e.whatsapp=na.whatsapp; else if(e.whatsapp&&normalizeWhatsApp(e.whatsapp)&&normalizeWhatsApp(e.whatsapp)!==e.whatsapp)e.whatsapp=normalizeWhatsApp(e.whatsapp);
             if(isEmptyText(e.address)      && !isEmptyText(na.address))      e.address=na.address;
             if(isEmptyText(e.gang)         && !isEmptyText(na.gang))         e.gang=na.gang;
             if(isEmptyText(e.house_number) && !isEmptyText(na.house_number)) e.house_number=na.house_number;
@@ -2436,6 +2459,11 @@ async function processCSVImport(count){
 
     const issues=analyzeWhatsAppNumbers(window.importNewAddresses);
     const warnings=[];
+    const waGuess=(window.importNewAddresses&&window.importNewAddresses._waGuess)||[];
+    if(waGuess.length>0)warnings.push(`🔧 ${waGuess.length} nomor diperbaiki otomatis (tebakan, mohon cek): ${waGuess.slice(0,5).join(', ')}${waGuess.length>5?' …':''}`);
+    const waBad=(window.importNewAddresses&&window.importNewAddresses._waBad)||[];
+    if(waBad.length>0)warnings.push(`🚫 ${waBad.length} nomor WA tidak terbaca, isi manual: ${waBad.slice(0,5).join(', ')}${waBad.length>5?' …':''}`);
+    if(issues.invalid.length>0)warnings.push(`❓ ${issues.invalid.length} nomor bukan format HP (telepon rumah/salah ketik), cek manual: ${issues.invalid.slice(0,5).map(x=>x.name+' ('+x.wa+')').join(', ')}${issues.invalid.length>5?' …':''}`);
     if(issues.double62.length>0)warnings.push(`🔁 ${issues.double62.length} nomor "62-62" dobel`);
     if(issues.leading62_0.length>0)warnings.push(`⚠️ ${issues.leading62_0.length} nomor "62-0..."`);
     if(issues.fixedLine.length>0)warnings.push(`📞 ${issues.fixedLine.length} nomor telpon rumah`);
