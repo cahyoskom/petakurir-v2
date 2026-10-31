@@ -1,0 +1,110 @@
+name: Patch Tombol Back (One-Time)
+
+# Tombol Back menutup panel/sheet yang terbuka, kembali ke halaman utama,
+# dan baru keluar aplikasi setelah dua kali tekan. Berlaku di APK dan web.
+# Jalankan manual dari tab Actions. Aman dijalankan berulang.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          import sys
+          p = 'index.html'
+          s = open(p, encoding='utf-8').read()
+          if '/*BACK-v1*/' in s:
+              print('✅ sudah dipatch'); sys.exit(0)
+          for fn in ('function closeModal(', 'function closePhotoViewer(', 'function closePanoramaSheet(',
+                     'function closeRecordSheet(', 'function closeSidebar(', 'function showPage('):
+              if fn not in s:
+                  sys.exit('❌ ' + fn + ' tidak ditemukan — index.html TIDAK diubah')
+          i = s.rfind('</script>')
+          if i < 0:
+              sys.exit('❌ penutup script tidak ditemukan — index.html TIDAK diubah')
+          BLOCK = r'''
+          /*BACK-v1*/
+          (function(){
+              const GUARD={kq:'guard'};
+              let armed=false,timer=null,toastEl=null,toastTimer=null;
+              function isOn(id){const e=document.getElementById(id);return !!(e&&e.classList.contains('active'));}
+              function handleBack(){
+                  if(isOn('modal')){closeModal();return true;}
+                  if(isOn('photo-viewer')){closePhotoViewer();return true;}
+                  if(isOn('panorama-sheet')){closePanoramaSheet();return true;}
+                  if(isOn('record-sheet')){closeRecordSheet();return true;}
+                  if(isOn('detail-sheet')){
+                      const b=document.getElementById('close-detail-sheet');
+                      if(b)b.click();else document.getElementById('detail-sheet').classList.remove('active');
+                      return true;
+                  }
+                  if(isOn('sidebar')){closeSidebar();return true;}
+                  const cur=document.querySelector('.page.active');
+                  if(cur&&cur.id!=='list-page'){showPage('list-page');return true;}
+                  return false;
+              }
+              function push(){try{history.pushState(GUARD,'');}catch(e){}}
+              function toast(msg){
+                  try{
+                      if(!toastEl){
+                          toastEl=document.createElement('div');
+                          toastEl.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;padding:10px 16px;border-radius:20px;font-size:13px;z-index:99999;pointer-events:none;transition:opacity .2s;opacity:0';
+                          document.body.appendChild(toastEl);
+                      }
+                      toastEl.textContent=msg;toastEl.style.opacity='1';
+                      clearTimeout(toastTimer);toastTimer=setTimeout(()=>{toastEl.style.opacity='0';},1800);
+                  }catch(e){}
+              }
+              function rearm(){
+                  if(!armed)return;
+                  armed=false;
+                  if(timer){clearTimeout(timer);timer=null;}
+                  push();
+              }
+              function onPop(){
+                  if(handleBack()){push();return;}
+                  if(armed)return;
+                  armed=true;
+                  toast('Tekan Back sekali lagi untuk keluar');
+                  timer=setTimeout(()=>{timer=null;rearm();},2000);
+              }
+              function init(){
+                  try{
+                      if(!(history.state&&history.state.kq==='guard')){
+                          history.replaceState({kq:'root'},'');
+                          push();
+                      }
+                  }catch(e){return;}
+                  window.addEventListener('popstate',onPop);
+                  document.addEventListener('click',rearm,true);
+                  document.addEventListener('touchstart',rearm,true);
+              }
+              if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+          })();
+          '''
+          s = s[:i] + BLOCK + s[i:]
+          open(p, 'w', encoding='utf-8').write(s)
+          print('✅ index.html dipatch (tombol Back)')
+          PY
+
+      - name: Commit perubahan
+        run: |
+          if git diff --quiet index.html; then
+            echo "✅ Tidak ada perubahan"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add index.html
+            git commit -m "feat: tombol Back menutup panel dulu, keluar dengan dua kali tekan"
+            git push
+            echo "✅ Di-commit ke repo"
+          fi
