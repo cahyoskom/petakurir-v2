@@ -1,0 +1,147 @@
+name: Patch Normalisasi No. WA (One-Time)
+
+# Jalankan manual dari tab Actions. Aman dijalankan berulang dan aman
+# di atas versi patch WA sebelumnya (v2/v3).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          p = 'index.html'
+          s = open(p, encoding='utf-8').read()
+          if '/*WA-v4*/' in s:
+              print('✅ sudah dipatch (v4)'); sys.exit(0)
+
+          def need(cond, msg):
+              if not cond:
+                  sys.exit('❌ ' + msg + ' — index.html TIDAK diubah')
+
+          # 1) fungsi normalisasi (menggantikan versi lama maupun v2)
+          NEW_FN = r'''/*WA-v4*/
+          function normalizeWhatsAppEx(input){
+              const out=(n,g)=>({n:n,guess:!!g});
+              if(input===null||input===undefined)return out('');
+              let raw=String(input).trim();
+              if(!raw)return out('');
+              // notasi ilmiah Excel (6.28E+11): digit sudah hilang, tidak bisa dipulihkan
+              if(/^[\d.,]+\s*e\s*[+-]?\d+$/i.test(raw))return out('');
+              // beberapa nomor dalam satu sel -> ambil yang pertama
+              const parts=raw.split(/[\/;,|\n]|\s+(?:atau|dan)\s+/i);
+              const withNum=parts.filter(x=>x.replace(/\D/g,'').length>=8);
+              if(withNum.length>=2)raw=withNum[0];
+              // "628123456789.0" (angka dari spreadsheet)
+              if(/^\+?\d+[.,]0+$/.test(raw))raw=raw.replace(/[.,]0+$/,'');
+              let d=raw.replace(/\D/g,'');
+              if(!d)return out('');
+              for(let i=0;i<12;i++){
+                  if(d.startsWith('00'))d=d.substring(2);
+                  else if(d.startsWith('0'))d=d.substring(1);
+                  else if(d.startsWith('620'))d=d.substring(2);
+                  else if(d.startsWith('6262'))d=d.substring(2);
+                  else break;
+              }
+              if(!d)return out('');
+              if(!d.startsWith('62'))d='62'+d;
+              // 621xxxxxxx dibiarkan apa adanya (bukan HP, kemungkinan telepon rumah 021): tidak ditebak
+              return out(d);
+          }
+          function normalizeWhatsApp(input){return normalizeWhatsAppEx(input).n;}
+          function waImportNorm(list,name,raw){
+              const r=normalizeWhatsAppEx(raw);
+              if(!r.n){(list._waBad=list._waBad||[]).push(name+' ('+raw+')');return '';}
+              if(r.guess)(list._waGuess=list._waGuess||[]).push(name+' ('+raw+' → '+r.n+')');
+              return r.n;
+          }
+          '''
+          a = -1
+          for mk in ('/*WA-v3*/', '/*WA-v2*/'):
+              a = s.find(mk)
+              if a >= 0:
+                  break
+          if a < 0:
+              a = s.find('function normalizeWhatsApp(input){')
+          b = s.find('function formatWhatsAppDisplay(')
+          need(a >= 0 and b > a, 'normalizeWhatsApp tidak ditemukan')
+          s = s[:a] + NEW_FN + s[b:]
+
+          # 2) kategori 'invalid' pada analisis nomor
+          if 'invalid:[]' not in s:
+              need('tooLong:[]}' in s, 'objek issues tidak ditemukan')
+              s = s.replace('tooLong:[]}', 'tooLong:[],invalid:[]}', 1)
+              old = 'else if(wa.length>15)issues.tooLong.push({name,wa});'
+              need(old in s, 'baris tooLong tidak ditemukan')
+              s = s.replace(old, old + '\n        else if(!/^628\\d{8,11}$/.test(wa))issues.invalid.push({name,wa});', 1)
+
+          # 3) parser CSV
+          new_parse = "recipient_name:nm,whatsapp:waRaw?waImportNorm(addresses,nm,waRaw):''"
+          old_v1 = "recipient_name:nm,whatsapp:waRaw?normalizeWhatsApp(waRaw):''"
+          old_v2 = "recipient_name:nm,whatsapp:waRaw?(normalizeWhatsApp(waRaw)||((addresses._waBad=addresses._waBad||[]).push(nm+' ('+waRaw+')'),'')):''"
+          if new_parse in s:
+              pass
+          elif old_v2 in s:
+              s = s.replace(old_v2, new_parse, 1)
+          else:
+              need(s.count(old_v1) == 1, 'baris parser CSV tidak ditemukan')
+              s = s.replace(old_v1, new_parse, 1)
+
+          # 4) merge: pencocokan dan perbaikan nomor lama
+          if 'normalizeWhatsApp(a.whatsapp)===nw' not in s:
+              old = 'return nameMatch && a.whatsapp===nw;'
+              need(s.count(old) == 1, 'baris pencocokan WA tidak ditemukan')
+              s = s.replace(old, 'return nameMatch && normalizeWhatsApp(a.whatsapp)===nw;', 1)
+          if 'normalizeWhatsApp(e.whatsapp)!==e.whatsapp' not in s:
+              m = re.search(r"if\(isEmptyText\(e\.whatsapp\)\s+&& !isEmptyText\(na\.whatsapp\)\)\s+e\.whatsapp=na\.whatsapp;", s)
+              need(m is not None, 'baris isi WA kosong tidak ditemukan')
+              s = s[:m.end()] + " else if(e.whatsapp&&normalizeWhatsApp(e.whatsapp)&&normalizeWhatsApp(e.whatsapp)!==e.whatsapp)e.whatsapp=normalizeWhatsApp(e.whatsapp);" + s[m.end():]
+
+          # 5) laporan setelah import
+          anchor = r"const issues=analyzeWhatsAppNumbers\(window\.importNewAddresses\);\s*const warnings=\[\];"
+          if 'const waBad=' not in s:
+              m = re.search(anchor, s)
+              need(m is not None, 'blok laporan import tidak ditemukan')
+              add = '''
+              const waBad=(window.importNewAddresses&&window.importNewAddresses._waBad)||[];
+              if(waBad.length>0)warnings.push(`🚫 ${waBad.length} nomor WA tidak terbaca, isi manual: ${waBad.slice(0,5).join(', ')}${waBad.length>5?' …':''}`);
+              if(issues.invalid.length>0)warnings.push(`❓ ${issues.invalid.length} nomor bukan format HP, cek manual`);'''
+              s = s[:m.end()] + add + s[m.end():]
+          if 'const waGuess=' not in s:
+              m = re.search(anchor, s)
+              need(m is not None, 'blok laporan import tidak ditemukan')
+              add = '''
+              const waGuess=(window.importNewAddresses&&window.importNewAddresses._waGuess)||[];
+              if(waGuess.length>0)warnings.push(`🔧 ${waGuess.length} nomor diperbaiki otomatis (tebakan, mohon cek): ${waGuess.slice(0,5).join(', ')}${waGuess.length>5?' …':''}`);'''
+              s = s[:m.end()] + add + s[m.end():]
+
+          old_inv = "if(issues.invalid.length>0)warnings.push(`❓ ${issues.invalid.length} nomor bukan format HP, cek manual`);"
+          new_inv = "if(issues.invalid.length>0)warnings.push(`❓ ${issues.invalid.length} nomor bukan format HP (telepon rumah/salah ketik), cek manual: ${issues.invalid.slice(0,5).map(x=>x.name+' ('+x.wa+')').join(', ')}${issues.invalid.length>5?' …':''}`);"
+          if old_inv in s:
+              s = s.replace(old_inv, new_inv, 1)
+          need('function waImportNorm' in s and 'waImportNorm(addresses' in s, 'verifikasi akhir gagal')
+          open(p, 'w', encoding='utf-8').write(s)
+          print('✅ index.html dipatch (v4)')
+          PY
+
+      - name: Commit perubahan
+        run: |
+          if git diff --quiet index.html; then
+            echo "✅ Tidak ada perubahan"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add index.html
+            git commit -m "fix: normalisasi no. WA saat impor CSV (v4)"
+            git push
+            echo "✅ Di-commit ke repo"
+          fi
