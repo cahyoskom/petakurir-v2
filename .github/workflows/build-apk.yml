@@ -13,7 +13,7 @@ on:
 
 env:
   APP_NAME: "Kurir-Q"
-  APP_EMOJI: "📦"
+  APP_EMOJI: "🛵"
   ICON_BG: "#2563eb"
   ICON_TEXT: "KQ"
   ICON_TEXT_COLOR: "#ffffff"
@@ -62,42 +62,74 @@ jobs:
           APP_NAME: ${{ env.APP_NAME }}
         run: |
           mkdir -p resources
-          declare -A EMOJI_HEX=(
-            ["🛵"]="1f6f5"  ["📦"]="1f4e6"  ["🚚"]="1f69a"  ["🏍️"]="1f3cd"
-            ["📮"]="1f4ee"  ["🎯"]="1f3af"  ["⚡"]="26a1"   ["🚗"]="1f697"
-            ["🛺"]="1f6fa"  ["📱"]="1f4f1"  ["📍"]="1f4cd"  ["🛒"]="1f6d2"
-            ["🚀"]="1f680"  ["⭐"]="2b50"   ["🔥"]="1f525"
-          )
-          HEX="${EMOJI_HEX[$APP_EMOJI]}"
-          EMOJI_OK=0
-          if [ -n "$HEX" ] && curl -fsSL "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/${HEX}.png" -o /tmp/emoji.png; then
-            EMOJI_OK=1
+
+          # Gambar buatan sendiri: taruh icon.png dan/atau splash.png di ROOT repo
+          # (atau di folder resources/). Yang tidak ada akan dibuat otomatis.
+          if [ -f icon.png ]; then cp icon.png resources/icon.png; fi
+          if [ -f splash.png ]; then cp splash.png resources/splash.png; fi
+
+          NEED_ICON=0; NEED_SPLASH=0
+          [ -f resources/icon.png ] || NEED_ICON=1
+          [ -f resources/splash.png ] || NEED_SPLASH=1
+
+          if [ "$NEED_ICON" = "1" ] || [ "$NEED_SPLASH" = "1" ]; then
+            declare -A EMOJI_HEX=(
+              ["🛵"]="1f6f5"  ["📦"]="1f4e6"  ["🚚"]="1f69a"  ["🏍️"]="1f3cd"
+              ["📮"]="1f4ee"  ["🎯"]="1f3af"  ["⚡"]="26a1"   ["🚗"]="1f697"
+              ["🛺"]="1f6fa"  ["📱"]="1f4f1"  ["📍"]="1f4cd"  ["🛒"]="1f6d2"
+              ["🚀"]="1f680"  ["⭐"]="2b50"   ["🔥"]="1f525"
+            )
+            HEX="${EMOJI_HEX[$APP_EMOJI]}"
+            EMOJI_OK=0
+            if [ -n "$HEX" ] && curl -fsSL "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/${HEX}.png" -o /tmp/emoji.png; then
+              EMOJI_OK=1
+            fi
           fi
 
-          convert -size 1024x1024 xc:"${ICON_BG}" /tmp/base.png
-          if [ "$EMOJI_OK" = "1" ]; then
-            convert /tmp/emoji.png -resize 600x600 /tmp/emoji-big.png
-            convert /tmp/base.png /tmp/emoji-big.png -gravity center -composite \
-              -background "${ICON_BG}" -flatten resources/icon.png
+          if [ "$NEED_ICON" = "1" ]; then
+            convert -size 1024x1024 xc:"${ICON_BG}" /tmp/base.png
+            if [ "$EMOJI_OK" = "1" ]; then
+              convert /tmp/emoji.png -resize 600x600 /tmp/emoji-big.png
+              convert /tmp/base.png /tmp/emoji-big.png -gravity center -composite \
+                -background "${ICON_BG}" -flatten resources/icon.png
+            else
+              convert /tmp/base.png -gravity center -font DejaVu-Sans-Bold \
+                -pointsize 500 -fill "${ICON_TEXT_COLOR}" -annotate +0+0 "${ICON_TEXT}" \
+                resources/icon.png
+            fi
           else
-            convert /tmp/base.png -gravity center -font DejaVu-Sans-Bold \
-              -pointsize 500 -fill "${ICON_TEXT_COLOR}" -annotate +0+0 "${ICON_TEXT}" \
-              resources/icon.png
+            echo "✅ Memakai icon buatan sendiri"
           fi
 
-          convert -size 2732x2732 xc:"${ICON_BG}" /tmp/splash-base.png
-          if [ "$EMOJI_OK" = "1" ]; then
-            convert /tmp/emoji.png -resize 1200x1200 /tmp/emoji-splash.png
-            convert /tmp/splash-base.png /tmp/emoji-splash.png -gravity center -composite \
-              -font DejaVu-Sans-Bold -pointsize 180 -fill "${ICON_TEXT_COLOR}" \
-              -gravity center -annotate +0+800 "${APP_NAME}" \
-              -background "${ICON_BG}" -flatten resources/splash.png
+          if [ "$NEED_SPLASH" = "1" ]; then
+            convert -size 2732x2732 xc:"${ICON_BG}" /tmp/splash-base.png
+            if [ "$EMOJI_OK" = "1" ]; then
+              convert /tmp/emoji.png -resize 1200x1200 /tmp/emoji-splash.png
+              convert /tmp/splash-base.png /tmp/emoji-splash.png -gravity center -composite \
+                -font DejaVu-Sans-Bold -pointsize 180 -fill "${ICON_TEXT_COLOR}" \
+                -gravity center -annotate +0+800 "${APP_NAME}" \
+                -background "${ICON_BG}" -flatten resources/splash.png
+            else
+              convert /tmp/splash-base.png -gravity center -font DejaVu-Sans-Bold \
+                -pointsize 1000 -fill "${ICON_TEXT_COLOR}" -annotate +0-200 "${ICON_TEXT}" \
+                -pointsize 180 -annotate +0+600 "${APP_NAME}" \
+                resources/splash.png
+            fi
           else
-            convert /tmp/splash-base.png -gravity center -font DejaVu-Sans-Bold \
-              -pointsize 1000 -fill "${ICON_TEXT_COLOR}" -annotate +0-200 "${ICON_TEXT}" \
-              -pointsize 180 -annotate +0+600 "${APP_NAME}" \
-              resources/splash.png
+            echo "✅ Memakai splash buatan sendiri"
           fi
+
+          # Ukuran harus persegi: icon 1024x1024, splash 2732x2732.
+          # Gambar yang ukurannya lain dimuat utuh di tengah lalu diberi latar.
+          fit() {
+            W=$(identify -format "%w" "$1"); H=$(identify -format "%h" "$1")
+            if [ "$W" != "$2" ] || [ "$H" != "$2" ]; then
+              echo "ℹ️ $1 berukuran ${W}x${H}, disesuaikan ke ${2}x${2}"
+              convert "$1" -resize "${2}x${2}" -background "$3" -gravity center -extent "${2}x${2}" "$1"
+            fi
+          }
+          fit resources/icon.png 1024 none
+          fit resources/splash.png 2732 "${ICON_BG}"
 
           ls -lh resources/icon.png resources/splash.png
 
