@@ -2998,6 +2998,65 @@ async function init(){
     }catch(err){console.error('Init error:',err);bootHide();showModal('Error','Gagal inisialisasi: '+err.message);}
 }
 window.addEventListener('load',()=>setTimeout(init,50));
+
+/*BACK-v1*/
+(function(){
+    const GUARD={kq:'guard'};
+    let armed=false,timer=null,toastEl=null,toastTimer=null;
+    function isOn(id){const e=document.getElementById(id);return !!(e&&e.classList.contains('active'));}
+    function handleBack(){
+        if(isOn('modal')){closeModal();return true;}
+        if(isOn('photo-viewer')){closePhotoViewer();return true;}
+        if(isOn('panorama-sheet')){closePanoramaSheet();return true;}
+        if(isOn('record-sheet')){closeRecordSheet();return true;}
+        if(isOn('detail-sheet')){
+            const b=document.getElementById('close-detail-sheet');
+            if(b)b.click();else document.getElementById('detail-sheet').classList.remove('active');
+            return true;
+        }
+        if(isOn('sidebar')){closeSidebar();return true;}
+        const cur=document.querySelector('.page.active');
+        if(cur&&cur.id!=='list-page'){showPage('list-page');return true;}
+        return false;
+    }
+    function push(){try{history.pushState(GUARD,'');}catch(e){}}
+    function toast(msg){
+        try{
+            if(!toastEl){
+                toastEl=document.createElement('div');
+                toastEl.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;padding:10px 16px;border-radius:20px;font-size:13px;z-index:99999;pointer-events:none;transition:opacity .2s;opacity:0';
+                document.body.appendChild(toastEl);
+            }
+            toastEl.textContent=msg;toastEl.style.opacity='1';
+            clearTimeout(toastTimer);toastTimer=setTimeout(()=>{toastEl.style.opacity='0';},1800);
+        }catch(e){}
+    }
+    function rearm(){
+        if(!armed)return;
+        armed=false;
+        if(timer){clearTimeout(timer);timer=null;}
+        push();
+    }
+    function onPop(){
+        if(handleBack()){push();return;}
+        if(armed)return;
+        armed=true;
+        toast('Tekan Back sekali lagi untuk keluar');
+        timer=setTimeout(()=>{timer=null;rearm();},2000);
+    }
+    function init(){
+        try{
+            if(!(history.state&&history.state.kq==='guard')){
+                history.replaceState({kq:'root'},'');
+                push();
+            }
+        }catch(e){return;}
+        window.addEventListener('popstate',onPop);
+        document.addEventListener('click',rearm,true);
+        document.addEventListener('touchstart',rearm,true);
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
 </script>
 </body>
 </html>
