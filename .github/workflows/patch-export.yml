@@ -1,0 +1,137 @@
+name: Patch Export File Android (One-Time)
+
+# Memperbaiki ekspor JSON/CSV/KML/GPX di APK: tulis file ke cache lalu buka
+# lembar Share Android (simpan ke Drive/File, kirim via WA, dll).
+# Jalankan manual dari tab Actions. Aman dijalankan berulang.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          p = 'index.html'
+          s = open(p, encoding='utf-8').read()
+          if '/*SAVE-v1*/' in s:
+              print('✅ index.html sudah dipatch'); sys.exit(0)
+
+          def need(cond, msg):
+              if not cond:
+                  sys.exit('❌ ' + msg + ' — index.html TIDAK diubah')
+
+          HELPER = r'''/*SAVE-v1*/
+          async function saveOrShareFile(filename,content,mime){
+              const C=window.Capacitor,P=C&&C.Plugins;
+              const native=!!(C&&typeof C.isNativePlatform==='function'&&C.isNativePlatform());
+              if(native){
+                  try{
+                      const FS=P&&P.Filesystem,SH=P&&P.Share;
+                      if(!FS||!SH)throw new Error('plugin Filesystem/Share belum ada di APK ini');
+                      if(typeof content==='string'&&content.startsWith('blob:')){
+                          const b=await (await fetch(content)).blob();
+                          content=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(b);});
+                      }
+                      const opts={path:filename,directory:'CACHE'};
+                      if(typeof content==='string'&&/^data:[^,]*;base64,/.test(content)){opts.data=content.split(',')[1];}
+                      else{opts.data=String(content);opts.encoding='utf8';}
+                      const w=await FS.writeFile(opts);
+                      await SH.share({title:filename,dialogTitle:'Simpan / bagikan '+filename,url:w.uri});
+                      return true;
+                  }catch(e){
+                      const m=String((e&&e.message)||e);
+                      if(/cancel|dismiss/i.test(m))return false;
+                      showModal('Error','❌ Gagal menyimpan/membagikan file: '+m);
+                      return false;
+                  }
+              }
+              try{
+                  const isUrl=typeof content==='string'&&/^(data|blob):/.test(content);
+                  const url=isUrl?content:URL.createObjectURL(new Blob([content],{type:mime}));
+                  const l=document.createElement('a');l.href=url;l.download=filename;
+                  document.body.appendChild(l);l.click();
+                  setTimeout(()=>{document.body.removeChild(l);if(!isUrl)URL.revokeObjectURL(url);},1500);
+                  return true;
+              }catch(e){showModal('Error','❌ Gagal download: '+e.message);return false;}
+          }
+          '''
+          anchor = 'async function exportJSON(){'
+          need(s.count(anchor) == 1, 'fungsi exportJSON tidak ditemukan')
+          s = s.replace(anchor, HELPER + anchor, 1)
+
+          # semua pola Blob + <a download>
+          pat = re.compile(
+              r"const url=URL\.createObjectURL\(new Blob\(\[([^\n]+?)\],\{type:'([^']+)'\}\)\);\s*"
+              r"const (l|link)=document\.createElement\('a'\);\3\.href=url;\3\.download=(`[^`]*`|[^;]+);\3\.click\(\);"
+              r"(?:\s*URL\.revokeObjectURL\(url\);)?")
+          s, n = pat.subn(lambda m: "await saveOrShareFile(%s,%s,'%s');" % (m.group(4), m.group(1), m.group(2)), s)
+          need(n == 7, 'jumlah titik ekspor ditemukan %d, seharusnya 7' % n)
+
+          # fungsi yang tadinya sinkron harus async karena memakai await
+          for fn in ('exportRouteKML', 'exportRouteGPX', 'exportCSVTemplate'):
+              old = 'function %s(){' % fn
+              need(old in s, fn + ' tidak ditemukan')
+              if ('async ' + old) not in s:
+                  s = s.replace(old, 'async ' + old, 1)
+
+          # unduh foto
+          a = s.find('function downloadCurrentPhoto(){')
+          b = s.find('// ============ PANORAMA ============')
+          need(a >= 0 and b > a, 'downloadCurrentPhoto tidak ditemukan')
+          new_photo = r'''function downloadCurrentPhoto(){
+              const src=pvPhotos[pvCurrentIndex];
+              if(!src)return;
+              const safeName=(pvCurrentAddressId||'photo').replace(/[^a-z0-9]/gi,'_');
+              saveOrShareFile('kurirq-'+safeName+'-'+(pvCurrentIndex+1)+'.jpg',src,'image/jpeg');
+          }
+
+          '''
+          s = s[:a] + new_photo + s[b:]
+
+          open(p, 'w', encoding='utf-8').write(s)
+          print('✅ index.html dipatch (%d titik ekspor + foto)' % n)
+          PY
+
+      - name: Tambah plugin Filesystem & Share ke package.json
+        run: |
+          python3 - <<'PY'
+          import json
+          p = 'package.json'
+          d = json.load(open(p, encoding='utf-8'))
+          dep = d.setdefault('dependencies', {})
+          changed = False
+          for k in ('@capacitor/filesystem', '@capacitor/share'):
+              if k not in dep:
+                  dep[k] = '^6.0.0'; changed = True
+          d['dependencies'] = dict(sorted(dep.items()))
+          if changed:
+              json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+              open(p, 'a').write('\n')
+              print('✅ package.json diperbarui')
+          else:
+              print('✅ package.json sudah berisi plugin')
+          PY
+          # lockfile lama tidak cocok dengan dependensi baru; build akan memakai npm install
+          git rm -q --ignore-unmatch package-lock.json
+
+      - name: Commit perubahan
+        run: |
+          git add -A index.html package.json
+          if git diff --cached --quiet; then
+            echo "✅ Tidak ada perubahan"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "fix: ekspor file di APK lewat Filesystem + Share"
+            git push
+            echo "✅ Di-commit ke repo"
+          fi
