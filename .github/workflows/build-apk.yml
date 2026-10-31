@@ -4,9 +4,11 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+# Build hanya manual (tab Actions -> Run workflow) supaya tidak menghabiskan kuota.
+# Untuk menyalakan build otomatis setiap push ke main, hapus tanda # pada 3 baris di bawah.
 on:
-  push:
-    branches: [main]
+  # push:
+  #   branches: [main]
   workflow_dispatch:
 
 env:
