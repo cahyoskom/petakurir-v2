@@ -671,7 +671,7 @@ function showApiKeySettingsModal(){
     document.getElementById('modal').classList.add('active');
 }
 async function saveApiKeysFromForm(){for(const p of ROUTING_PROVIDERS){const input=document.getElementById(`apikey-${p.id}`);if(input)p.apiKey=input.value.trim();}await saveRoutingApiKeys();closeModal();const active=ROUTING_PROVIDERS.filter(p=>p.apiKey&&p.apiKey.length>0).length;showModal('Sukses',`✓ API key disimpan.\n\nAktif: ${active} dari ${ROUTING_PROVIDERS.length} provider.`);}
-async function exportApiKeys(){for(const p of ROUTING_PROVIDERS){const input=document.getElementById(`apikey-${p.id}`);if(input)p.apiKey=input.value.trim();}const active=ROUTING_PROVIDERS.filter(p=>p.apiKey&&p.apiKey.length>0);if(active.length===0){showModal('Info','📭 Tidak ada API key.');return;}const data={type:'kurirq-apikeys',version:'1.0',exported_at:new Date().toISOString(),keys:{}};ROUTING_PROVIDERS.forEach(p=>{if(p.apiKey&&p.apiKey.length>0)data.keys[p.id]=p.apiKey;});const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`kurir-q-apikeys-${new Date().toISOString().split('T')[0]}.json`;link.click();URL.revokeObjectURL(url);showModal('Sukses',`✓ Export ${active.length} API key.`);}
+async function exportApiKeys(){for(const p of ROUTING_PROVIDERS){const input=document.getElementById(`apikey-${p.id}`);if(input)p.apiKey=input.value.trim();}const active=ROUTING_PROVIDERS.filter(p=>p.apiKey&&p.apiKey.length>0);if(active.length===0){showModal('Info','📭 Tidak ada API key.');return;}const data={type:'kurirq-apikeys',version:'1.0',exported_at:new Date().toISOString(),keys:{}};ROUTING_PROVIDERS.forEach(p=>{if(p.apiKey&&p.apiKey.length>0)data.keys[p.id]=p.apiKey;});await saveOrShareFile(`kurir-q-apikeys-${new Date().toISOString().split('T')[0]}.json`,JSON.stringify(data,null,2),'application/json');showModal('Sukses',`✓ Export ${active.length} API key.`);}
 function triggerImportApiKeys(){document.getElementById('file-import-apikeys').click();}
 document.getElementById('file-import-apikeys').addEventListener('change',async(e)=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=async(event)=>{try{const data=JSON.parse(event.target.result);if(!data.keys||typeof data.keys!=='object'){showModal('Error','❌ File tidak valid.');return;}const validIds=ROUTING_PROVIDERS.map(p=>p.id);const foundKeys=Object.keys(data.keys).filter(id=>validIds.includes(id));if(foundKeys.length===0){showModal('Error','❌ File tidak punya API key yang dikenali.');return;}ROUTING_PROVIDERS.forEach(p=>{if(data.keys[p.id])p.apiKey=data.keys[p.id];});await saveRoutingApiKeys();if(document.getElementById('modal').classList.contains('active'))showApiKeySettingsModal();showModal('Sukses',`✓ Import ${foundKeys.length} API key!`);}catch(err){showModal('Error',`❌ File tidak valid: ${err.message}`);}};reader.readAsText(file);e.target.value='';});
 
@@ -1846,18 +1846,17 @@ async function openRouteInGoogleMaps(){
 }
 function openGmapsBatch(si,ei){window.open(buildGoogleMapsUrl(window.currentRoute,si,ei),'_blank');}
 function buildGoogleMapsUrl(route,si,ei){const s=route.slice(si,ei+1);if(s.length<2)return'';const o=s[0],d=s[s.length-1],wp=s.slice(1,-1);let url=`https://www.google.com/maps/dir/?api=1&origin=${o.latitude},${o.longitude}&destination=${d.latitude},${d.longitude}&travelmode=driving`;if(wp.length>0)url+=`&waypoints=${encodeURIComponent(wp.map(w=>`${w.latitude},${w.longitude}`).join('|'))}`;return url;}
-function exportRouteKML(){
+async function exportRouteKML(){
     const route=window.currentRoute;
     if(!route||route.length<2){showModal('Error','Rute kosong');return;}
     let kml=`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n<name>Rute Kurir-Q - ${new Date().toLocaleString('id-ID')}</name>\n`;
     kml+=`<Style id="s"><IconStyle><color>ff00ff00</color></IconStyle></Style><Style id="e"><IconStyle><color>ff0000ff</color></IconStyle></Style><Style id="w"><IconStyle><color>ff0088ff</color></IconStyle></Style><Style id="r"><LineStyle><color>ff00b6d4</color><width>3</width></LineStyle></Style>\n`;
     route.forEach((addr,i)=>{const st=i===0?'s':i===route.length-1?'e':'w';const nm=i===0?'START':i===route.length-1?'END':`${i}`;const rec=(addr.recipient_name||'').replace(/[<>&'"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[c]));kml+=`<Placemark><name>${nm} - ${rec}</name><styleUrl>#${st}</styleUrl><Point><coordinates>${addr.longitude},${addr.latitude},0</coordinates></Point></Placemark>\n`;});
     kml+=`<Placemark><name>Jalur</name><styleUrl>#r</styleUrl><LineString><tessellate>1</tessellate><coordinates>${route.map(a=>`${a.longitude},${a.latitude},0`).join(' ')}</coordinates></LineString></Placemark>\n</Document>\n</kml>`;
-    const url=URL.createObjectURL(new Blob([kml],{type:'application/vnd.google-earth.kml+xml'}));
-    const link=document.createElement('a');link.href=url;link.download=`kurir-q-route-${new Date().toISOString().split('T')[0]}.kml`;link.click();URL.revokeObjectURL(url);
+    await saveOrShareFile(`kurir-q-route-${new Date().toISOString().split('T')[0]}.kml`,kml,'application/vnd.google-earth.kml+xml');
     showModal('Sukses',`✓ Export KML: ${route.length} titik!`);
 }
-function exportRouteGPX(){
+async function exportRouteGPX(){
     const route=window.currentRoute;
     if(!route||route.length<2){showModal('Error','Rute kosong');return;}
     let gpx=`<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Kurir-Q" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>Rute Kurir-Q</name></metadata>\n<trk><name>Rute Kurir</name><trkseg>\n`;
@@ -1865,8 +1864,7 @@ function exportRouteGPX(){
     gpx+=`</trkseg></trk>\n`;
     route.forEach((a,i)=>{const nm=((i===0?'START - ':i===route.length-1?'END - ':i+'. ')+(a.recipient_name||'Alamat')).replace(/[<>&'"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[c]));gpx+=`<wpt lat="${a.latitude}" lon="${a.longitude}"><name>${nm}</name></wpt>\n`;});
     gpx+=`</gpx>`;
-    const url=URL.createObjectURL(new Blob([gpx],{type:'application/gpx+xml'}));
-    const link=document.createElement('a');link.href=url;link.download=`kurir-q-route-${new Date().toISOString().split('T')[0]}.gpx`;link.click();URL.revokeObjectURL(url);
+    await saveOrShareFile(`kurir-q-route-${new Date().toISOString().split('T')[0]}.gpx`,gpx,'application/gpx+xml');
     showModal('Sukses',`✓ Export GPX: ${route.length} titik!`);
 }
 async function copyRouteCoords(){
@@ -2197,7 +2195,41 @@ async function updateAddressList(){
     requestAnimationFrame(()=>{document.querySelectorAll('#address-list img[data-lazy]').forEach(img=>{const src=img.dataset.lazy;if(src){img.src=src;delete img.dataset.lazy;}});});
 }
 
-async function exportJSON(){const addresses=await getAllAddresses();if(addresses.length===0){showModal('Info','⚠️ Tidak ada data');return;}const data={version:'1.0',exported_at:new Date().toISOString(),addresses};const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const l=document.createElement('a');l.href=url;l.download=`kurir-q-backup-${new Date().toISOString().split('T')[0]}.json`;l.click();URL.revokeObjectURL(url);showModal('Sukses',`✓ Backup JSON: ${addresses.length} alamat`);}
+/*SAVE-v1*/
+async function saveOrShareFile(filename,content,mime){
+    const C=window.Capacitor,P=C&&C.Plugins;
+    const native=!!(C&&typeof C.isNativePlatform==='function'&&C.isNativePlatform());
+    if(native){
+        try{
+            const FS=P&&P.Filesystem,SH=P&&P.Share;
+            if(!FS||!SH)throw new Error('plugin Filesystem/Share belum ada di APK ini');
+            if(typeof content==='string'&&content.startsWith('blob:')){
+                const b=await (await fetch(content)).blob();
+                content=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(b);});
+            }
+            const opts={path:filename,directory:'CACHE'};
+            if(typeof content==='string'&&/^data:[^,]*;base64,/.test(content)){opts.data=content.split(',')[1];}
+            else{opts.data=String(content);opts.encoding='utf8';}
+            const w=await FS.writeFile(opts);
+            await SH.share({title:filename,dialogTitle:'Simpan / bagikan '+filename,url:w.uri});
+            return true;
+        }catch(e){
+            const m=String((e&&e.message)||e);
+            if(/cancel|dismiss/i.test(m))return false;
+            showModal('Error','❌ Gagal menyimpan/membagikan file: '+m);
+            return false;
+        }
+    }
+    try{
+        const isUrl=typeof content==='string'&&/^(data|blob):/.test(content);
+        const url=isUrl?content:URL.createObjectURL(new Blob([content],{type:mime}));
+        const l=document.createElement('a');l.href=url;l.download=filename;
+        document.body.appendChild(l);l.click();
+        setTimeout(()=>{document.body.removeChild(l);if(!isUrl)URL.revokeObjectURL(url);},1500);
+        return true;
+    }catch(e){showModal('Error','❌ Gagal download: '+e.message);return false;}
+}
+async function exportJSON(){const addresses=await getAllAddresses();if(addresses.length===0){showModal('Info','⚠️ Tidak ada data');return;}const data={version:'1.0',exported_at:new Date().toISOString(),addresses};await saveOrShareFile(`kurir-q-backup-${new Date().toISOString().split('T')[0]}.json`,JSON.stringify(data,null,2),'application/json');showModal('Sukses',`✓ Backup JSON: ${addresses.length} alamat`);}
 async function exportCSV(){
     const addresses=await getAllAddresses();
     if(addresses.length===0){showModal('Info','⚠️ Tidak ada data');return;}
@@ -2205,8 +2237,7 @@ async function exportCSV(){
     const rows=addresses.map(a=>[a.id,a.recipient_name,a.whatsapp||'',a.gang,a.house_number,a.rt||'',a.rw||'',a.kelurahan||'',a.address,a.latitude,a.longitude,a.landmark,a.payment_status,(a.problem_tags||[]).join('; '),a.location_type,a.visit_count||1,formatDate(a.last_visit_at||a.created_at),a.description,a.delivery_status,(a.recipients||[]).filter(r=>r.name!==a.recipient_name).map(r=>`${r.name}:${r.status}`).join('; ')]);
     let csv=h.join(',')+'\n';
     rows.forEach(r=>{csv+=r.map(c=>(typeof c==='string'&&(c.includes(',')||c.includes('"')||c.includes('\n')))?'"'+c.replace(/"/g,'""')+'"':(c||'')).join(',')+'\n';});
-    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-    const l=document.createElement('a');l.href=url;l.download=`kurir-q-backup-${new Date().toISOString().split('T')[0]}.csv`;l.click();URL.revokeObjectURL(url);
+    await saveOrShareFile(`kurir-q-backup-${new Date().toISOString().split('T')[0]}.csv`,csv,'text/csv;charset=utf-8;');
     showModal('Sukses',`✓ Export CSV: ${addresses.length} alamat`);
 }
 async function exportShortCSV(){
@@ -2224,15 +2255,12 @@ async function exportShortCSV(){
     if(nf)fn+=`-${nf}`;
     if(ds)fn+=`-from-${ds}`;
     if(de)fn+=`-to-${de}`;
-    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-    const l=document.createElement('a');l.href=url;l.download=fn+'.csv';l.click();
-    URL.revokeObjectURL(url);
+    await saveOrShareFile(fn+'.csv',csv,'text/csv');
     showModal('Sukses',`✓ ${fl.length} data diexport`);
 }
-function exportCSVTemplate(){
+async function exportCSVTemplate(){
     const t=`id,nama,no_wa,gang,nomor,rt,rw,kelurahan,alamat,patokan,status_pembayaran,tipe_lokasi,catatan\n,Yeyen,(+62)085156395041,,,001,002,Cipedak,"Jalan Aselih No.52",,,,\n,Pak Budi,628123456789,Gang 4,27,003,004,Cipedak,"Gang 4 No.27",Pagar hitam,cod,,\n`;
-    const url=URL.createObjectURL(new Blob([t],{type:'text/csv;charset=utf-8;'}));
-    const l=document.createElement('a');l.href=url;l.download=`kurir-q-template.csv`;l.click();URL.revokeObjectURL(url);
+    await saveOrShareFile(`kurir-q-template.csv`,t,'text/csv;charset=utf-8;');
     showModal('Template CSV','Format CSV:\n\nKolom WAJIB:\n• nama\n\nKolom OPSIONAL:\n• id, no_wa, gang, nomor, rt, rw\n• kelurahan, alamat, patokan\n• status_pembayaran, tipe_lokasi, catatan\n\n💡 Nomor WA mobile: 628xxxxxxxxx\n💡 Nomor telpon rumah: 6221xxx (bukan WA)');
 }
 
@@ -2670,15 +2698,8 @@ function applyContrastBoost(ctx,w,h,factor){
 function downloadCurrentPhoto(){
     const src=pvPhotos[pvCurrentIndex];
     if(!src)return;
-    try{
-        const link=document.createElement('a');
-        link.href=src;
-        const safeName=(pvCurrentAddressId||'photo').replace(/[^a-z0-9]/gi,'_');
-        link.download=`kurirq-${safeName}-${pvCurrentIndex+1}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }catch(e){showModal('Error','Gagal download: '+e.message);}
+    const safeName=(pvCurrentAddressId||'photo').replace(/[^a-z0-9]/gi,'_');
+    saveOrShareFile('kurirq-'+safeName+'-'+(pvCurrentIndex+1)+'.jpg',src,'image/jpeg');
 }
 
 // ============ PANORAMA ============
