@@ -24,24 +24,25 @@ jobs:
           import sys
           p = 'index.html'
           s = open(p, encoding='utf-8').read()
-          if '/*BACK-v2*/' in s:
-              print('✅ sudah dipatch (v2)'); sys.exit(0)
+          if '/*BACK-v3*/' in s:
+              print('✅ sudah dipatch (v3)'); sys.exit(0)
           for fn in ('function closeModal(', 'function closePhotoViewer(', 'function closePanoramaSheet(',
                      'function closeRecordSheet(', 'function closeSidebar(', 'function showPage('):
               if fn not in s:
                   sys.exit('❌ ' + fn + ' tidak ditemukan — index.html TIDAK diubah')
-          # buang blok v1 (cara riwayat browser) bila ada
-          a = s.find('/*BACK-v1*/')
-          if a >= 0:
-              b = s.find('})();', a)
-              if b < 0:
-                  sys.exit('❌ blok v1 tidak lengkap — index.html TIDAK diubah')
-              s = s[:a].rstrip(' \t\n') + '\n' + s[b + len('})();'):].lstrip('\n')
+          # buang blok lama (v1 riwayat browser / v2) bila ada
+          for mk in ('/*BACK-v1*/', '/*BACK-v2*/'):
+              a = s.find(mk)
+              if a >= 0:
+                  b = s.find('})();', a)
+                  if b < 0:
+                      sys.exit('❌ blok ' + mk + ' tidak lengkap — index.html TIDAK diubah')
+                  s = s[:a].rstrip(' \t\n') + '\n' + s[b + len('})();'):].lstrip('\n')
           i = s.rfind('</script>')
           if i < 0:
               sys.exit('❌ penutup script tidak ditemukan — index.html TIDAK diubah')
           BLOCK = r'''
-          /*BACK-v2*/
+          /*BACK-v3*/
           (function(){
               const C=window.Capacitor,P=C&&C.Plugins;
               const native=!!(C&&typeof C.isNativePlatform==='function'&&C.isNativePlatform());
@@ -62,17 +63,24 @@ jobs:
                   return false;
               }
               // ---------- APK: tombol Back dipegang penuh oleh aplikasi ----------
-              async function startKeepAlive(){
-                  try{
-                      const FS=P&&P.ForegroundService;if(!FS)return;
-                      await FS.startForegroundService({id:7401,title:'Kurir-Q',body:'Berjalan di latar belakang',smallIcon:'ic_stat_kurirq'});
-                  }catch(e){console.warn('Foreground service gagal:',e);}
-              }
               async function stopKeepAlive(){
                   try{const FS=P&&P.ForegroundService;if(FS)await FS.stopForegroundService();}catch(e){}
               }
               async function minimizeToBackground(){
-                  await startKeepAlive();
+                  const FS=P&&P.ForegroundService;
+                  let err='';
+                  if(!FS){
+                      err='Plugin ForegroundService tidak ada di APK ini. Pastikan APK dibuat dari build-apk.yml terbaru.';
+                  }else{
+                      try{
+                          await FS.startForegroundService({id:7401,title:'Kurir-Q',body:'Berjalan di latar belakang',smallIcon:'ic_stat_kurirq'});
+                          await new Promise(r=>setTimeout(r,700));
+                      }catch(e){err=String((e&&e.message)||e);}
+                  }
+                  if(err){
+                      showModal('Mode latar belakang gagal','⚠️ '+err+'\n\nAplikasi tidak diminimalkan. Gunakan tombol Home HP seperti biasa.');
+                      return;
+                  }
                   try{await P.App.minimizeApp();}catch(e){console.warn('minimizeApp gagal:',e);}
               }
               function askMinimize(){
@@ -124,7 +132,7 @@ jobs:
           '''
           s = s[:i] + BLOCK + s[i:]
           open(p, 'w', encoding='utf-8').write(s)
-          print('✅ index.html dipatch (Back + latar belakang)')
+          print('✅ index.html dipatch (Back + latar belakang v3)')
           PY
 
       - name: Tambah plugin App & Foreground Service ke package.json
@@ -159,7 +167,7 @@ jobs:
           else
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -m "feat: Back menahan + dialog minimalkan + tetap di latar belakang"
+            git commit -m "feat: Back menahan + dialog minimalkan + diagnosis layanan latar (v3)"
             git push
             echo "✅ Di-commit ke repo"
           fi
