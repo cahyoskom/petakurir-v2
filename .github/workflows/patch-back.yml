@@ -1,8 +1,10 @@
-name: Patch Tombol Back (One-Time)
+name: Patch Tombol Back + Tetap di Latar (One-Time)
 
-# Tombol Back menutup panel/sheet yang terbuka, kembali ke halaman utama,
-# dan baru keluar aplikasi setelah dua kali tekan. Berlaku di APK dan web.
+# Back menutup panel/halaman dulu. Di beranda, Back menampilkan dialog "Tutup aplikasi?"
+# dan jika dikonfirmasi aplikasi DIMINIMALKAN (tidak dimatikan) dengan notifikasi
+# "berjalan di latar belakang" agar tidak dibunuh Android.
 # Jalankan manual dari tab Actions. Aman dijalankan berulang.
+# Setelah ini, unggah juga build-apk.yml terbaru (izin + service Android).
 on:
   workflow_dispatch:
 
@@ -22,20 +24,27 @@ jobs:
           import sys
           p = 'index.html'
           s = open(p, encoding='utf-8').read()
-          if '/*BACK-v1*/' in s:
-              print('✅ sudah dipatch'); sys.exit(0)
+          if '/*BACK-v2*/' in s:
+              print('✅ sudah dipatch (v2)'); sys.exit(0)
           for fn in ('function closeModal(', 'function closePhotoViewer(', 'function closePanoramaSheet(',
                      'function closeRecordSheet(', 'function closeSidebar(', 'function showPage('):
               if fn not in s:
                   sys.exit('❌ ' + fn + ' tidak ditemukan — index.html TIDAK diubah')
+          # buang blok v1 (cara riwayat browser) bila ada
+          a = s.find('/*BACK-v1*/')
+          if a >= 0:
+              b = s.find('})();', a)
+              if b < 0:
+                  sys.exit('❌ blok v1 tidak lengkap — index.html TIDAK diubah')
+              s = s[:a].rstrip(' \t\n') + '\n' + s[b + len('})();'):].lstrip('\n')
           i = s.rfind('</script>')
           if i < 0:
               sys.exit('❌ penutup script tidak ditemukan — index.html TIDAK diubah')
           BLOCK = r'''
-          /*BACK-v1*/
+          /*BACK-v2*/
           (function(){
-              const GUARD={kq:'guard'};
-              let armed=false,timer=null,toastEl=null,toastTimer=null;
+              const C=window.Capacitor,P=C&&C.Plugins;
+              const native=!!(C&&typeof C.isNativePlatform==='function'&&C.isNativePlatform());
               function isOn(id){const e=document.getElementById(id);return !!(e&&e.classList.contains('active'));}
               function handleBack(){
                   if(isOn('modal')){closeModal();return true;}
@@ -52,6 +61,37 @@ jobs:
                   if(cur&&cur.id!=='list-page'){showPage('list-page');return true;}
                   return false;
               }
+              // ---------- APK: tombol Back dipegang penuh oleh aplikasi ----------
+              async function startKeepAlive(){
+                  try{
+                      const FS=P&&P.ForegroundService;if(!FS)return;
+                      await FS.startForegroundService({id:7401,title:'Kurir-Q',body:'Berjalan di latar belakang',smallIcon:'ic_stat_kurirq'});
+                  }catch(e){console.warn('Foreground service gagal:',e);}
+              }
+              async function stopKeepAlive(){
+                  try{const FS=P&&P.ForegroundService;if(FS)await FS.stopForegroundService();}catch(e){}
+              }
+              async function minimizeToBackground(){
+                  await startKeepAlive();
+                  try{await P.App.minimizeApp();}catch(e){console.warn('minimizeApp gagal:',e);}
+              }
+              function askMinimize(){
+                  const m=document.getElementById('modal-content');
+                  m.innerHTML='<h2>Tutup aplikasi?</h2><p style="white-space:pre-line">Aplikasi akan diminimalkan dan tetap berjalan di latar belakang, jadi tidak perlu dimuat ulang saat dibuka lagi.</p>';
+                  const b=document.createElement('div');b.className='modal-buttons';
+                  const c=document.createElement('button');c.className='btn-secondary';c.textContent='Tetap di sini';c.onclick=()=>closeModal();
+                  const k=document.createElement('button');k.className='btn-primary';k.textContent='Minimalkan';k.onclick=()=>{closeModal();minimizeToBackground();};
+                  b.appendChild(c);b.appendChild(k);m.appendChild(b);
+                  document.getElementById('modal').classList.add('active');
+              }
+              if(native&&P&&P.App&&typeof P.App.addListener==='function'){
+                  P.App.addListener('backButton',()=>{if(handleBack())return;askMinimize();});
+                  P.App.addListener('appStateChange',st=>{if(st&&st.isActive)stopKeepAlive();});
+                  return;
+              }
+              // ---------- Web: cadangan lewat riwayat browser ----------
+              const GUARD={kq:'guard'};
+              let armed=false,timer=null,toastEl=null,toastTimer=null;
               function push(){try{history.pushState(GUARD,'');}catch(e){}}
               function toast(msg){
                   try{
@@ -64,25 +104,16 @@ jobs:
                       clearTimeout(toastTimer);toastTimer=setTimeout(()=>{toastEl.style.opacity='0';},1800);
                   }catch(e){}
               }
-              function rearm(){
-                  if(!armed)return;
-                  armed=false;
-                  if(timer){clearTimeout(timer);timer=null;}
-                  push();
-              }
+              function rearm(){if(!armed)return;armed=false;if(timer){clearTimeout(timer);timer=null;}push();}
               function onPop(){
                   if(handleBack()){push();return;}
                   if(armed)return;
-                  armed=true;
-                  toast('Tekan Back sekali lagi untuk keluar');
+                  armed=true;toast('Tekan Back sekali lagi untuk keluar');
                   timer=setTimeout(()=>{timer=null;rearm();},2000);
               }
               function init(){
                   try{
-                      if(!(history.state&&history.state.kq==='guard')){
-                          history.replaceState({kq:'root'},'');
-                          push();
-                      }
+                      if(!(history.state&&history.state.kq==='guard')){history.replaceState({kq:'root'},'');push();}
                   }catch(e){return;}
                   window.addEventListener('popstate',onPop);
                   document.addEventListener('click',rearm,true);
@@ -93,18 +124,42 @@ jobs:
           '''
           s = s[:i] + BLOCK + s[i:]
           open(p, 'w', encoding='utf-8').write(s)
-          print('✅ index.html dipatch (tombol Back)')
+          print('✅ index.html dipatch (Back + latar belakang)')
           PY
+
+      - name: Tambah plugin App & Foreground Service ke package.json
+        run: |
+          python3 - <<'PY'
+          import json
+          p = 'package.json'
+          d = json.load(open(p, encoding='utf-8'))
+          dep = d.setdefault('dependencies', {})
+          want = {'@capacitor/app': '^6.0.0',
+                  '@capawesome-team/capacitor-android-foreground-service': '6.2.0'}
+          changed = False
+          for k, v in want.items():
+              if k not in dep:
+                  dep[k] = v; changed = True
+          d['dependencies'] = dict(sorted(dep.items()))
+          if changed:
+              with open(p, 'w', encoding='utf-8') as f:
+                  json.dump(d, f, indent=2, ensure_ascii=False); f.write('\n')
+              print('✅ package.json diperbarui')
+          else:
+              print('✅ package.json sudah berisi plugin')
+          PY
+          # lockfile lama tidak cocok dengan dependensi baru; build akan memakai npm install
+          git rm -q --ignore-unmatch package-lock.json
 
       - name: Commit perubahan
         run: |
-          if git diff --quiet index.html; then
+          git add -A index.html package.json
+          if git diff --cached --quiet; then
             echo "✅ Tidak ada perubahan"
           else
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add index.html
-            git commit -m "feat: tombol Back menutup panel dulu, keluar dengan dua kali tekan"
+            git commit -m "feat: Back menahan + dialog minimalkan + tetap di latar belakang"
             git push
             echo "✅ Di-commit ke repo"
           fi

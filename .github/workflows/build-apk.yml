@@ -174,6 +174,25 @@ jobs:
           }
           add_perm "ACCESS_FINE_LOCATION"
           add_perm "ACCESS_COARSE_LOCATION"
+          add_perm "FOREGROUND_SERVICE"
+          add_perm "FOREGROUND_SERVICE_DATA_SYNC"
+          add_perm "WAKE_LOCK"
+
+          # Service penahan latar belakang (plugin foreground service)
+          grep -q "AndroidForegroundService" $MANIFEST || \
+            sed -i 's|</application>|    <receiver android:name="io.capawesome.capacitorjs.plugins.foregroundservice.NotificationActionBroadcastReceiver" android:exported="false" />\n    <service android:name="io.capawesome.capacitorjs.plugins.foregroundservice.AndroidForegroundService" android:foregroundServiceType="dataSync" android:exported="false" />\n    </application>|' $MANIFEST
+
+          # Ikon kecil notifikasi (pin lokasi putih)
+          mkdir -p android/app/src/main/res/drawable
+          cat > android/app/src/main/res/drawable/ic_stat_kurirq.xml <<'XML'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp" android:height="24dp"
+              android:viewportWidth="24" android:viewportHeight="24">
+              <path android:fillColor="#FFFFFFFF"
+                  android:pathData="M12,2C8.13,2 5,5.13 5,9c0,5.25 7,13 7,13s7,-7.75 7,-13c0,-3.87 -3.13,-7 -7,-7zM12,11.5c-1.38,0 -2.5,-1.12 -2.5,-2.5s1.12,-2.5 2.5,-2.5 2.5,1.12 2.5,2.5 -1.12,2.5 -2.5,2.5z" />
+          </vector>
+          XML
+
           echo "✅ Manifest OK"
 
       - name: Cache Gradle
