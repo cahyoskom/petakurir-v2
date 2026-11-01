@@ -2999,10 +2999,10 @@ async function init(){
 }
 window.addEventListener('load',()=>setTimeout(init,50));
 
-/*BACK-v1*/
+/*BACK-v2*/
 (function(){
-    const GUARD={kq:'guard'};
-    let armed=false,timer=null,toastEl=null,toastTimer=null;
+    const C=window.Capacitor,P=C&&C.Plugins;
+    const native=!!(C&&typeof C.isNativePlatform==='function'&&C.isNativePlatform());
     function isOn(id){const e=document.getElementById(id);return !!(e&&e.classList.contains('active'));}
     function handleBack(){
         if(isOn('modal')){closeModal();return true;}
@@ -3019,6 +3019,37 @@ window.addEventListener('load',()=>setTimeout(init,50));
         if(cur&&cur.id!=='list-page'){showPage('list-page');return true;}
         return false;
     }
+    // ---------- APK: tombol Back dipegang penuh oleh aplikasi ----------
+    async function startKeepAlive(){
+        try{
+            const FS=P&&P.ForegroundService;if(!FS)return;
+            await FS.startForegroundService({id:7401,title:'Kurir-Q',body:'Berjalan di latar belakang',smallIcon:'ic_stat_kurirq'});
+        }catch(e){console.warn('Foreground service gagal:',e);}
+    }
+    async function stopKeepAlive(){
+        try{const FS=P&&P.ForegroundService;if(FS)await FS.stopForegroundService();}catch(e){}
+    }
+    async function minimizeToBackground(){
+        await startKeepAlive();
+        try{await P.App.minimizeApp();}catch(e){console.warn('minimizeApp gagal:',e);}
+    }
+    function askMinimize(){
+        const m=document.getElementById('modal-content');
+        m.innerHTML='<h2>Tutup aplikasi?</h2><p style="white-space:pre-line">Aplikasi akan diminimalkan dan tetap berjalan di latar belakang, jadi tidak perlu dimuat ulang saat dibuka lagi.</p>';
+        const b=document.createElement('div');b.className='modal-buttons';
+        const c=document.createElement('button');c.className='btn-secondary';c.textContent='Tetap di sini';c.onclick=()=>closeModal();
+        const k=document.createElement('button');k.className='btn-primary';k.textContent='Minimalkan';k.onclick=()=>{closeModal();minimizeToBackground();};
+        b.appendChild(c);b.appendChild(k);m.appendChild(b);
+        document.getElementById('modal').classList.add('active');
+    }
+    if(native&&P&&P.App&&typeof P.App.addListener==='function'){
+        P.App.addListener('backButton',()=>{if(handleBack())return;askMinimize();});
+        P.App.addListener('appStateChange',st=>{if(st&&st.isActive)stopKeepAlive();});
+        return;
+    }
+    // ---------- Web: cadangan lewat riwayat browser ----------
+    const GUARD={kq:'guard'};
+    let armed=false,timer=null,toastEl=null,toastTimer=null;
     function push(){try{history.pushState(GUARD,'');}catch(e){}}
     function toast(msg){
         try{
@@ -3031,25 +3062,16 @@ window.addEventListener('load',()=>setTimeout(init,50));
             clearTimeout(toastTimer);toastTimer=setTimeout(()=>{toastEl.style.opacity='0';},1800);
         }catch(e){}
     }
-    function rearm(){
-        if(!armed)return;
-        armed=false;
-        if(timer){clearTimeout(timer);timer=null;}
-        push();
-    }
+    function rearm(){if(!armed)return;armed=false;if(timer){clearTimeout(timer);timer=null;}push();}
     function onPop(){
         if(handleBack()){push();return;}
         if(armed)return;
-        armed=true;
-        toast('Tekan Back sekali lagi untuk keluar');
+        armed=true;toast('Tekan Back sekali lagi untuk keluar');
         timer=setTimeout(()=>{timer=null;rearm();},2000);
     }
     function init(){
         try{
-            if(!(history.state&&history.state.kq==='guard')){
-                history.replaceState({kq:'root'},'');
-                push();
-            }
+            if(!(history.state&&history.state.kq==='guard')){history.replaceState({kq:'root'},'');push();}
         }catch(e){return;}
         window.addEventListener('popstate',onPop);
         document.addEventListener('click',rearm,true);
