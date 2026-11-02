@@ -1,8 +1,7 @@
 name: Patch Tombol Back + Tetap di Latar (One-Time)
 
-# Back menutup panel/halaman dulu. Di beranda, Back menampilkan dialog "Tutup aplikasi?"
-# dan jika dikonfirmasi aplikasi DIMINIMALKAN (tidak dimatikan) dengan notifikasi
-# "berjalan di latar belakang" agar tidak dibunuh Android.
+# Back menutup panel/halaman dulu. Di beranda, Back memindahkan aplikasi ke latar belakang
+# sebagai layanan bernotifikasi. Aplikasi ditutup sepenuhnya lewat tombol "Tutup" di notifikasi.
 # Jalankan manual dari tab Actions. Aman dijalankan berulang.
 # Setelah ini, unggah juga build-apk.yml terbaru (izin + service Android).
 on:
@@ -24,14 +23,14 @@ jobs:
           import sys
           p = 'index.html'
           s = open(p, encoding='utf-8').read()
-          if '/*BACK-v3*/' in s:
-              print('✅ sudah dipatch (v3)'); sys.exit(0)
+          if '/*BACK-v5*/' in s:
+              print('✅ sudah dipatch (v5)'); sys.exit(0)
           for fn in ('function closeModal(', 'function closePhotoViewer(', 'function closePanoramaSheet(',
                      'function closeRecordSheet(', 'function closeSidebar(', 'function showPage('):
               if fn not in s:
                   sys.exit('❌ ' + fn + ' tidak ditemukan — index.html TIDAK diubah')
           # buang blok lama (v1 riwayat browser / v2) bila ada
-          for mk in ('/*BACK-v1*/', '/*BACK-v2*/'):
+          for mk in ('/*BACK-v1*/', '/*BACK-v2*/', '/*BACK-v3*/', '/*BACK-v4*/'):
               a = s.find(mk)
               if a >= 0:
                   b = s.find('})();', a)
@@ -42,10 +41,11 @@ jobs:
           if i < 0:
               sys.exit('❌ penutup script tidak ditemukan — index.html TIDAK diubah')
           BLOCK = r'''
-          /*BACK-v3*/
+          /*BACK-v5*/
           (function(){
               const C=window.Capacitor,P=C&&C.Plugins;
               const native=!!(C&&typeof C.isNativePlatform==='function'&&C.isNativePlatform());
+              const KEY='kq_bg';
               function isOn(id){const e=document.getElementById(id);return !!(e&&e.classList.contains('active'));}
               function handleBack(){
                   if(isOn('modal')){closeModal();return true;}
@@ -62,39 +62,60 @@ jobs:
                   if(cur&&cur.id!=='list-page'){showPage('list-page');return true;}
                   return false;
               }
-              // ---------- APK: tombol Back dipegang penuh oleh aplikasi ----------
-              async function stopKeepAlive(){
-                  try{const FS=P&&P.ForegroundService;if(FS)await FS.stopForegroundService();}catch(e){}
+              // ---------- catatan langkah (diagnosis jika aplikasi tertutup saat menyalakan layanan) ----------
+              function mark(step){try{localStorage.setItem(KEY,JSON.stringify({step:step,t:Date.now()}));}catch(e){}}
+              function clearMark(){try{localStorage.removeItem(KEY);}catch(e){}}
+              function takeLastMark(){
+                  try{
+                      const raw=localStorage.getItem(KEY);
+                      if(!raw)return null;
+                      localStorage.removeItem(KEY);
+                      return JSON.parse(raw);
+                  }catch(e){return null;}
               }
-              async function minimizeToBackground(){
+              function reportLast(d){
+                  try{
+                      const mins=Math.max(0,Math.round((Date.now()-d.t)/60000));
+                      const steps={channel:'membuat channel notifikasi',start:'menyalakan layanan latar',started:'layanan latar sudah menyala'};
+                      showModal('Aplikasi sempat tertutup','Terakhir kali ('+mins+' menit lalu) aplikasi tertutup saat berpindah ke latar belakang, pada langkah: '+(steps[d.step]||d.step)+'.\n\nKirim pesan ini ke pengembang agar penyebabnya bisa dicari.');
+                  }catch(e){}
+              }
+              // ---------- layanan latar belakang + notifikasi (tombol Tutup mematikan aplikasi) ----------
+              let bgOn=false;
+              function androidMajor(){const m=/Android\s+(\d+)/i.exec(navigator.userAgent||'');return m?parseInt(m[1],10):0;}
+              async function ensureService(){
                   const FS=P&&P.ForegroundService;
-                  let err='';
-                  if(!FS){
-                      err='Plugin ForegroundService tidak ada di APK ini. Pastikan APK dibuat dari build-apk.yml terbaru.';
-                  }else{
-                      try{
-                          await FS.startForegroundService({id:7401,title:'Kurir-Q',body:'Berjalan di latar belakang',smallIcon:'ic_stat_kurirq'});
-                          await new Promise(r=>setTimeout(r,700));
-                      }catch(e){err=String((e&&e.message)||e);}
+                  if(!FS)throw new Error('Plugin ForegroundService tidak ada di APK ini. Pastikan APK dibuat dari build-apk.yml terbaru.');
+                  if(androidMajor()>=13){
+                      try{const p=await FS.checkPermissions();if(p&&p.display!=='granted')await FS.requestPermissions();}catch(e){}
                   }
-                  if(err){
-                      showModal('Mode latar belakang gagal','⚠️ '+err+'\n\nAplikasi tidak diminimalkan. Gunakan tombol Home HP seperti biasa.');
+                  mark('channel');
+                  try{await FS.createNotificationChannel({id:'kq-bg',name:'Kurir-Q latar belakang',description:'Menjaga aplikasi tetap aktif',importance:2});}catch(e){}
+                  mark('start');
+                  await FS.startForegroundService({
+                      id:7401,title:'Kurir-Q',body:'Berjalan di latar belakang. Ketuk untuk membuka.',
+                      smallIcon:'ic_stat_kurirq',notificationChannelId:'kq-bg',
+                      buttons:[{id:9001,title:'Tutup'}]
+                  });
+                  mark('started');
+                  bgOn=true;
+                  await new Promise(r=>setTimeout(r,1200));
+                  clearMark();   // lolos tahap rawan: tidak perlu dilaporkan
+              }
+              async function goBackground(){
+                  try{
+                      if(!bgOn)await ensureService();
+                  }catch(e){
+                      clearMark();
+                      showModal('Mode latar belakang gagal','⚠️ '+String((e&&e.message)||e)+'\n\nAplikasi tidak dipindah ke latar belakang. Gunakan tombol Home HP seperti biasa.');
                       return;
                   }
                   try{await P.App.minimizeApp();}catch(e){console.warn('minimizeApp gagal:',e);}
               }
-              function askMinimize(){
-                  const m=document.getElementById('modal-content');
-                  m.innerHTML='<h2>Tutup aplikasi?</h2><p style="white-space:pre-line">Aplikasi akan diminimalkan dan tetap berjalan di latar belakang, jadi tidak perlu dimuat ulang saat dibuka lagi.</p>';
-                  const b=document.createElement('div');b.className='modal-buttons';
-                  const c=document.createElement('button');c.className='btn-secondary';c.textContent='Tetap di sini';c.onclick=()=>closeModal();
-                  const k=document.createElement('button');k.className='btn-primary';k.textContent='Minimalkan';k.onclick=()=>{closeModal();minimizeToBackground();};
-                  b.appendChild(c);b.appendChild(k);m.appendChild(b);
-                  document.getElementById('modal').classList.add('active');
-              }
               if(native&&P&&P.App&&typeof P.App.addListener==='function'){
-                  P.App.addListener('backButton',()=>{if(handleBack())return;askMinimize();});
-                  P.App.addListener('appStateChange',st=>{if(st&&st.isActive)stopKeepAlive();});
+                  const last=takeLastMark();   // dibaca sekarang, sebelum event resume sempat mengubahnya
+                  if(last)setTimeout(()=>{if(!isOn('modal'))reportLast(last);},2500);
+                  P.App.addListener('backButton',()=>{if(handleBack())return;goBackground();});
                   return;
               }
               // ---------- Web: cadangan lewat riwayat browser ----------
@@ -132,7 +153,7 @@ jobs:
           '''
           s = s[:i] + BLOCK + s[i:]
           open(p, 'w', encoding='utf-8').write(s)
-          print('✅ index.html dipatch (Back + latar belakang v3)')
+          print('✅ index.html dipatch (Back -> layanan latar v5)')
           PY
 
       - name: Tambah plugin App & Foreground Service ke package.json
@@ -167,7 +188,7 @@ jobs:
           else
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -m "feat: Back menahan + dialog minimalkan + diagnosis layanan latar (v3)"
+            git commit -m "feat: Back memindahkan ke layanan latar bernotifikasi dengan tombol Tutup (v5)"
             git push
             echo "✅ Di-commit ke repo"
           fi

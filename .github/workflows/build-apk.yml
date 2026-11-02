@@ -46,6 +46,68 @@ jobs:
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
+      - name: Patch plugin foreground service (stabil + tombol Tutup)
+        run: |
+          python3 - <<'PY'
+          import re, sys, os
+          base = 'node_modules/@capawesome-team/capacitor-android-foreground-service/android/src/main/java/io/capawesome/capacitorjs/plugins/foregroundservice/'
+          svc = base + 'AndroidForegroundService.java'
+          rcv = base + 'NotificationActionBroadcastReceiver.java'
+          for f in (svc, rcv):
+              if not os.path.exists(f):
+                  sys.exit('❌ ' + f + ' tidak ditemukan (plugin belum terpasang? jalankan patch Back)')
+
+          # 1) service: tidak restart otomatis, tahan intent kosong, dan selalu memanggil startForeground
+          s = open(svc, encoding='utf-8').read()
+          if 'KQ-PATCH' not in s:
+              head = 'public int onStartCommand(Intent intent, int flags, int startId) {\n'
+              if head not in s:
+                  sys.exit('❌ onStartCommand tidak cocok dengan versi plugin yang diharapkan')
+              s = s.replace(head, head + '        /*KQ-PATCH*/\n        if (intent == null) {\n            stopSelf();\n            return START_NOT_STICKY;\n        }\n', 1)
+              pat = re.compile(r"\} catch \(Exception exception\) \{\s*Logger\.error\(ForegroundServicePlugin\.TAG, exception\.getMessage\(\), exception\);\s*\}\s*return START_STICKY;")
+              if not pat.search(s):
+                  sys.exit('❌ blok catch/return service tidak cocok dengan versi plugin yang diharapkan')
+              new_tail = (
+                  "} catch (Exception exception) {\n"
+                  "            Logger.error(ForegroundServicePlugin.TAG, exception.getMessage(), exception);\n"
+                  "            try {\n"
+                  "                Notification.Builder fallback = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O\n"
+                  "                    ? new Notification.Builder(getApplicationContext(), \"kq-bg\")\n"
+                  "                    : new Notification.Builder(getApplicationContext());\n"
+                  "                fallback.setContentTitle(\"Kurir-Q\").setSmallIcon(android.R.drawable.ic_dialog_info);\n"
+                  "                startForeground(7401, fallback.build());\n"
+                  "            } catch (Exception ignored) {\n"
+                  "            }\n"
+                  "        }\n"
+                  "        return START_NOT_STICKY;")
+              s = pat.sub(lambda m: new_tail, s, count=1)
+              open(svc, 'w', encoding='utf-8').write(s)
+              print('✅ service dipatch')
+          else:
+              print('✅ service sudah dipatch')
+
+          # 2) tombol notifikasi "Tutup" (id 9001): hentikan service lalu matikan proses, tanpa bergantung pada JS
+          r = open(rcv, encoding='utf-8').read()
+          if 'KQ-PATCH' not in r:
+              old = 'ForegroundServicePlugin.onButtonClicked(buttonId);'
+              if r.count(old) != 1:
+                  sys.exit('❌ receiver tidak cocok dengan versi plugin yang diharapkan')
+              new = ("if (buttonId == 9001) { /*KQ-PATCH*/\n"
+                     "                try {\n"
+                     "                    context.stopService(new Intent(context, AndroidForegroundService.class));\n"
+                     "                } catch (Exception ignored) {\n"
+                     "                }\n"
+                     "                android.os.Process.killProcess(android.os.Process.myPid());\n"
+                     "                return;\n"
+                     "            }\n"
+                     "            " + old)
+              r = r.replace(old, new, 1)
+              open(rcv, 'w', encoding='utf-8').write(r)
+              print('✅ receiver dipatch')
+          else:
+              print('✅ receiver sudah dipatch')
+          PY
+
       - name: Prepare Web Assets
         run: |
           mkdir -p www
@@ -203,6 +265,8 @@ jobs:
           grep -q 'android.permission.FOREGROUND_SERVICE"' $M || { echo "❌ izin FOREGROUND_SERVICE tidak ada"; OK=0; }
           grep -q 'android.permission.WAKE_LOCK' $M || { echo "❌ izin WAKE_LOCK tidak ada"; OK=0; }
           test -f android/app/src/main/res/drawable/ic_stat_kurirq.xml || { echo "❌ ikon notifikasi ic_stat_kurirq.xml tidak ada"; OK=0; }
+          grep -q 'KQ-PATCH' node_modules/@capawesome-team/capacitor-android-foreground-service/android/src/main/java/io/capawesome/capacitorjs/plugins/foregroundservice/AndroidForegroundService.java || { echo "❌ patch service plugin tidak terpasang"; OK=0; }
+          grep -q 'KQ-PATCH' node_modules/@capawesome-team/capacitor-android-foreground-service/android/src/main/java/io/capawesome/capacitorjs/plugins/foregroundservice/NotificationActionBroadcastReceiver.java || { echo "❌ patch tombol Tutup tidak terpasang"; OK=0; }
           grep -q 'foregroundservice' android/app/src/main/assets/capacitor.plugins.json || { echo "❌ plugin ForegroundService tidak terdaftar (cek package.json / jalankan patch Back)"; OK=0; }
           grep -q 'plugins.app' android/app/src/main/assets/capacitor.plugins.json || { echo "❌ plugin @capacitor/app tidak terdaftar"; OK=0; }
           [ "$OK" = "1" ] || exit 1
