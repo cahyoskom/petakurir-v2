@@ -1025,16 +1025,29 @@ function openWAChat(phone){
     document.getElementById('modal-content').innerHTML=`<h2>💬 Chat WhatsApp</h2><div class="info-box" style="margin:12px 0;font-size:13px"><strong style="font-family:monospace">${formatWhatsAppDisplay(clean)}</strong></div><div style="display:flex;flex-direction:column;gap:8px"><button type="button" class="btn-wa" style="padding:12px;text-align:left;font-size:14px;width:100%;border:none;cursor:pointer" onclick="doOpenWAChat('wa','${clean}')">💬 WhatsApp</button><button type="button" class="btn-wa" style="padding:12px;text-align:left;font-size:14px;width:100%;background:#128C7E;border:none;cursor:pointer" onclick="doOpenWAChat('wab','${clean}')">💼 WhatsApp Business</button><button type="button" class="btn-secondary" style="padding:12px;text-align:left;font-size:14px;width:100%" onclick="doOpenWAChat('web','${clean}')">🌐 Buka via Web</button></div><div class="modal-buttons" style="margin-top:12px"><button class="btn-secondary" onclick="closeModal()" style="flex:1">Tutup</button></div>`;
     document.getElementById('modal').classList.add('active');
 }
+/*WACHAT-v1*/
 function doOpenWAChat(type,clean){
     closeModal();
     const isAndroid=/Android/i.test(navigator.userAgent);
-    const webFallback=`https://wa.me/${clean}`;
+    const webFallback='https://wa.me/'+clean;
     const fb=encodeURIComponent(webFallback);
-    if(type==='web'){window.open(webFallback,'_blank');return;}
+    const C=window.Capacitor,P=C&&C.Plugins;
+    const native=!!(C&&typeof C.isNativePlatform==='function'&&C.isNativePlatform());
+    if(type!=='wa'&&type!=='wab'){window.open(webFallback,'_blank');return;}
+    if(native){
+        const name=type==='wab'?'WhatsApp Business':'WhatsApp';
+        if(!P||!P.KqLauncher){
+  showConfirmModal('Fitur belum tersedia','Pembuka '+name+' belum ada di APK ini. Pastikan APK dibuat dari build-apk.yml terbaru.\n\nBuka lewat browser (wa.me) sebagai gantinya?',()=>{window.open(webFallback,'_blank');});
+  return;
+        }
+        P.KqLauncher.openWhatsApp({phone:clean,package:type==='wab'?'com.whatsapp.w4b':'com.whatsapp'}).catch(e=>{
+  showConfirmModal(name+' tidak bisa dibuka',name+' tidak terpasang atau menolak dibuka.\n\nBuka lewat browser (wa.me) sebagai gantinya?',()=>{window.open(webFallback,'_blank');});
+        });
+        return;
+    }
     let url;
     if(type==='wa')url=isAndroid?`intent://send?phone=${clean}#Intent;package=com.whatsapp;scheme=whatsapp;S.browser_fallback_url=${fb};end`:`whatsapp://send?phone=${clean}`;
-    else if(type==='wab')url=isAndroid?`intent://send?phone=${clean}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;S.browser_fallback_url=${fb};end`:`whatsapp-business://send?phone=${clean}`;
-    else{window.open(webFallback,'_blank');return;}
+    else url=isAndroid?`intent://send?phone=${clean}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;S.browser_fallback_url=${fb};end`:`whatsapp-business://send?phone=${clean}`;
     try{window.location.href=url;}catch(e){window.open(webFallback,'_blank');}
     if(!isAndroid){const t0=Date.now();setTimeout(()=>{if(!document.hidden&&Date.now()-t0<2500)window.open(webFallback,'_blank');},1200);}
 }
