@@ -110,6 +110,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 input[type=number]{-moz-appearance:textfield}
 #boot-splash{position:fixed;inset:0;background:#2563eb;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;transition:opacity .25s}
 #boot-splash.hidden{opacity:0;pointer-events:none}
+/*SPLASH-v1*/#boot-splash.art{background:#1e40af url(boot.jpg) center/cover no-repeat}
+#boot-splash.art>*{visibility:hidden}
+@media (min-aspect-ratio:1/1){#boot-splash.art{background-size:contain}}
 @keyframes bootPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
 .photo-viewer{display:none;position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:400;flex-direction:column}
 .photo-viewer.active{display:flex}
@@ -152,6 +155,7 @@ input[type=number]{-moz-appearance:textfield}
 </head>
 <body>
 
+<script>(function(){var i=new Image(),n=0;i.onload=function(){(function a(){var b=document.getElementById('boot-splash');if(b)b.classList.add('art');else if(n++<60)setTimeout(a,30);})();};i.src='boot.jpg';})();</script>
 <div id="boot-splash">
     <div style="font-size:72px;margin-bottom:12px;animation:bootPulse 1.5s infinite">📦</div>
     <div style="font-size:20px;font-weight:600;margin-bottom:6px">Kurir-Q</div>
@@ -518,7 +522,7 @@ input[type=number]{-moz-appearance:textfield}
 
 <script>
 window.bootStatus=(msg,pct)=>{const s=document.getElementById('boot-status');const b=document.getElementById('boot-bar');if(s&&msg)s.textContent=msg;if(b&&pct!==undefined)b.style.width=Math.min(100,pct)+'%';};
-window.bootHide=()=>{const s=document.getElementById('boot-splash');if(!s)return;s.classList.add('hidden');setTimeout(()=>s.remove(),300);};
+window.bootHide=()=>{try{const SP=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.SplashScreen;if(SP)SP.hide({fadeOutDuration:250});}catch(e){}const s=document.getElementById('boot-splash');if(!s)return;s.classList.add('hidden');setTimeout(()=>s.remove(),300);};
 
 let db,map;
 let currentLocation=null;

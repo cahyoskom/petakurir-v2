@@ -13,7 +13,20 @@
   },
   "plugins": {
     "Geolocation": {
-      "permissions": ["location"]
+      "permissions": [
+        "location"
+      ]
+    },
+    "SplashScreen": {
+      "launchShowDuration": 4000,
+      "launchAutoHide": true,
+      "launchFadeOutDuration": 250,
+      "backgroundColor": "#2563eb",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false,
+      "splashFullScreen": true,
+      "splashImmersive": true
     }
   }
 }
