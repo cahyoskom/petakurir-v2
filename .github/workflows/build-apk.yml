@@ -257,6 +257,87 @@ jobs:
 
           echo "✅ Manifest OK"
 
+      - name: Tambah plugin native pembuka WhatsApp
+        run: |
+          MAIN=$(find android/app/src/main/java -name MainActivity.java | head -1)
+          [ -n "$MAIN" ] || { echo "❌ MainActivity.java tidak ditemukan"; exit 1; }
+          DIR=$(dirname "$MAIN")
+          PKG=$(grep -m1 '^package ' "$MAIN" | sed 's/^package \(.*\);.*/\1/')
+
+          cat > "$DIR/KqLauncherPlugin.java" <<'JAVA'
+          package __PKG__;
+
+          import android.content.ActivityNotFoundException;
+          import android.content.Intent;
+          import android.net.Uri;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          @CapacitorPlugin(name = "KqLauncher")
+          public class KqLauncherPlugin extends Plugin {
+
+              @PluginMethod
+              public void openWhatsApp(PluginCall call) {
+                  String phone = call.getString("phone", "");
+                  String text = call.getString("text", "");
+                  String pkg = call.getString("package", "");
+                  String digits = phone == null ? "" : phone.replaceAll("[^0-9]", "");
+                  if (digits.length() < 8) {
+                      call.reject("Nomor tidak valid");
+                      return;
+                  }
+                  String suffix = (text == null || text.isEmpty()) ? "" : "&text=" + Uri.encode(text);
+                  String[] urls = new String[] {
+                      "whatsapp://send?phone=" + digits + suffix,
+                      "https://wa.me/" + digits + (suffix.isEmpty() ? "" : "?" + suffix.substring(1))
+                  };
+                  Exception last = null;
+                  for (String url : urls) {
+                      try {
+                          Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                          if (pkg != null && !pkg.isEmpty()) {
+                              intent.setPackage(pkg);
+                          }
+                          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                          getContext().startActivity(intent);
+                          call.resolve();
+                          return;
+                      } catch (ActivityNotFoundException e) {
+                          last = e;
+                      } catch (Exception e) {
+                          last = e;
+                      }
+                  }
+                  call.reject("Aplikasi tidak terpasang atau tidak bisa dibuka" + (last == null ? "" : ": " + last.getMessage()));
+              }
+          }
+          JAVA
+
+          cat > "$MAIN" <<'JAVA'
+          package __PKG__;
+
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(KqLauncherPlugin.class);
+                  super.onCreate(savedInstanceState);
+              }
+          }
+          JAVA
+
+          sed -i "s/__PKG__/$PKG/" "$DIR/KqLauncherPlugin.java" "$MAIN"
+
+          # izinkan melihat/membuka WhatsApp dan WhatsApp Business (Android 11+)
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q 'com.whatsapp.w4b' $M || \
+            sed -i 's|<application|<queries>\n        <package android:name="com.whatsapp" />\n        <package android:name="com.whatsapp.w4b" />\n    </queries>\n    <application|' $M
+          echo "✅ Plugin pembuka WhatsApp terpasang ($PKG)"
+
       - name: Verifikasi manifest, plugin, dan ikon (gagalkan build bila tidak lengkap)
         run: |
           M=android/app/src/main/AndroidManifest.xml
@@ -269,6 +350,10 @@ jobs:
           grep -q 'KQ-PATCH' node_modules/@capawesome-team/capacitor-android-foreground-service/android/src/main/java/io/capawesome/capacitorjs/plugins/foregroundservice/NotificationActionBroadcastReceiver.java || { echo "❌ patch tombol Tutup tidak terpasang"; OK=0; }
           grep -q 'foregroundservice' android/app/src/main/assets/capacitor.plugins.json || { echo "❌ plugin ForegroundService tidak terdaftar (cek package.json / jalankan patch Back)"; OK=0; }
           grep -q 'plugins.app' android/app/src/main/assets/capacitor.plugins.json || { echo "❌ plugin @capacitor/app tidak terdaftar"; OK=0; }
+          KL=$(find android/app/src/main/java -name KqLauncherPlugin.java | head -1)
+          [ -n "$KL" ] || { echo "❌ KqLauncherPlugin.java tidak ada"; OK=0; }
+          grep -rq 'registerPlugin(KqLauncherPlugin.class)' android/app/src/main/java || { echo "❌ MainActivity tidak mendaftarkan KqLauncherPlugin"; OK=0; }
+          grep -q 'com.whatsapp.w4b' $M || { echo "❌ <queries> WhatsApp tidak ada di manifest"; OK=0; }
           [ "$OK" = "1" ] || exit 1
           echo "✅ Manifest, plugin, dan ikon lengkap"
 

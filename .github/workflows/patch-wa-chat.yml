@@ -1,0 +1,78 @@
+name: Patch Chat WA & WA Business di APK (One-Time)
+
+# Di APK, link intent:// tidak dikenali WebView sehingga "Chat WA" dan "Chat WA Business"
+# tidak membuka apa pun. Patch ini membuat tombol memakai plugin native KqLauncher
+# (ditambahkan oleh build-apk.yml). Versi web tetap seperti semula.
+# Jalankan manual dari tab Actions. Aman dijalankan berulang.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          import sys
+          p = 'index.html'
+          s = open(p, encoding='utf-8').read()
+          if '/*WACHAT-v1*/' in s:
+              print('✅ sudah dipatch'); sys.exit(0)
+          a = s.find('function doOpenWAChat(type,clean){')
+          if a < 0:
+              sys.exit('❌ doOpenWAChat tidak ditemukan — index.html TIDAK diubah')
+          b = s.find('\n}\n', a)
+          if b < 0 or 'intent://send' not in s[a:b]:
+              sys.exit('❌ isi doOpenWAChat tidak seperti yang diharapkan — index.html TIDAK diubah')
+          NEW = r'''/*WACHAT-v1*/
+          function doOpenWAChat(type,clean){
+              closeModal();
+              const isAndroid=/Android/i.test(navigator.userAgent);
+              const webFallback='https://wa.me/'+clean;
+              const fb=encodeURIComponent(webFallback);
+              const C=window.Capacitor,P=C&&C.Plugins;
+              const native=!!(C&&typeof C.isNativePlatform==='function'&&C.isNativePlatform());
+              if(type!=='wa'&&type!=='wab'){window.open(webFallback,'_blank');return;}
+              if(native){
+                  const name=type==='wab'?'WhatsApp Business':'WhatsApp';
+                  if(!P||!P.KqLauncher){
+                      showConfirmModal('Fitur belum tersedia','Pembuka '+name+' belum ada di APK ini. Pastikan APK dibuat dari build-apk.yml terbaru.\n\nBuka lewat browser (wa.me) sebagai gantinya?',()=>{window.open(webFallback,'_blank');});
+                      return;
+                  }
+                  P.KqLauncher.openWhatsApp({phone:clean,package:type==='wab'?'com.whatsapp.w4b':'com.whatsapp'}).catch(e=>{
+                      showConfirmModal(name+' tidak bisa dibuka',name+' tidak terpasang atau menolak dibuka.\n\nBuka lewat browser (wa.me) sebagai gantinya?',()=>{window.open(webFallback,'_blank');});
+                  });
+                  return;
+              }
+              let url;
+              if(type==='wa')url=isAndroid?`intent://send?phone=${clean}#Intent;package=com.whatsapp;scheme=whatsapp;S.browser_fallback_url=${fb};end`:`whatsapp://send?phone=${clean}`;
+              else url=isAndroid?`intent://send?phone=${clean}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;S.browser_fallback_url=${fb};end`:`whatsapp-business://send?phone=${clean}`;
+              try{window.location.href=url;}catch(e){window.open(webFallback,'_blank');}
+              if(!isAndroid){const t0=Date.now();setTimeout(()=>{if(!document.hidden&&Date.now()-t0<2500)window.open(webFallback,'_blank');},1200);}
+          }
+          '''
+          NEW = '\n'.join(l[10:] if l.startswith(' ' * 10) else l for l in NEW.split('\n'))
+          s = s[:a] + NEW.rstrip('\n') + s[b + 2:]
+          open(p, 'w', encoding='utf-8').write(s)
+          print('✅ index.html dipatch (Chat WA / WA Business)')
+          PY
+
+      - name: Commit perubahan
+        run: |
+          if git diff --quiet index.html; then
+            echo "✅ Tidak ada perubahan"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add index.html
+            git commit -m "fix: Chat WA/WA Business di APK lewat plugin native KqLauncher"
+            git push
+            echo "✅ Di-commit ke repo"
+          fi
