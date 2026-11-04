@@ -1,0 +1,105 @@
+name: Patch Splash Layar Penuh (One-Time)
+
+# 1) Splash native memakai plugin @capacitor/splash-screen dengan CENTER_CROP:
+#    gambar mengisi seluruh layar tanpa tepi kosong dan tanpa meregang.
+# 2) Layar "Memuat..." di dalam aplikasi memakai gambar boot.jpg yang sama (bila ada),
+#    sehingga tidak ada layar biru kosong. Tanpa boot.jpg tampilannya tetap seperti semula.
+# Jalankan manual dari tab Actions. Aman dijalankan berulang.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          import sys
+          p = 'index.html'
+          s = open(p, encoding='utf-8').read()
+          if '/*SPLASH-v1*/' in s:
+              print('✅ index.html sudah dipatch'); sys.exit(0)
+
+          def once(old, new, label):
+              global s
+              if s.count(old) != 1:
+                  sys.exit('❌ ' + label + ' tidak ditemukan tepat satu kali — index.html TIDAK diubah')
+              s = s.replace(old, new, 1)
+
+          # CSS: layar boot berupa gambar penuh bila boot.jpg berhasil dimuat
+          css_anchor = '#boot-splash.hidden{opacity:0;pointer-events:none}'
+          once(css_anchor, css_anchor +
+               '\n/*SPLASH-v1*/#boot-splash.art{background:#1e40af url(boot.jpg) center/cover no-repeat}'
+               '\n#boot-splash.art>*{visibility:hidden}'
+               '\n@media (min-aspect-ratio:1/1){#boot-splash.art{background-size:contain}}', 'CSS boot-splash')
+
+          # muat gambar lebih dulu; kalau gagal, layar boot lama tetap dipakai
+          once('<div id="boot-splash">',
+               "<script>(function(){var i=new Image(),n=0;i.onload=function(){(function a(){var b=document.getElementById('boot-splash');"
+               "if(b)b.classList.add('art');else if(n++<60)setTimeout(a,30);})();};i.src='boot.jpg';})();</script>\n<div id=\"boot-splash\">",
+               'elemen boot-splash')
+
+          # sembunyikan splash native saat aplikasi siap
+          once("window.bootHide=()=>{const s=document.getElementById('boot-splash');",
+               "window.bootHide=()=>{try{const SP=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.SplashScreen;if(SP)SP.hide({fadeOutDuration:250});}catch(e){}const s=document.getElementById('boot-splash');",
+               'bootHide')
+          open(p, 'w', encoding='utf-8').write(s)
+          print('✅ index.html dipatch (splash)')
+          PY
+
+      - name: Atur plugin splash di capacitor.config.json dan package.json
+        run: |
+          python3 - <<'PY'
+          import json
+          # capacitor.config.json
+          p = 'capacitor.config.json'
+          d = json.load(open(p, encoding='utf-8'))
+          d.setdefault('plugins', {})['SplashScreen'] = {
+              'launchShowDuration': 4000,
+              'launchAutoHide': True,
+              'launchFadeOutDuration': 250,
+              'backgroundColor': '#2563eb',
+              'androidSplashResourceName': 'splash',
+              'androidScaleType': 'CENTER_CROP',
+              'showSpinner': False,
+              'splashFullScreen': True,
+              'splashImmersive': True
+          }
+          with open(p, 'w', encoding='utf-8') as f:
+              json.dump(d, f, indent=2, ensure_ascii=False); f.write('\n')
+          print('✅ capacitor.config.json diperbarui')
+          # package.json
+          p = 'package.json'
+          d = json.load(open(p, encoding='utf-8'))
+          dep = d.setdefault('dependencies', {})
+          if '@capacitor/splash-screen' not in dep:
+              dep['@capacitor/splash-screen'] = '^6.0.0'
+              d['dependencies'] = dict(sorted(dep.items()))
+              with open(p, 'w', encoding='utf-8') as f:
+                  json.dump(d, f, indent=2, ensure_ascii=False); f.write('\n')
+              print('✅ package.json diperbarui')
+          else:
+              print('✅ package.json sudah berisi plugin')
+          PY
+          # lockfile lama tidak cocok dengan dependensi baru; build akan memakai npm install
+          git rm -q --ignore-unmatch package-lock.json
+
+      - name: Commit perubahan
+        run: |
+          git add -A index.html package.json capacitor.config.json
+          if git diff --cached --quiet; then
+            echo "✅ Tidak ada perubahan"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "feat: splash layar penuh (CENTER_CROP) dan layar boot bergambar"
+            git push
+            echo "✅ Di-commit ke repo"
+          fi

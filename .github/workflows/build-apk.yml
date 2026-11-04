@@ -113,6 +113,7 @@ jobs:
           mkdir -p www
           cp index.html sw.js www/
           cp -r lib www/
+          if [ -f boot.jpg ]; then cp boot.jpg www/; fi
           rm -f www/lib/note www/lib/images/readme
 
       - name: Generate Icon & Splash PNG
@@ -226,6 +227,22 @@ jobs:
         run: |
           npx capacitor-assets generate --android
           ls -lh android/app/src/main/res/mipmap-xxxhdpi/ || true
+
+      - name: Latar peluncuran warna solid
+        run: |
+          S=android/app/src/main/res/values/styles.xml
+          test -f "$S" || { echo "❌ styles.xml tidak ditemukan"; exit 1; }
+          cat > android/app/src/main/res/values/kq_colors.xml <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="kq_splash_bg">#2563EB</color>
+          </resources>
+          XML
+          if grep -q '@drawable/splash' "$S"; then
+            sed -i 's|<item name="android:background">@drawable/splash</item>|<item name="android:background">@color/kq_splash_bg</item>\n        <item name="windowSplashScreenBackground">@color/kq_splash_bg</item>|' "$S"
+          fi
+          grep -q 'kq_splash_bg' "$S" || { echo "❌ styles.xml tidak berubah (template berbeda dari yang diharapkan)"; exit 1; }
+          echo "✅ Latar peluncuran diganti warna solid"
 
       - name: Patch AndroidManifest
         run: |
@@ -348,6 +365,13 @@ jobs:
           test -f android/app/src/main/res/drawable/ic_stat_kurirq.xml || { echo "❌ ikon notifikasi ic_stat_kurirq.xml tidak ada"; OK=0; }
           grep -q 'KQ-PATCH' node_modules/@capawesome-team/capacitor-android-foreground-service/android/src/main/java/io/capawesome/capacitorjs/plugins/foregroundservice/AndroidForegroundService.java || { echo "❌ patch service plugin tidak terpasang"; OK=0; }
           grep -q 'KQ-PATCH' node_modules/@capawesome-team/capacitor-android-foreground-service/android/src/main/java/io/capawesome/capacitorjs/plugins/foregroundservice/NotificationActionBroadcastReceiver.java || { echo "❌ patch tombol Tutup tidak terpasang"; OK=0; }
+          grep -q 'kq_splash_bg' android/app/src/main/res/values/styles.xml || { echo "❌ latar peluncuran solid tidak terpasang"; OK=0; }
+          if grep -q 'splash-screen' package.json; then
+            grep -q 'androidScaleType' android/app/src/main/assets/capacitor.config.json || { echo "❌ konfigurasi SplashScreen tidak ikut ter-sync (jalankan patch Splash)"; OK=0; }
+            grep -q 'splashscreen' android/app/src/main/assets/capacitor.plugins.json || { echo "❌ plugin SplashScreen tidak terdaftar"; OK=0; }
+          else
+            echo "❌ plugin @capacitor/splash-screen belum ada di package.json (jalankan patch Splash)"; OK=0
+          fi
           grep -q 'foregroundservice' android/app/src/main/assets/capacitor.plugins.json || { echo "❌ plugin ForegroundService tidak terdaftar (cek package.json / jalankan patch Back)"; OK=0; }
           grep -q 'plugins.app' android/app/src/main/assets/capacitor.plugins.json || { echo "❌ plugin @capacitor/app tidak terdaftar"; OK=0; }
           KL=$(find android/app/src/main/java -name KqLauncherPlugin.java | head -1)
