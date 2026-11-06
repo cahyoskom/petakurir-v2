@@ -151,6 +151,19 @@ input[type=number]{-moz-appearance:textfield}
 .panorama-actions{display:flex;gap:8px;padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom,12px));background:var(--bg);border-top:1px solid var(--border);position:sticky;bottom:0}
 .panorama-progress{display:none;padding:16px;text-align:center;background:var(--bg-alt)}
 .panorama-progress.active{display:block}
+/*FLOAT-v1*/
+#list-sticky{position:sticky;top:0;z-index:30;background:var(--bg);box-shadow:0 2px 6px rgba(0,0,0,.12);flex-shrink:0}
+#list-sticky .search-bar{padding:8px 12px}
+#list-sticky .search-filter-chips{padding:0 12px 6px}
+#list-sticky .filter-buttons{padding:6px 12px}
+#list-sticky>div:nth-child(4){padding:4px 12px!important}
+#bulk-section{scroll-margin-top:190px}
+#sel-bar{display:none;position:sticky;bottom:0;z-index:30;margin-top:auto;flex-shrink:0;align-items:center;gap:8px;padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom,8px));background:#1e3a8a;color:#fff;box-shadow:0 -2px 8px rgba(0,0,0,.25)}
+#sel-bar button{border:none;border-radius:6px;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+#sel-bar-count{flex:1;font-size:13px;font-weight:700;white-space:nowrap}
+#sel-bar-route{background:#06b6d4;color:#fff}
+#sel-bar-more{background:rgba(255,255,255,.18);color:#fff}
+#sel-bar-clear{background:transparent;color:#fff;font-size:16px;padding:6px 10px}
 </style>
 </head>
 <body>
@@ -196,6 +209,7 @@ input[type=number]{-moz-appearance:textfield}
 
 <!-- DAFTAR ALAMAT: Tambahkan class active -->
 <div class="page active" id="list-page">
+<div id="list-sticky">
 <div class="search-bar"><input type="text" id="list-search-input" placeholder="Cari nama / gang / no / alamat / rt / rw / kelurahan..."><button id="list-search-btn">Cari</button><button id="voice-search-btn" title="Voice search" style="padding:8px 12px;background:var(--secondary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">🎤</button></div>
 <div class="search-filter-chips" id="list-search-chips">
     <button class="search-chip" data-field="nama" onclick="toggleSearchField(this)">📛 Nama</button>
@@ -221,6 +235,7 @@ input[type=number]{-moz-appearance:textfield}
 <option value="default">Default (Terbaru dulu)</option><option value="nama-asc">Nama A → Z</option><option value="nama-desc">Nama Z → A</option><option value="tanggal-baru">Tanggal Dibuat (Terbaru)</option><option value="tanggal-lama">Tanggal Dibuat (Terlama)</option><option value="kunjungan">Paling Sering Dikunjungi</option>
 </select>
 </div>
+</div>
 <div style="padding:6px 12px;background:var(--bg);display:flex;gap:8px;border-bottom:1px solid var(--border)">
 <button onclick="showMergeRecipientsModal()" style="flex:1;padding:8px;background:#a78bfa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">🔍 Auto-Detect Alamat Sama</button>
 </div>
@@ -240,6 +255,7 @@ input[type=number]{-moz-appearance:textfield}
 <button id="bulk-delete-btn" style="width:100%;padding:8px;margin-top:6px;background:#ef4444;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">🗑️ Hapus Terpilih</button>
 </div>
 <div class="address-list" id="address-list"></div>
+<div id="sel-bar"><span id="sel-bar-count">0 dipilih</span><button id="sel-bar-route" onclick="kqSelRoute()">🗺️ Rute Terpilih</button><button id="sel-bar-more" onclick="kqSelMore()">Aksi ▲</button><button id="sel-bar-clear" onclick="kqSelClear()" title="Batal pilih">✕</button></div>
 </div>
 
 <div class="page" id="backup-page">
@@ -1721,15 +1737,17 @@ function partitionByCoordinates(addresses){
     return{valid,invalid};
 }
 
-async function showOptimizeRouteModal(){
+async function showOptimizeRouteModal(mode){
     const all=await getAllAddresses();
-    const pendingAll=all.filter(a=>a.delivery_status==='belum selesai');
+    const onlySel=(mode==='selected');
+    const pendingAll=onlySel?all.filter(a=>bulkSelectedIds.has(a.id)):all.filter(a=>a.delivery_status==='belum selesai');
+    if(onlySel&&pendingAll.length===0){showModal('Info','Belum ada alamat yang dipilih.');return;}
     if(pendingAll.length===0){showModal('Info','Tidak ada alamat "Belum Selesai"');return;}
     const{valid:pending,invalid:skipped}=partitionByCoordinates(pendingAll);
     window._routeSkipped=skipped;
     window.pendingAddressesForRoute=pending;
     if(pending.length===0){
-        showModal('Info',`⚠️ Tidak ada alamat "Belum Selesai" dengan koordinat valid.\n\n${skipped.length} alamat punya koordinat 0,0 / tidak valid.`);
+        showModal('Info',`⚠️ Tidak ada alamat ${onlySel?'terpilih':'"Belum Selesai"'} dengan koordinat valid.\n\n${skipped.length} alamat punya koordinat 0,0 / tidak valid.`);
         return;
     }
     let startPoint=(currentLocation&&hasValidCoordinates(currentLocation))?{latitude:currentLocation.latitude,longitude:currentLocation.longitude}:null;
@@ -2283,7 +2301,20 @@ async function exportCSVTemplate(){
 
 function toggleBulkSelect(addrId){if(bulkSelectedIds.has(addrId))bulkSelectedIds.delete(addrId);else bulkSelectedIds.add(addrId);updateBulkUI();}
 function toggleBulkSelectAll(){const cb=document.getElementById('bulk-select-all');const ai=document.querySelectorAll('.address-item[data-addr-id]');if(cb.checked)ai.forEach(i=>bulkSelectedIds.add(i.dataset.addrId));else bulkSelectedIds.clear();updateBulkUI();}
-function updateBulkUI(){const bs=document.getElementById('bulk-section'),cs=document.getElementById('bulk-count'),sa=document.getElementById('bulk-select-all');if(bulkSelectedIds.size>0){bs.style.display='block';cs.textContent=bulkSelectedIds.size;sa.checked=false;document.querySelectorAll('.address-item-checkbox').forEach(cb=>{cb.checked=bulkSelectedIds.has(cb.dataset.addrId);});}else{bs.style.display='none';sa.checked=false;}}
+/*FLOAT-v1*/
+function kqSelBar(){
+    const b=document.getElementById('sel-bar');if(!b)return;
+    const n=bulkSelectedIds.size;
+    b.style.display=n>0?'flex':'none';
+    const c=document.getElementById('sel-bar-count');if(c)c.textContent=n+' dipilih';
+}
+function kqSelRoute(){
+    if(bulkSelectedIds.size===0){showModal('Info','Pilih alamat dulu (centang kotak di daftar).');return;}
+    showOptimizeRouteModal('selected');
+}
+function kqSelMore(){const bs=document.getElementById('bulk-section');if(bs)bs.scrollIntoView({behavior:'smooth',block:'start'});}
+function kqSelClear(){bulkSelectedIds.clear();updateBulkUI();updateAddressList();}
+function updateBulkUI(){kqSelBar();const bs=document.getElementById('bulk-section'),cs=document.getElementById('bulk-count'),sa=document.getElementById('bulk-select-all');if(bulkSelectedIds.size>0){bs.style.display='block';cs.textContent=bulkSelectedIds.size;sa.checked=false;document.querySelectorAll('.address-item-checkbox').forEach(cb=>{cb.checked=bulkSelectedIds.has(cb.dataset.addrId);});}else{bs.style.display='none';sa.checked=false;}}
 async function bulkUpdateStatus(newStatus){
     if(bulkSelectedIds.size===0)return;
     const c=bulkSelectedIds.size;
