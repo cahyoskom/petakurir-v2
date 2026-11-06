@@ -228,7 +228,7 @@ jobs:
           npx capacitor-assets generate --android
           ls -lh android/app/src/main/res/mipmap-xxxhdpi/ || true
 
-      - name: Latar peluncuran warna solid
+      - name: Latar peluncuran (gambar splash sejak frame pertama)
         run: |
           S=android/app/src/main/res/values/styles.xml
           test -f "$S" || { echo "❌ styles.xml tidak ditemukan"; exit 1; }
@@ -238,11 +238,34 @@ jobs:
               <color name="kq_splash_bg">#2563EB</color>
           </resources>
           XML
+
+          LAUNCH='@color/kq_splash_bg'
+          if [ -f boot.jpg ]; then
+            # Sebelum kode aplikasi jalan, Android hanya bisa menampilkan gambar statis dari tema.
+            # Gambar dipotong ke rasio layar tinggi (1080x2340) agar peregangan 'fill' nyaris tak terlihat.
+            mkdir -p android/app/src/main/res/drawable-nodpi
+            convert boot.jpg -resize 1080x2340^ -gravity center -extent 1080x2340 -quality 88 \
+              android/app/src/main/res/drawable-nodpi/kq_launch_art.jpg
+            cat > android/app/src/main/res/drawable/kq_launch.xml <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:drawable="@color/kq_splash_bg" />
+              <item>
+                  <bitmap android:src="@drawable/kq_launch_art" android:gravity="fill" />
+              </item>
+          </layer-list>
+          XML
+            LAUNCH='@drawable/kq_launch'
+            echo "✅ Gambar peluncuran dibuat dari boot.jpg"
+          else
+            echo "ℹ️ boot.jpg tidak ada, latar peluncuran memakai warna solid"
+          fi
+
           if grep -q '@drawable/splash' "$S"; then
-            sed -i 's|<item name="android:background">@drawable/splash</item>|<item name="android:background">@color/kq_splash_bg</item>\n        <item name="windowSplashScreenBackground">@color/kq_splash_bg</item>|' "$S"
+            sed -i "s|<item name=\"android:background\">@drawable/splash</item>|<item name=\"android:background\">${LAUNCH}</item>\n        <item name=\"android:windowBackground\">${LAUNCH}</item>\n        <item name=\"windowSplashScreenBackground\">@color/kq_splash_bg</item>|" "$S"
           fi
           grep -q 'kq_splash_bg' "$S" || { echo "❌ styles.xml tidak berubah (template berbeda dari yang diharapkan)"; exit 1; }
-          echo "✅ Latar peluncuran diganti warna solid"
+          echo "✅ Latar peluncuran terpasang ($LAUNCH)"
 
       - name: Patch AndroidManifest
         run: |
@@ -366,6 +389,10 @@ jobs:
           grep -q 'KQ-PATCH' node_modules/@capawesome-team/capacitor-android-foreground-service/android/src/main/java/io/capawesome/capacitorjs/plugins/foregroundservice/AndroidForegroundService.java || { echo "❌ patch service plugin tidak terpasang"; OK=0; }
           grep -q 'KQ-PATCH' node_modules/@capawesome-team/capacitor-android-foreground-service/android/src/main/java/io/capawesome/capacitorjs/plugins/foregroundservice/NotificationActionBroadcastReceiver.java || { echo "❌ patch tombol Tutup tidak terpasang"; OK=0; }
           grep -q 'kq_splash_bg' android/app/src/main/res/values/styles.xml || { echo "❌ latar peluncuran solid tidak terpasang"; OK=0; }
+          if [ -f boot.jpg ]; then
+            grep -q '@drawable/kq_launch' android/app/src/main/res/values/styles.xml || { echo "❌ gambar peluncuran tidak terpasang di tema"; OK=0; }
+            test -f android/app/src/main/res/drawable-nodpi/kq_launch_art.jpg || { echo "❌ kq_launch_art.jpg tidak ada"; OK=0; }
+          fi
           if grep -q 'splash-screen' package.json; then
             grep -q 'androidScaleType' android/app/src/main/assets/capacitor.config.json || { echo "❌ konfigurasi SplashScreen tidak ikut ter-sync (jalankan patch Splash)"; OK=0; }
             grep -q 'splashscreen' android/app/src/main/assets/capacitor.plugins.json || { echo "❌ plugin SplashScreen tidak terdaftar"; OK=0; }
