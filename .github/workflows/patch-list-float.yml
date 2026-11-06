@@ -1,0 +1,107 @@
+name: Patch Daftar Alamat Mengambang + Rute Terpilih (One-Time)
+
+# 1) Header daftar (pencarian, chip, filter, urutkan) tetap menempel di atas saat daftar di-scroll.
+# 2) Saat ada alamat dicentang, muncul bilah melayang di bawah: jumlah terpilih, tombol
+#    "Rute Terpilih" (optimasi rute HANYA dari alamat yang dicentang), Aksi, dan batal.
+# Jalankan manual dari tab Actions. Aman dijalankan berulang.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          import sys
+          p = 'index.html'
+          s = open(p, encoding='utf-8').read()
+          if '/*FLOAT-v1*/' in s:
+              print('✅ sudah dipatch'); sys.exit(0)
+
+          def once(old, new, label):
+              global s
+              if s.count(old) != 1:
+                  sys.exit('❌ ' + label + ' tidak ditemukan tepat satu kali — index.html TIDAK diubah')
+              s = s.replace(old, new, 1)
+
+          # ---------- CSS ----------
+          CSS = '''/*FLOAT-v1*/
+          #list-sticky{position:sticky;top:0;z-index:30;background:var(--bg);box-shadow:0 2px 6px rgba(0,0,0,.12);flex-shrink:0}
+          #list-sticky .search-bar{padding:8px 12px}
+          #list-sticky .search-filter-chips{padding:0 12px 6px}
+          #list-sticky .filter-buttons{padding:6px 12px}
+          #list-sticky>div:nth-child(4){padding:4px 12px!important}
+          #bulk-section{scroll-margin-top:190px}
+          #sel-bar{display:none;position:sticky;bottom:0;z-index:30;margin-top:auto;flex-shrink:0;align-items:center;gap:8px;padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom,8px));background:#1e3a8a;color:#fff;box-shadow:0 -2px 8px rgba(0,0,0,.25)}
+          #sel-bar button{border:none;border-radius:6px;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+          #sel-bar-count{flex:1;font-size:13px;font-weight:700;white-space:nowrap}
+          #sel-bar-route{background:#06b6d4;color:#fff}
+          #sel-bar-more{background:rgba(255,255,255,.18);color:#fff}
+          #sel-bar-clear{background:transparent;color:#fff;font-size:16px;padding:6px 10px}
+          '''
+          CSS = '\n'.join(l[10:] if l.startswith(' ' * 10) else l for l in CSS.split('\n'))
+          once('</style>\n</head>', CSS + '</style>\n</head>', 'penutup style')
+
+          # ---------- HTML: header menempel ----------
+          once('<div class="page active" id="list-page">\n<div class="search-bar">',
+               '<div class="page active" id="list-page">\n<div id="list-sticky">\n<div class="search-bar">', 'awal header daftar')
+          merge_row = '<div style="padding:6px 12px;background:var(--bg);display:flex;gap:8px;border-bottom:1px solid var(--border)">\n<button onclick="showMergeRecipientsModal()"'
+          once(merge_row, '</div>\n' + merge_row, 'baris auto-detect')
+          # ---------- HTML: bilah seleksi melayang ----------
+          lst = '<div class="address-list" id="address-list"></div>'
+          once(lst, lst + '\n<div id="sel-bar"><span id="sel-bar-count">0 dipilih</span>'
+               '<button id="sel-bar-route" onclick="kqSelRoute()">🗺️ Rute Terpilih</button>'
+               '<button id="sel-bar-more" onclick="kqSelMore()">Aksi ▲</button>'
+               '<button id="sel-bar-clear" onclick="kqSelClear()" title="Batal pilih">✕</button></div>', 'daftar alamat')
+
+          # ---------- JS ----------
+          JS = '''/*FLOAT-v1*/
+          function kqSelBar(){
+              const b=document.getElementById('sel-bar');if(!b)return;
+              const n=bulkSelectedIds.size;
+              b.style.display=n>0?'flex':'none';
+              const c=document.getElementById('sel-bar-count');if(c)c.textContent=n+' dipilih';
+          }
+          function kqSelRoute(){
+              if(bulkSelectedIds.size===0){showModal('Info','Pilih alamat dulu (centang kotak di daftar).');return;}
+              showOptimizeRouteModal('selected');
+          }
+          function kqSelMore(){const bs=document.getElementById('bulk-section');if(bs)bs.scrollIntoView({behavior:'smooth',block:'start'});}
+          function kqSelClear(){bulkSelectedIds.clear();updateBulkUI();updateAddressList();}
+          '''
+          JS = '\n'.join(l[10:] if l.startswith(' ' * 10) else l for l in JS.split('\n'))
+          once('function updateBulkUI(){', JS + 'function updateBulkUI(){kqSelBar();', 'updateBulkUI')
+
+          # ---------- routing hanya dari yang dicentang ----------
+          once('async function showOptimizeRouteModal(){', 'async function showOptimizeRouteModal(mode){', 'showOptimizeRouteModal')
+          once("const all=await getAllAddresses();\n    const pendingAll=all.filter(a=>a.delivery_status==='belum selesai');",
+               "const all=await getAllAddresses();\n    const onlySel=(mode==='selected');\n"
+               "    const pendingAll=onlySel?all.filter(a=>bulkSelectedIds.has(a.id)):all.filter(a=>a.delivery_status==='belum selesai');\n"
+               "    if(onlySel&&pendingAll.length===0){showModal('Info','Belum ada alamat yang dipilih.');return;}", 'daftar alamat rute')
+          once('Tidak ada alamat "Belum Selesai" dengan koordinat valid',
+               "Tidak ada alamat ${onlySel?'terpilih':'\"Belum Selesai\"'} dengan koordinat valid", 'pesan koordinat')
+
+          open(p, 'w', encoding='utf-8').write(s)
+          print('✅ index.html dipatch (daftar mengambang + rute terpilih)')
+          PY
+
+      - name: Commit perubahan
+        run: |
+          if git diff --quiet index.html; then
+            echo "✅ Tidak ada perubahan"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add index.html
+            git commit -m "feat: header daftar menempel, bilah seleksi melayang, rute dari alamat terpilih"
+            git push
+            echo "✅ Di-commit ke repo"
+          fi
