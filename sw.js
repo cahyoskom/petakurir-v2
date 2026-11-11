@@ -1,10 +1,10 @@
 // Kurir-Q service worker — dipakai di web (Cloudflare Pages) dan APK (Capacitor).
 // Strategi: shell app = stale-while-revalidate, tile OSM = cache-first.
-const SHELL = 'kurir-q-shell-v2';
+const SHELL = 'kurir-q-shell-v3';
 const TILES = 'kurir-q-tiles-v1'; // nama sama dengan downloader di index.html
 const SHELL_FILES = [
   './', './index.html',
-  './lib/leaflet.js', './lib/leaflet.css',
+  './lib/leaflet.js', './lib/leaflet.css', './lib/zxing.min.js',
   './lib/images/marker-icon.png', './lib/images/marker-icon-2x.png',
   './lib/images/marker-shadow.png', './lib/images/layers.png', './lib/images/layers-2x.png'
 ];

@@ -944,9 +944,11 @@ document.getElementById('save-edit-btn').addEventListener('click',()=>{
 });
 
 // ============ EXPORT CSV ============
+/*RESI-OCR-v1*/
+function ocrResiFrom(it){if(it&&it.resi)return it.resi;const m=String((it&&it.catatan)||'').toUpperCase().match(/\b[A-Z]{2,5}\d{6,}\b/);return m?m[0]:'';}
 function generateCSV(){
-    const headers=['nama','no_wa','alamat','catatan'];
-    const rows=items.map(it=>[it.nama||'',it.wa||'',it.alamat||'',it.catatan||'']);
+    const headers=['nama','no_wa','alamat','catatan','resi'];
+    const rows=items.map(it=>[it.nama||'',it.wa||'',it.alamat||'',it.catatan||'',ocrResiFrom(it)]);
     let csv=headers.join(',')+'\n';
     rows.forEach(row=>{
         csv+=row.map(cell=>{

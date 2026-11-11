@@ -164,6 +164,21 @@ input[type=number]{-moz-appearance:textfield}
 #sel-bar-route{background:#06b6d4;color:#fff}
 #sel-bar-more{background:rgba(255,255,255,.18);color:#fff}
 #sel-bar-clear{background:transparent;color:#fff;font-size:16px;padding:6px 10px}
+/*RESI-v1*/
+#scan-overlay{display:none;position:fixed;inset:0;z-index:20000;background:#000;color:#fff;flex-direction:column}
+#scan-overlay.active{display:flex}
+.scan-top{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top,10px));background:rgba(0,0,0,.6)}
+.scan-top span{font-weight:700}
+.scan-top button{background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:16px}
+.scan-view{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.scan-view video{width:100%;height:100%;object-fit:cover}
+.scan-frame{position:absolute;width:72%;max-width:340px;aspect-ratio:1.4;border:3px solid #22c55e;border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.35);pointer-events:none}
+#scan-msg{padding:8px 14px;font-size:13px;text-align:center;background:rgba(0,0,0,.6);min-height:34px}
+.scan-bottom{display:flex;gap:8px;padding:8px 14px;background:rgba(0,0,0,.6)}
+.scan-bottom button{flex:1;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600}
+.scan-manual{display:flex;gap:8px;padding:8px 14px 12px;padding-bottom:max(12px,env(safe-area-inset-bottom,12px));background:rgba(0,0,0,.6)}
+.scan-manual input{flex:1;padding:10px;border-radius:8px;border:none;font-size:15px;text-transform:uppercase}
+.scan-manual button{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:700}
 </style>
 </head>
 <body>
@@ -179,7 +194,7 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 
 <div class="container">
-<header><h1>📦 Kurir-Q</h1><button class="menu-btn" id="menu-btn">☰</button></header>
+<header><h1>📦 Kurir-Q</h1><div style="display:flex;align-items:center;gap:2px"><button class="menu-btn" id="scan-btn" onclick="kqScanOpen()" title="Scan resi">📷</button><button class="menu-btn" id="menu-btn">☰</button></div></header>
 <main>
 <!-- PETA: Hapus class active -->
 <div class="page" id="map-page">
@@ -190,7 +205,7 @@ input[type=number]{-moz-appearance:textfield}
     <button class="search-chip" data-field="gang" onclick="toggleSearchField(this)">🛣️ Gang</button>
     <button class="search-chip" data-field="nomor" onclick="toggleSearchField(this)">🔢 Nomor</button>
     <button class="search-chip" data-field="rt" onclick="toggleSearchField(this)">🚪 RT</button>
-    <button class="search-chip" data-field="rw" onclick="toggleSearchField(this)">🚪 RW</button>
+    <button class="search-chip" data-field="rw" onclick="toggleSearchField(this)">🚪 RW</button><button class="search-chip" data-field="resi" onclick="toggleSearchField(this)">📦 Resi</button>
 </div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-map-filter="belum">🔔 Belum Selesai</button>
@@ -217,7 +232,7 @@ input[type=number]{-moz-appearance:textfield}
     <button class="search-chip" data-field="gang" onclick="toggleSearchField(this)">🛣️ Gang</button>
     <button class="search-chip" data-field="nomor" onclick="toggleSearchField(this)">🔢 Nomor</button>
     <button class="search-chip" data-field="rt" onclick="toggleSearchField(this)">🚪 RT</button>
-    <button class="search-chip" data-field="rw" onclick="toggleSearchField(this)">🚪 RW</button>
+    <button class="search-chip" data-field="rw" onclick="toggleSearchField(this)">🚪 RW</button><button class="search-chip" data-field="resi" onclick="toggleSearchField(this)">📦 Resi</button>
 </div>
 <div class="filter-buttons">
 <button class="filter-btn active" data-filter="semua">Semua</button>
@@ -362,6 +377,7 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 <div class="form-group"><label>Kelurahan</label><input type="text" id="form-kelurahan" placeholder="Contoh: Cipedak"></div>
 <div class="form-group"><label>Patokan/Landmark</label><input type="text" id="form-landmark" placeholder="Contoh: Pagar hitam"></div>
+<div class="form-group"><label>No. Resi</label><div style="display:flex;gap:6px"><input type="text" id="form-resi" placeholder="Ketik atau scan resi" style="flex:1;text-transform:uppercase"><button type="button" class="btn-secondary" style="flex:0 0 auto;padding:8px 12px" onclick="kqScanOpen('form-resi')">📷 Scan</button></div></div>
 <div class="form-group"><label>Status Pembayaran</label><select id="form-payment"><option value="belum">Belum diketahui</option><option value="cod">COD normal</option><option value="cod-transfer">COD minta transfer</option><option value="transfer">Transfer</option><option value="other">Minta metode lain</option></select></div>
 <div class="form-group"><label>Tipe Lokasi</label><select id="form-location-type"><option value="jelas">Alamat jelas</option><option value="nitip">Alamat nitip</option><option value="sulit">Sulit ditemukan</option><option value="patokan">Butuh patokan</option></select></div>
 <div class="form-group"><label>Masalah Pengantaran</label><div class="checkbox-group" id="problems-group"></div></div>
@@ -847,6 +863,179 @@ async function updateMapMarkers(searchText=''){
     if(isSearching&&firstSearchResult)map.flyTo([firstSearchResult.latitude,firstSearchResult.longitude],16,{duration:0.8});
 }
 
+/*RESI-v1*/
+function kqResiNorm(x){return String(x==null?'':x).toUpperCase().replace(/[^A-Z0-9]/g,'');}
+function kqResiTokens(text){
+    const raw=String(text||'').toUpperCase(),set=new Set();
+    const n=kqResiNorm(raw);if(n&&n.length<=40)set.add(n);
+    (raw.match(/[A-Z]{2,5}[\s\-]?[0-9]{6,}/g)||[]).forEach(m=>set.add(kqResiNorm(m)));
+    (raw.match(/\b[0-9]{9,}\b/g)||[]).forEach(m=>set.add(m));
+    return [...set];
+}
+function kqResiBest(text){
+    const raw=String(text||'').toUpperCase();
+    const m=raw.match(/[A-Z]{2,5}[\s\-]?[0-9]{6,}/);
+    if(m)return kqResiNorm(m[0]);
+    const n=kqResiNorm(raw);
+    return n.length<=40?n:n.slice(0,40);
+}
+async function kqResiFind(text){
+    const tokens=kqResiTokens(text),all=await getAllAddresses(),out=[];
+    for(const a of all){
+        const r=kqResiNorm(a.resi),d=kqResiNorm(a.description);
+        let hit='';
+        for(const t of tokens){if(r&&r===t){hit='resi';break;}}
+        if(!hit){for(const t of tokens){if(t.length>=8&&d.includes(t)){hit='catatan:'+t;break;}}}
+        if(hit)out.push({a:a,hit:hit});
+    }
+    return out;
+}
+let kqScanStream=null,kqScanTimer=null,kqScanTarget=null,kqScanBusy=false,kqScanReader=null,kqScanTrack=null,kqScanTorchOn=false;
+function kqScanMsg(t){const e=document.getElementById('scan-msg');if(e)e.textContent=t;}
+function kqScanLoadLib(){
+    if(window.ZXing)return Promise.resolve(true);
+    return new Promise(res=>{
+        const s=document.createElement('script');
+        s.src='lib/zxing.min.js';
+        s.onload=()=>res(!!window.ZXing);
+        s.onerror=()=>res(false);
+        document.head.appendChild(s);
+    });
+}
+function kqScanReaderGet(){
+    if(kqScanReader)return kqScanReader;
+    const F=ZXing.BarcodeFormat,h=new Map();
+    h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[F.QR_CODE,F.CODE_128,F.CODE_39,F.EAN_13,F.EAN_8,F.ITF,F.UPC_A,F.CODABAR,F.DATA_MATRIX]);
+    h.set(ZXing.DecodeHintType.TRY_HARDER,true);
+    kqScanReader=new ZXing.MultiFormatReader();
+    kqScanReader.setHints(h);
+    return kqScanReader;
+}
+function kqScanDecodeCanvas(c){
+    try{
+        const bmp=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(c)));
+        return kqScanReaderGet().decode(bmp).getText();
+    }catch(e){return '';}
+}
+function kqScanStop(){
+    if(kqScanTimer){clearInterval(kqScanTimer);kqScanTimer=null;}
+    if(kqScanStream){kqScanStream.getTracks().forEach(t=>t.stop());kqScanStream=null;}
+    kqScanTrack=null;kqScanTorchOn=false;
+    const v=document.getElementById('scan-video');if(v){try{v.pause();}catch(e){}v.srcObject=null;}
+}
+function kqScanClose(){kqScanStop();const o=document.getElementById('scan-overlay');if(o)o.classList.remove('active');}
+async function kqScanOpen(target){
+    kqScanTarget=target||null;
+    const t=document.getElementById('scan-title');
+    if(t)t.textContent=(typeof target==='string'||(target&&target.updateId))?'Scan resi untuk disimpan':'Scan resi';
+    document.getElementById('scan-overlay').classList.add('active');
+    document.getElementById('scan-manual-input').value='';
+    document.getElementById('scan-torch').style.display='none';
+    kqScanMsg('Menyiapkan kamera...');
+    kqScanStop();
+    try{
+        if(!(await kqScanLoadLib()))throw new Error('pustaka pemindai (lib/zxing.min.js) tidak ditemukan');
+        if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('kamera tidak didukung di sini');
+        kqScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+        const v=document.getElementById('scan-video');
+        v.srcObject=kqScanStream;
+        await v.play();
+        kqScanTrack=kqScanStream.getVideoTracks()[0]||null;
+        try{const caps=kqScanTrack&&kqScanTrack.getCapabilities?kqScanTrack.getCapabilities():{};if(caps&&caps.torch)document.getElementById('scan-torch').style.display='';}catch(e){}
+        kqScanMsg('Arahkan kamera ke QR / barcode resi');
+        const canvas=document.createElement('canvas');
+        kqScanTimer=setInterval(()=>{
+  if(kqScanBusy||v.readyState<2||!v.videoWidth)return;
+  kqScanBusy=true;
+  try{
+      const sc=Math.min(1,960/v.videoWidth);
+      canvas.width=Math.round(v.videoWidth*sc);canvas.height=Math.round(v.videoHeight*sc);
+      canvas.getContext('2d').drawImage(v,0,0,canvas.width,canvas.height);
+      const text=kqScanDecodeCanvas(canvas);
+      if(text){try{navigator.vibrate&&navigator.vibrate(80);}catch(e){}kqScanHandle(text);}
+  }finally{kqScanBusy=false;}
+        },160);
+    }catch(e){
+        kqScanMsg('Kamera tidak bisa dibuka ('+(e&&e.message?e.message:e)+'). Pakai "Dari foto" atau ketik no. resi.');
+    }
+}
+async function kqScanTorch(){
+    if(!kqScanTrack)return;
+    try{kqScanTorchOn=!kqScanTorchOn;await kqScanTrack.applyConstraints({advanced:[{torch:kqScanTorchOn}]});}catch(e){kqScanTorchOn=false;}
+}
+function kqScanFile(){const f=document.getElementById('scan-file');f.value='';f.click();}
+(function(){
+    const f=document.getElementById('scan-file');
+    if(!f)return;
+    f.addEventListener('change',async()=>{
+        const file=f.files&&f.files[0];if(!file)return;
+        kqScanMsg('Membaca gambar...');
+        try{
+  if(!(await kqScanLoadLib()))throw new Error('pustaka pemindai tidak ditemukan');
+  const url=URL.createObjectURL(file);
+  const img=new Image();
+  await new Promise((ok,no)=>{img.onload=ok;img.onerror=()=>no(new Error('gambar tidak bisa dibuka'));img.src=url;});
+  let text='';
+  for(const max of [1600,1000,640]){
+      const sc=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      text=kqScanDecodeCanvas(c);if(text)break;
+  }
+  URL.revokeObjectURL(url);
+  if(text)kqScanHandle(text);else kqScanMsg('Tidak ada QR/barcode terbaca di foto. Coba foto lebih dekat dan tajam.');
+        }catch(e){kqScanMsg('Gagal membaca foto: '+(e&&e.message?e.message:e));}
+    });
+})();
+function kqScanManual(){
+    const v=document.getElementById('scan-manual-input').value.trim();
+    if(!v){kqScanMsg('Ketik no. resi dulu.');return;}
+    kqScanHandle(v);
+}
+async function kqScanHandle(text){
+    text=String(text||'').trim();if(!text)return;
+    const target=kqScanTarget;
+    kqScanClose();
+    const tok=kqResiBest(text);
+    if(typeof target==='string'){
+        const f=document.getElementById(target);
+        if(f){f.value=tok;f.dispatchEvent(new Event('input'));}
+        return;
+    }
+    if(target&&target.updateId){
+        const a=await getAddressById(target.updateId);
+        if(!a){showModal('Error','Alamat tidak ditemukan.');return;}
+        a.resi=tok;
+        await saveAddress(a);
+        const same=(await getAllAddresses()).filter(x=>x.id!==a.id&&kqResiNorm(x.resi)&&kqResiNorm(x.resi)===kqResiNorm(tok));
+        showModal('Sukses','📦 No. resi disimpan: '+tok+(same.length?'\n\n⚠️ Resi yang sama juga ada di: '+same.map(x=>x.recipient_name||'-').join(', '):''));
+        showAddressDetail(a.id);
+        return;
+    }
+    const hits=await kqResiFind(text);
+    if(hits.length===1){
+        const h=hits[0];
+        if(!h.a.resi&&h.hit.indexOf('catatan:')===0){h.a.resi=h.hit.slice(8);try{await saveAddress(h.a);}catch(e){}}
+        showAddressDetail(h.a.id);
+        return;
+    }
+    if(hits.length>1){
+        const m=document.getElementById('modal-content');
+        m.innerHTML='<h2>'+hits.length+' alamat cocok</h2><p>Resi: '+escapeHtmlMerge(tok)+'</p>';
+        hits.forEach(h=>{
+  const b=document.createElement('button');b.className='btn-secondary';b.style.cssText='width:100%;margin-top:8px;text-align:left';
+  b.textContent=(h.a.recipient_name||'-')+' · '+String(h.a.address||'').slice(0,50);
+  b.onclick=()=>{closeModal();showAddressDetail(h.a.id);};
+  m.appendChild(b);
+        });
+        document.getElementById('modal').classList.add('active');
+        return;
+    }
+    showConfirmModal('Resi tidak ditemukan','No. resi: '+tok+'\n\nBelum ada alamat dengan resi ini.\nBuat alamat baru dengan resi ini?',()=>{
+        showRecordSheet();
+        const f=document.getElementById('form-resi');if(f)f.value=tok;
+    });
+}
 async function getAllAddresses(){return new Promise((resolve)=>{const store=db.transaction('addresses').objectStore('addresses');const req=store.getAll();req.onsuccess=()=>resolve(req.result);});}
 async function getAddressById(id){return new Promise((resolve)=>{const store=db.transaction('addresses').objectStore('addresses');const req=store.get(id);req.onsuccess=()=>resolve(req.result);});}
 async function saveAddress(address){
@@ -971,6 +1160,9 @@ function buildSearchHaystack(addr) {
     
     if (wantAll || searchFields.has('rw')) {
         parts.push(addr.rw || '');
+    }
+    if (wantAll || searchFields.has('resi')) {
+        parts.push(addr.resi || '');
     }
     
     return normalizeSearchText(parts.join(' '));
@@ -1248,6 +1440,7 @@ function resetRecordForm(){
     document.getElementById('form-kelurahan').value='';
     document.getElementById('form-address').value='';
     document.getElementById('form-landmark').value='';
+    document.getElementById('form-resi').value='';
     document.getElementById('form-payment').value='belum';
     document.getElementById('form-location-type').value='jelas';
     document.getElementById('form-description').value='';
@@ -1278,6 +1471,7 @@ async function saveRecord(){
         kelurahan:document.getElementById('form-kelurahan').value.trim(),
         address:document.getElementById('form-address').value,
         landmark:document.getElementById('form-landmark').value,
+        resi:(document.getElementById('form-resi').value||'').trim().toUpperCase(),
         description:document.getElementById('form-description').value,
         payment_status:document.getElementById('form-payment').value,
         location_type:document.getElementById('form-location-type').value,
@@ -1302,6 +1496,7 @@ async function mergeDuplicate(){
     if(!ex.history)ex.history=[];
     ex.history.push({date:new Date().toISOString(),status:'belum selesai',payment_status:nd.payment_status,landmark:nd.landmark,notes:`${nd.recipients.map(r=>r.name).join(', ')} - ${nd.description}`});
     if(nd.landmark)ex.landmark=nd.landmark;
+    if(nd.resi)ex.resi=nd.resi;
     if(nd.whatsapp)ex.whatsapp=nd.whatsapp;
     if(nd.payment_status)ex.payment_status=nd.payment_status;
     if(nd.problem_tags.length>0)ex.problem_tags=nd.problem_tags;
@@ -1322,6 +1517,7 @@ async function showAddressDetail(id){
     html+=`<div class="form-group"><label>Gang / No. Rumah</label><div>${address.gang||'-'} ${address.house_number?'No. '+address.house_number:''}</div></div>`;
     if(address.rt||address.rw||address.kelurahan)html+=`<div class="form-group"><label>RT / RW / Kelurahan</label><div>${address.rt?'RT '+address.rt:''} ${address.rw?'/ RW '+address.rw:''} ${address.kelurahan?'<br>Kel. '+address.kelurahan:''}</div></div>`;
     html+=`<div class="form-group"><label>Alamat Lengkap</label><div style="white-space:pre-wrap;font-size:13px">${address.address||'-'}</div></div><div class="form-group"><label>Patokan/Landmark</label><div>${address.landmark||'-'}</div></div><div class="form-group"><label>Status Pembayaran</label><div><span class="tag">${formatPaymentStatus(address.payment_status)}</span></div></div><div class="form-group"><label>Tipe Lokasi</label><div><span class="tag">${formatLocationType(address.location_type)}</span></div></div>`;
+    html+=`<div class="form-group"><label>📦 No. Resi</label><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-family:monospace;font-weight:600">${address.resi?escapeHtmlMerge(address.resi):'-'}</span><button type="button" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-weight:600" onclick="kqScanOpen({updateId:'${address.id}'})">📷 ${address.resi?'Update':'Scan'}</button></div></div>`;
     const dp=extractAddressPhotos(address);
     if(dp.length>0)html+=`<div class="form-group"><label>📸 Foto Alamat (${dp.length}) — tap untuk zoom</label><div style="display:flex;gap:6px;flex-wrap:wrap">${dp.map((p,i)=>`<div onclick="openPhotoViewer('${address.id}', ${i})" style="position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:2px solid var(--border);background:var(--bg-alt);flex-shrink:0;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'"><img src="${p}" style="width:100%;height:100%;object-fit:cover;display:block"><div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.7);color:#fff;font-size:9px;padding:3px;text-align:center;font-weight:600">🔍 Zoom</div></div>`).join('')}</div></div>`;
     if(address.recipients&&address.recipients.length>0){
@@ -1959,6 +2155,7 @@ async function editAddress(){
     document.getElementById('form-kelurahan').value=address.kelurahan||'';
     document.getElementById('form-address').value=address.address||'';
     document.getElementById('form-landmark').value=address.landmark||'';
+    document.getElementById('form-resi').value=address.resi||'';
     document.getElementById('form-payment').value=address.payment_status||'belum';
     document.getElementById('form-location-type').value=address.location_type||'jelas';
     document.getElementById('form-description').value=address.description||'';
@@ -1980,6 +2177,7 @@ async function updateAddress(){
     address.kelurahan=document.getElementById('form-kelurahan').value.trim();
     address.address=document.getElementById('form-address').value;
     address.landmark=document.getElementById('form-landmark').value;
+    address.resi=(document.getElementById('form-resi').value||'').trim().toUpperCase();
     address.description=document.getElementById('form-description').value;
     address.payment_status=document.getElementById('form-payment').value;
     address.location_type=document.getElementById('form-location-type').value;
@@ -2225,7 +2423,7 @@ async function updateAddressList(){
         const rtRw=(a.rt||a.rw)?`RT ${a.rt||'-'}/RW ${a.rw||'-'}`:'';
         const kel=a.kelurahan?`Kel. ${a.kelurahan}`:'';
         const detailLine=[rtRw,kel].filter(Boolean).join(' · ');
-        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck?'checked':''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th?`<img data-lazy="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">`:''}<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang||''} ${a.house_number||''}${detailLine?`<br>${detailLine}`:''}${a.landmark||a.address?`<br>${a.landmark||a.address}`:''}</div>${waLine}<div class="address-item-meta">📍 ${formatDate(a.last_visit_at||a.created_at)} · ${a.visit_count||1}x · ${rc} penerima${ap.length>1?` · ${ap.length} foto`:''}</div></div>`;
+        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck?'checked':''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th?`<img data-lazy="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">`:''}<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang||''} ${a.house_number||''}${detailLine?`<br>${detailLine}`:''}${a.landmark||a.address?`<br>${a.landmark||a.address}`:''}</div>${waLine}${a.resi?`<div style="color:#2563eb;margin-top:2px;font-family:monospace;font-size:12px">📦 ${escapeHtmlMerge(a.resi)}</div>`:''}<div class="address-item-meta">📍 ${formatDate(a.last_visit_at||a.created_at)} · ${a.visit_count||1}x · ${rc} penerima${ap.length>1?` · ${ap.length} foto`:''}</div></div>`;
     }).join('');
     requestAnimationFrame(()=>{document.querySelectorAll('#address-list img[data-lazy]').forEach(img=>{const src=img.dataset.lazy;if(src){img.src=src;delete img.dataset.lazy;}});});
 }
@@ -2268,8 +2466,8 @@ async function exportJSON(){const addresses=await getAllAddresses();if(addresses
 async function exportCSV(){
     const addresses=await getAllAddresses();
     if(addresses.length===0){showModal('Info','⚠️ Tidak ada data');return;}
-    const h=['id','nama','no_wa','gang','nomor','rt','rw','kelurahan','alamat','latitude','longitude','patokan','status_pembayaran','masalah','tipe_lokasi','visit_count','kunjungan_terakhir','catatan','delivery_status','penerima_lain'];
-    const rows=addresses.map(a=>[a.id,a.recipient_name,a.whatsapp||'',a.gang,a.house_number,a.rt||'',a.rw||'',a.kelurahan||'',a.address,a.latitude,a.longitude,a.landmark,a.payment_status,(a.problem_tags||[]).join('; '),a.location_type,a.visit_count||1,formatDate(a.last_visit_at||a.created_at),a.description,a.delivery_status,(a.recipients||[]).filter(r=>r.name!==a.recipient_name).map(r=>`${r.name}:${r.status}`).join('; ')]);
+    const h=['id','nama','no_wa','gang','nomor','rt','rw','kelurahan','alamat','latitude','longitude','patokan','status_pembayaran','masalah','tipe_lokasi','visit_count','kunjungan_terakhir','catatan','delivery_status','penerima_lain','resi'];
+    const rows=addresses.map(a=>[a.id,a.recipient_name,a.whatsapp||'',a.gang,a.house_number,a.rt||'',a.rw||'',a.kelurahan||'',a.address,a.latitude,a.longitude,a.landmark,a.payment_status,(a.problem_tags||[]).join('; '),a.location_type,a.visit_count||1,formatDate(a.last_visit_at||a.created_at),a.description,a.delivery_status,(a.recipients||[]).filter(r=>r.name!==a.recipient_name).map(r=>`${r.name}:${r.status}`).join('; '),a.resi||'']);
     let csv=h.join(',')+'\n';
     rows.forEach(r=>{csv+=r.map(c=>(typeof c==='string'&&(c.includes(',')||c.includes('"')||c.includes('\n')))?'"'+c.replace(/"/g,'""')+'"':(c||'')).join(',')+'\n';});
     await saveOrShareFile(`kurir-q-backup-${new Date().toISOString().split('T')[0]}.csv`,csv,'text/csv;charset=utf-8;');
@@ -2282,8 +2480,8 @@ async function exportShortCSV(){
     const addresses=await getAllAddresses();
     let fl=addresses.filter(a=>{if(nf){const nm=(a.recipient_name||'').toLowerCase().includes(nf)||(a.whatsapp||'').includes(nf);if(!nm)return false;}if(ds||de){const vd=a.last_visit_at||a.created_at;if(ds&&vd<ds+'T00:00:00')return false;if(de&&vd>de+'T23:59:59')return false;}return true;});
     if(fl.length===0){showModal('Info','⚠️ Tidak ada data');return;}
-    const h=['id','nama','no_wa','gang','nomor','rt','rw','kelurahan','alamat','latitude','longitude','patokan','status_pembayaran','masalah','tipe_lokasi','visit_count','kunjungan_terakhir','catatan'];
-    const rows=fl.map(a=>[a.id,a.recipient_name,a.whatsapp||'',a.gang,a.house_number,a.rt||'',a.rw||'',a.kelurahan||'',a.address,a.latitude,a.longitude,a.landmark,a.payment_status,(a.problem_tags||[]).join('; '),a.location_type,a.visit_count||1,formatDate(a.last_visit_at||a.created_at),a.description]);
+    const h=['id','nama','no_wa','gang','nomor','rt','rw','kelurahan','alamat','latitude','longitude','patokan','status_pembayaran','masalah','tipe_lokasi','visit_count','kunjungan_terakhir','catatan','resi'];
+    const rows=fl.map(a=>[a.id,a.recipient_name,a.whatsapp||'',a.gang,a.house_number,a.rt||'',a.rw||'',a.kelurahan||'',a.address,a.latitude,a.longitude,a.landmark,a.payment_status,(a.problem_tags||[]).join('; '),a.location_type,a.visit_count||1,formatDate(a.last_visit_at||a.created_at),a.description,a.resi||'']);
     let csv=h.join(',')+'\n';
     rows.forEach(r=>{csv+=r.map(c=>(typeof c==='string'&&(c.includes(',')||c.includes('"')))?'"'+c.replace(/"/g,'""')+'"':(c||'')).join(',')+'\n';});
     let fn='kurir-q-export';
@@ -2371,7 +2569,7 @@ document.getElementById('file-import-csv').addEventListener('change',(e)=>{
                 const recs=[{name:nm,status:'belum selesai',added_at:new Date().toISOString()},...ar];
                 const ur=[],seen=new Set();
                 recs.forEach(x=>{if(!seen.has(x.name.toLowerCase())){seen.add(x.name.toLowerCase());ur.push(x);}});
-                addresses.push({id:rawId||'addr_'+Date.now()+'_'+Math.random().toString(36).substr(2,9),recipient_name:nm,whatsapp:waRaw?waImportNorm(addresses,nm,waRaw):'',gang:g('gang',3),house_number:g('nomor',4),rt:g('rt',5),rw:g('rw',6),kelurahan:g('kelurahan',7),address:g('alamat',8),latitude:parseFloat(g('latitude',9))||0,longitude:parseFloat(g('longitude',10))||0,landmark:g('patokan',11),payment_status:g('status_pembayaran',12)||'belum',problem_tags:(g('masalah',13)||'').split(';').map(t=>t.trim()).filter(t=>t),location_type:g('tipe_lokasi',14)||'jelas',visit_count:1,description:g('catatan',17)||'',delivery_status:'belum selesai',recipients:ur,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),history:[],raw_voice_note:''});
+                addresses.push({id:rawId||'addr_'+Date.now()+'_'+Math.random().toString(36).substr(2,9),recipient_name:nm,resi:(g('resi',99)||'').trim().toUpperCase(),whatsapp:waRaw?waImportNorm(addresses,nm,waRaw):'',gang:g('gang',3),house_number:g('nomor',4),rt:g('rt',5),rw:g('rw',6),kelurahan:g('kelurahan',7),address:g('alamat',8),latitude:parseFloat(g('latitude',9))||0,longitude:parseFloat(g('longitude',10))||0,landmark:g('patokan',11),payment_status:g('status_pembayaran',12)||'belum',problem_tags:(g('masalah',13)||'').split(';').map(t=>t.trim()).filter(t=>t),location_type:g('tipe_lokasi',14)||'jelas',visit_count:1,description:g('catatan',17)||'',delivery_status:'belum selesai',recipients:ur,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),history:[],raw_voice_note:''});
             }
             if(addresses.length===0){showModal('Error','❌ Tidak ada data valid');return;}
             showImportModal(addresses,'csv');
@@ -2454,6 +2652,7 @@ async function processCSVImport(count){
             if(isEmptyText(e.rw)           && !isEmptyText(na.rw))           e.rw=na.rw;
             if(isEmptyText(e.kelurahan)    && !isEmptyText(na.kelurahan))    e.kelurahan=na.kelurahan;
             if(isEmptyText(e.landmark)     && !isEmptyText(na.landmark))     e.landmark=na.landmark;
+            if(!isEmptyText(na.resi))e.resi=na.resi;
             if(isEmptyText(e.description)  && !isEmptyText(na.description))  e.description=na.description;
 
             if(!isValidLat(e.latitude) && isValidLat(na.latitude)) e.latitude = na.latitude;
@@ -3054,6 +3253,7 @@ window.addEventListener('load',()=>setTimeout(init,50));
     const KEY='kq_bg';
     function isOn(id){const e=document.getElementById(id);return !!(e&&e.classList.contains('active'));}
     function handleBack(){
+        if(isOn('scan-overlay')){kqScanClose();return true;}
         if(isOn('modal')){closeModal();return true;}
         if(isOn('photo-viewer')){closePhotoViewer();return true;}
         if(isOn('panorama-sheet')){closePanoramaSheet();return true;}
@@ -3157,5 +3357,13 @@ window.addEventListener('load',()=>setTimeout(init,50));
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
+<div id="scan-overlay">
+  <div class="scan-top"><span id="scan-title">Scan resi</span><button onclick="kqScanClose()">✕ Tutup</button></div>
+  <div class="scan-view"><video id="scan-video" playsinline muted autoplay></video><div class="scan-frame"></div></div>
+  <div id="scan-msg">Arahkan kamera ke QR / barcode resi</div>
+  <div class="scan-bottom"><button id="scan-torch" style="display:none" onclick="kqScanTorch()">🔦 Lampu</button><button onclick="kqScanFile()">🖼️ Dari foto</button></div>
+  <div class="scan-manual"><input id="scan-manual-input" type="text" placeholder="atau ketik no. resi"><button onclick="kqScanManual()">Cari</button></div>
+  <input type="file" id="scan-file" accept="image/*" style="display:none">
+</div>
 </body>
 </html>
