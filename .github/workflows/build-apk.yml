@@ -279,6 +279,10 @@ jobs:
           add_perm "FOREGROUND_SERVICE"
           add_perm "FOREGROUND_SERVICE_DATA_SYNC"
           add_perm "WAKE_LOCK"
+          add_perm "CAMERA"
+          # kamera tidak wajib (aplikasi tetap bisa dipasang di perangkat tanpa kamera)
+          grep -q 'android.hardware.camera' $MANIFEST || \
+            sed -i 's|<application|<uses-feature android:name="android.hardware.camera" android:required="false" />\n    <application|' $MANIFEST
 
           # Service penahan latar belakang (plugin foreground service)
           grep -q "AndroidForegroundService" $MANIFEST || \
@@ -385,6 +389,7 @@ jobs:
           grep -q 'AndroidForegroundService' $M || { echo "❌ service foreground tidak ada di manifest"; OK=0; }
           grep -q 'android.permission.FOREGROUND_SERVICE"' $M || { echo "❌ izin FOREGROUND_SERVICE tidak ada"; OK=0; }
           grep -q 'android.permission.WAKE_LOCK' $M || { echo "❌ izin WAKE_LOCK tidak ada"; OK=0; }
+          grep -q 'android.permission.CAMERA' $M || { echo "❌ izin CAMERA tidak ada (pemindai resi butuh kamera)"; OK=0; }
           test -f android/app/src/main/res/drawable/ic_stat_kurirq.xml || { echo "❌ ikon notifikasi ic_stat_kurirq.xml tidak ada"; OK=0; }
           grep -q 'KQ-PATCH' node_modules/@capawesome-team/capacitor-android-foreground-service/android/src/main/java/io/capawesome/capacitorjs/plugins/foregroundservice/AndroidForegroundService.java || { echo "❌ patch service plugin tidak terpasang"; OK=0; }
           grep -q 'KQ-PATCH' node_modules/@capawesome-team/capacitor-android-foreground-service/android/src/main/java/io/capawesome/capacitorjs/plugins/foregroundservice/NotificationActionBroadcastReceiver.java || { echo "❌ patch tombol Tutup tidak terpasang"; OK=0; }
@@ -431,7 +436,7 @@ jobs:
           AAPT2=$(ls -d "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1)
           if [ -z "$AAPT2" ]; then echo "aapt2 tidak ditemukan, dilewati"; exit 0; fi
           echo "--- izin di APK ---"
-          "$AAPT2" dump permissions "$APK" | grep -E "FOREGROUND|WAKE_LOCK|LOCATION" || true
+          "$AAPT2" dump permissions "$APK" | grep -E "FOREGROUND|WAKE_LOCK|LOCATION|CAMERA" || true
           echo "--- service di APK ---"
           "$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" | grep -E "AndroidForegroundService|foregroundServiceType" || echo "TIDAK ADA"
           echo "--- ikon notifikasi di APK ---"

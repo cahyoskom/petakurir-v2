@@ -1,0 +1,353 @@
+name: Patch No. Resi + Scan QR/Barcode (One-Time)
+
+# 1) Kolom "No. Resi" di form, detail, daftar, pencarian, CSV (ekspor/impor), dan JSON.
+# 2) Tombol 📷 di header (tampil di semua menu) untuk scan QR / barcode resi:
+#    resi cocok -> detail alamat terbuka; tidak cocok -> tawarkan buat alamat baru.
+#    Di detail alamat ada tombol Scan/Update untuk menyimpan resi terakhir.
+# 3) OCR: kolom "resi" ikut di CSV (diambil dari ID order).
+# Pemindai memakai pustaka zxing (Apache-2.0) yang diunduh ke lib/zxing.min.js.
+# Jalankan manual dari tab Actions. Aman dijalankan berulang.
+# Setelah ini, unggah juga build-apk.yml terbaru (izin kamera) lalu build APK.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ambil pustaka pemindai (zxing)
+        run: |
+          mkdir -p lib
+          if [ ! -f lib/zxing.min.js ]; then
+            cd "$RUNNER_TEMP"
+            npm pack @zxing/library@0.21.3 --silent
+            tar -xzf zxing-library-0.21.3.tgz package/umd/index.min.js package/LICENSE
+            cp package/umd/index.min.js "$GITHUB_WORKSPACE/lib/zxing.min.js"
+            cp package/LICENSE "$GITHUB_WORKSPACE/lib/zxing.LICENSE.txt"
+            cd "$GITHUB_WORKSPACE"
+          fi
+          test -s lib/zxing.min.js || { echo "❌ lib/zxing.min.js gagal diambil"; exit 1; }
+          ls -l lib/zxing.min.js
+
+      - name: Patch index.html, sw.js, ocr.html
+        run: |
+          python3 - <<'PY'
+          import re, sys, os
+          p = 'index.html'
+          s = open(p, encoding='utf-8').read()
+          if '/*RESI-v1*/' in s:
+              print('✅ index.html sudah dipatch')
+          else:
+              def once(old, new, label):
+                  global s
+                  if s.count(old) != 1:
+                      sys.exit('❌ ' + label + ' tidak ditemukan tepat satu kali — index.html TIDAK diubah')
+                  s = s.replace(old, new, 1)
+
+              # ---------- form ----------
+              lm = '<div class="form-group"><label>Patokan/Landmark</label><input type="text" id="form-landmark" placeholder="Contoh: Pagar hitam"></div>'
+              once(lm, lm + '\n<div class="form-group"><label>No. Resi</label><div style="display:flex;gap:6px"><input type="text" id="form-resi" placeholder="Ketik atau scan resi" style="flex:1;text-transform:uppercase"><button type="button" class="btn-secondary" style="flex:0 0 auto;padding:8px 12px" onclick="kqScanOpen(\'form-resi\')">📷 Scan</button></div></div>', 'form landmark')
+              once("document.getElementById('form-landmark').value='';", "document.getElementById('form-landmark').value='';\n    document.getElementById('form-resi').value='';", 'reset form')
+              once("landmark:document.getElementById('form-landmark').value,\n        description:document.getElementById('form-description').value,", "landmark:document.getElementById('form-landmark').value,\n        resi:(document.getElementById('form-resi').value||'').trim().toUpperCase(),\n        description:document.getElementById('form-description').value,", 'simpan record baru')
+              once("document.getElementById('form-landmark').value=address.landmark||'';", "document.getElementById('form-landmark').value=address.landmark||'';\n    document.getElementById('form-resi').value=address.resi||'';", 'muat form edit')
+              once("address.landmark=document.getElementById('form-landmark').value;", "address.landmark=document.getElementById('form-landmark').value;\n    address.resi=(document.getElementById('form-resi').value||'').trim().toUpperCase();", 'simpan edit')
+              once("if(nd.landmark)ex.landmark=nd.landmark;", "if(nd.landmark)ex.landmark=nd.landmark;\n    if(nd.resi)ex.resi=nd.resi;", 'gabung duplikat')
+
+              # ---------- detail & daftar ----------
+              once("    const dp=extractAddressPhotos(address);\n    if(dp.length>0)html+=",
+                   "    html+=`<div class=\"form-group\"><label>📦 No. Resi</label><div style=\"display:flex;align-items:center;gap:8px;flex-wrap:wrap\"><span style=\"font-family:monospace;font-weight:600\">${address.resi?escapeHtmlMerge(address.resi):'-'}</span><button type=\"button\" style=\"background:#2563eb;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-weight:600\" onclick=\"kqScanOpen({updateId:'${address.id}'})\">📷 ${address.resi?'Update':'Scan'}</button></div></div>`;\n"
+                   "    const dp=extractAddressPhotos(address);\n    if(dp.length>0)html+=", 'detail alamat')
+              once('${waLine}', "${waLine}${a.resi?`<div style=\"color:#2563eb;margin-top:2px;font-family:monospace;font-size:12px\">📦 ${escapeHtmlMerge(a.resi)}</div>`:''}", 'baris daftar')
+
+              # ---------- CSV ----------
+              once("'delivery_status','penerima_lain'];", "'delivery_status','penerima_lain','resi'];", 'header CSV lengkap')
+              once(".join('; ')]);", ".join('; '),a.resi||'']);", 'baris CSV lengkap')
+              once("'kunjungan_terakhir','catatan'];", "'kunjungan_terakhir','catatan','resi'];", 'header CSV ringkas')
+              once("formatDate(a.last_visit_at||a.created_at),a.description]);", "formatDate(a.last_visit_at||a.created_at),a.description,a.resi||'']);", 'baris CSV ringkas')
+              once("recipient_name:nm,", "recipient_name:nm,resi:(g('resi',99)||'').trim().toUpperCase(),", 'impor CSV')
+              m = re.search(r"if\(isEmptyText\(e\.landmark\)\s+&& !isEmptyText\(na\.landmark\)\)\s+e\.landmark=na\.landmark;", s)
+              if m is None:
+                  sys.exit('❌ gabung impor tidak ditemukan — index.html TIDAK diubah')
+              s = s[:m.end()] + "\n            if(!isEmptyText(na.resi))e.resi=na.resi;" + s[m.end():]
+
+              # ---------- pencarian ----------
+              once("    if (wantAll || searchFields.has('rw')) {\n        parts.push(addr.rw || '');\n    }",
+                   "    if (wantAll || searchFields.has('rw')) {\n        parts.push(addr.rw || '');\n    }\n    if (wantAll || searchFields.has('resi')) {\n        parts.push(addr.resi || '');\n    }", 'pencarian')
+              chip = '<button class="search-chip" data-field="rw" onclick="toggleSearchField(this)">🚪 RW</button>'
+              if s.count(chip) != 2:
+                  sys.exit('❌ chip RW tidak ditemukan dua kali — index.html TIDAK diubah')
+              s = s.replace(chip, chip + '<button class="search-chip" data-field="resi" onclick="toggleSearchField(this)">📦 Resi</button>')
+
+              # ---------- header: tombol scan di semua menu ----------
+              once('<button class="menu-btn" id="menu-btn">☰</button></header>',
+                   '<div style="display:flex;align-items:center;gap:2px"><button class="menu-btn" id="scan-btn" onclick="kqScanOpen()" title="Scan resi">📷</button><button class="menu-btn" id="menu-btn">☰</button></div></header>', 'header')
+
+              # ---------- tombol Back menutup pemindai (bila patch Back terpasang) ----------
+              bk = "if(isOn('modal')){closeModal();return true;}"
+              if s.count(bk) == 1:
+                  s = s.replace(bk, "if(isOn('scan-overlay')){kqScanClose();return true;}\n        " + bk, 1)
+
+              # ---------- CSS ----------
+              CSS = '''/*RESI-v1*/
+          #scan-overlay{display:none;position:fixed;inset:0;z-index:20000;background:#000;color:#fff;flex-direction:column}
+          #scan-overlay.active{display:flex}
+          .scan-top{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top,10px));background:rgba(0,0,0,.6)}
+          .scan-top span{font-weight:700}
+          .scan-top button{background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:16px}
+          .scan-view{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+          .scan-view video{width:100%;height:100%;object-fit:cover}
+          .scan-frame{position:absolute;width:72%;max-width:340px;aspect-ratio:1.4;border:3px solid #22c55e;border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.35);pointer-events:none}
+          #scan-msg{padding:8px 14px;font-size:13px;text-align:center;background:rgba(0,0,0,.6);min-height:34px}
+          .scan-bottom{display:flex;gap:8px;padding:8px 14px;background:rgba(0,0,0,.6)}
+          .scan-bottom button{flex:1;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600}
+          .scan-manual{display:flex;gap:8px;padding:8px 14px 12px;padding-bottom:max(12px,env(safe-area-inset-bottom,12px));background:rgba(0,0,0,.6)}
+          .scan-manual input{flex:1;padding:10px;border-radius:8px;border:none;font-size:15px;text-transform:uppercase}
+          .scan-manual button{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:700}
+          '''
+              CSS = '\n'.join(l[10:] if l.startswith(' ' * 10) else l for l in CSS.split('\n'))
+              once('</style>\n</head>', CSS + '</style>\n</head>', 'penutup style')
+
+              # ---------- overlay pemindai ----------
+              OVERLAY = '''<div id="scan-overlay">
+            <div class="scan-top"><span id="scan-title">Scan resi</span><button onclick="kqScanClose()">✕ Tutup</button></div>
+            <div class="scan-view"><video id="scan-video" playsinline muted autoplay></video><div class="scan-frame"></div></div>
+            <div id="scan-msg">Arahkan kamera ke QR / barcode resi</div>
+            <div class="scan-bottom"><button id="scan-torch" style="display:none" onclick="kqScanTorch()">🔦 Lampu</button><button onclick="kqScanFile()">🖼️ Dari foto</button></div>
+            <div class="scan-manual"><input id="scan-manual-input" type="text" placeholder="atau ketik no. resi"><button onclick="kqScanManual()">Cari</button></div>
+            <input type="file" id="scan-file" accept="image/*" style="display:none">
+          </div>
+          '''
+              OVERLAY = '\n'.join(l[10:] if l.startswith(' ' * 10) else l for l in OVERLAY.split('\n'))
+              once('</body>', OVERLAY + '</body>', 'penutup body')
+
+              # ---------- JS ----------
+              JS = r'''/*RESI-v1*/
+          function kqResiNorm(x){return String(x==null?'':x).toUpperCase().replace(/[^A-Z0-9]/g,'');}
+          function kqResiTokens(text){
+              const raw=String(text||'').toUpperCase(),set=new Set();
+              const n=kqResiNorm(raw);if(n&&n.length<=40)set.add(n);
+              (raw.match(/[A-Z]{2,5}[\s\-]?[0-9]{6,}/g)||[]).forEach(m=>set.add(kqResiNorm(m)));
+              (raw.match(/\b[0-9]{9,}\b/g)||[]).forEach(m=>set.add(m));
+              return [...set];
+          }
+          function kqResiBest(text){
+              const raw=String(text||'').toUpperCase();
+              const m=raw.match(/[A-Z]{2,5}[\s\-]?[0-9]{6,}/);
+              if(m)return kqResiNorm(m[0]);
+              const n=kqResiNorm(raw);
+              return n.length<=40?n:n.slice(0,40);
+          }
+          async function kqResiFind(text){
+              const tokens=kqResiTokens(text),all=await getAllAddresses(),out=[];
+              for(const a of all){
+                  const r=kqResiNorm(a.resi),d=kqResiNorm(a.description);
+                  let hit='';
+                  for(const t of tokens){if(r&&r===t){hit='resi';break;}}
+                  if(!hit){for(const t of tokens){if(t.length>=8&&d.includes(t)){hit='catatan:'+t;break;}}}
+                  if(hit)out.push({a:a,hit:hit});
+              }
+              return out;
+          }
+          let kqScanStream=null,kqScanTimer=null,kqScanTarget=null,kqScanBusy=false,kqScanReader=null,kqScanTrack=null,kqScanTorchOn=false;
+          function kqScanMsg(t){const e=document.getElementById('scan-msg');if(e)e.textContent=t;}
+          function kqScanLoadLib(){
+              if(window.ZXing)return Promise.resolve(true);
+              return new Promise(res=>{
+                  const s=document.createElement('script');
+                  s.src='lib/zxing.min.js';
+                  s.onload=()=>res(!!window.ZXing);
+                  s.onerror=()=>res(false);
+                  document.head.appendChild(s);
+              });
+          }
+          function kqScanReaderGet(){
+              if(kqScanReader)return kqScanReader;
+              const F=ZXing.BarcodeFormat,h=new Map();
+              h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[F.QR_CODE,F.CODE_128,F.CODE_39,F.EAN_13,F.EAN_8,F.ITF,F.UPC_A,F.CODABAR,F.DATA_MATRIX]);
+              h.set(ZXing.DecodeHintType.TRY_HARDER,true);
+              kqScanReader=new ZXing.MultiFormatReader();
+              kqScanReader.setHints(h);
+              return kqScanReader;
+          }
+          function kqScanDecodeCanvas(c){
+              try{
+                  const bmp=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(c)));
+                  return kqScanReaderGet().decode(bmp).getText();
+              }catch(e){return '';}
+          }
+          function kqScanStop(){
+              if(kqScanTimer){clearInterval(kqScanTimer);kqScanTimer=null;}
+              if(kqScanStream){kqScanStream.getTracks().forEach(t=>t.stop());kqScanStream=null;}
+              kqScanTrack=null;kqScanTorchOn=false;
+              const v=document.getElementById('scan-video');if(v){try{v.pause();}catch(e){}v.srcObject=null;}
+          }
+          function kqScanClose(){kqScanStop();const o=document.getElementById('scan-overlay');if(o)o.classList.remove('active');}
+          async function kqScanOpen(target){
+              kqScanTarget=target||null;
+              const t=document.getElementById('scan-title');
+              if(t)t.textContent=(typeof target==='string'||(target&&target.updateId))?'Scan resi untuk disimpan':'Scan resi';
+              document.getElementById('scan-overlay').classList.add('active');
+              document.getElementById('scan-manual-input').value='';
+              document.getElementById('scan-torch').style.display='none';
+              kqScanMsg('Menyiapkan kamera...');
+              kqScanStop();
+              try{
+                  if(!(await kqScanLoadLib()))throw new Error('pustaka pemindai (lib/zxing.min.js) tidak ditemukan');
+                  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('kamera tidak didukung di sini');
+                  kqScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+                  const v=document.getElementById('scan-video');
+                  v.srcObject=kqScanStream;
+                  await v.play();
+                  kqScanTrack=kqScanStream.getVideoTracks()[0]||null;
+                  try{const caps=kqScanTrack&&kqScanTrack.getCapabilities?kqScanTrack.getCapabilities():{};if(caps&&caps.torch)document.getElementById('scan-torch').style.display='';}catch(e){}
+                  kqScanMsg('Arahkan kamera ke QR / barcode resi');
+                  const canvas=document.createElement('canvas');
+                  kqScanTimer=setInterval(()=>{
+                      if(kqScanBusy||v.readyState<2||!v.videoWidth)return;
+                      kqScanBusy=true;
+                      try{
+                          const sc=Math.min(1,960/v.videoWidth);
+                          canvas.width=Math.round(v.videoWidth*sc);canvas.height=Math.round(v.videoHeight*sc);
+                          canvas.getContext('2d').drawImage(v,0,0,canvas.width,canvas.height);
+                          const text=kqScanDecodeCanvas(canvas);
+                          if(text){try{navigator.vibrate&&navigator.vibrate(80);}catch(e){}kqScanHandle(text);}
+                      }finally{kqScanBusy=false;}
+                  },160);
+              }catch(e){
+                  kqScanMsg('Kamera tidak bisa dibuka ('+(e&&e.message?e.message:e)+'). Pakai "Dari foto" atau ketik no. resi.');
+              }
+          }
+          async function kqScanTorch(){
+              if(!kqScanTrack)return;
+              try{kqScanTorchOn=!kqScanTorchOn;await kqScanTrack.applyConstraints({advanced:[{torch:kqScanTorchOn}]});}catch(e){kqScanTorchOn=false;}
+          }
+          function kqScanFile(){const f=document.getElementById('scan-file');f.value='';f.click();}
+          (function(){
+              const f=document.getElementById('scan-file');
+              if(!f)return;
+              f.addEventListener('change',async()=>{
+                  const file=f.files&&f.files[0];if(!file)return;
+                  kqScanMsg('Membaca gambar...');
+                  try{
+                      if(!(await kqScanLoadLib()))throw new Error('pustaka pemindai tidak ditemukan');
+                      const url=URL.createObjectURL(file);
+                      const img=new Image();
+                      await new Promise((ok,no)=>{img.onload=ok;img.onerror=()=>no(new Error('gambar tidak bisa dibuka'));img.src=url;});
+                      let text='';
+                      for(const max of [1600,1000,640]){
+                          const sc=Math.min(1,max/Math.max(img.width,img.height));
+                          const c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+                          c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+                          text=kqScanDecodeCanvas(c);if(text)break;
+                      }
+                      URL.revokeObjectURL(url);
+                      if(text)kqScanHandle(text);else kqScanMsg('Tidak ada QR/barcode terbaca di foto. Coba foto lebih dekat dan tajam.');
+                  }catch(e){kqScanMsg('Gagal membaca foto: '+(e&&e.message?e.message:e));}
+              });
+          })();
+          function kqScanManual(){
+              const v=document.getElementById('scan-manual-input').value.trim();
+              if(!v){kqScanMsg('Ketik no. resi dulu.');return;}
+              kqScanHandle(v);
+          }
+          async function kqScanHandle(text){
+              text=String(text||'').trim();if(!text)return;
+              const target=kqScanTarget;
+              kqScanClose();
+              const tok=kqResiBest(text);
+              if(typeof target==='string'){
+                  const f=document.getElementById(target);
+                  if(f){f.value=tok;f.dispatchEvent(new Event('input'));}
+                  return;
+              }
+              if(target&&target.updateId){
+                  const a=await getAddressById(target.updateId);
+                  if(!a){showModal('Error','Alamat tidak ditemukan.');return;}
+                  a.resi=tok;
+                  await saveAddress(a);
+                  const same=(await getAllAddresses()).filter(x=>x.id!==a.id&&kqResiNorm(x.resi)&&kqResiNorm(x.resi)===kqResiNorm(tok));
+                  showModal('Sukses','📦 No. resi disimpan: '+tok+(same.length?'\n\n⚠️ Resi yang sama juga ada di: '+same.map(x=>x.recipient_name||'-').join(', '):''));
+                  showAddressDetail(a.id);
+                  return;
+              }
+              const hits=await kqResiFind(text);
+              if(hits.length===1){
+                  const h=hits[0];
+                  if(!h.a.resi&&h.hit.indexOf('catatan:')===0){h.a.resi=h.hit.slice(8);try{await saveAddress(h.a);}catch(e){}}
+                  showAddressDetail(h.a.id);
+                  return;
+              }
+              if(hits.length>1){
+                  const m=document.getElementById('modal-content');
+                  m.innerHTML='<h2>'+hits.length+' alamat cocok</h2><p>Resi: '+escapeHtmlMerge(tok)+'</p>';
+                  hits.forEach(h=>{
+                      const b=document.createElement('button');b.className='btn-secondary';b.style.cssText='width:100%;margin-top:8px;text-align:left';
+                      b.textContent=(h.a.recipient_name||'-')+' · '+String(h.a.address||'').slice(0,50);
+                      b.onclick=()=>{closeModal();showAddressDetail(h.a.id);};
+                      m.appendChild(b);
+                  });
+                  document.getElementById('modal').classList.add('active');
+                  return;
+              }
+              showConfirmModal('Resi tidak ditemukan','No. resi: '+tok+'\n\nBelum ada alamat dengan resi ini.\nBuat alamat baru dengan resi ini?',()=>{
+                  showRecordSheet();
+                  const f=document.getElementById('form-resi');if(f)f.value=tok;
+              });
+          }
+          '''
+              JS = '\n'.join(l[10:] if l.startswith(' ' * 10) else l for l in JS.split('\n'))
+              once('async function getAllAddresses(){', JS + 'async function getAllAddresses(){', 'getAllAddresses')
+              open(p, 'w', encoding='utf-8').write(s)
+              print('✅ index.html dipatch (resi + scan)')
+
+          # ---------- sw.js: pracache pustaka pemindai ----------
+          sp = 'sw.js'
+          if os.path.exists(sp):
+              w = open(sp, encoding='utf-8').read()
+              if './lib/zxing.min.js' in w:
+                  print('✅ sw.js sudah memuat zxing')
+              elif "'./lib/leaflet.css'," in w and "const SHELL = 'kurir-q-shell-v2';" in w:
+                  w = w.replace("'./lib/leaflet.css',", "'./lib/leaflet.css', './lib/zxing.min.js',", 1).replace("const SHELL = 'kurir-q-shell-v2';", "const SHELL = 'kurir-q-shell-v3';", 1)
+                  open(sp, 'w', encoding='utf-8').write(w)
+                  print('✅ sw.js diperbarui')
+              else:
+                  print('ℹ️ sw.js dilewati (bentuknya tidak dikenali); pemindai tetap jalan, hanya belum di-cache lebih awal')
+
+          # ---------- ocr.html: kolom resi ----------
+          op = 'ocr.html'
+          if os.path.exists(op):
+              o = open(op, encoding='utf-8').read()
+              if '/*RESI-OCR-v1*/' in o:
+                  print('✅ ocr.html sudah dipatch')
+              else:
+                  a1 = "const headers=['nama','no_wa','alamat','catatan'];"
+                  a2 = "const rows=items.map(it=>[it.nama||'',it.wa||'',it.alamat||'',it.catatan||'']);"
+                  a3 = 'function generateCSV(){'
+                  if o.count(a1) == 1 and o.count(a2) == 1 and o.count(a3) == 1:
+                      o = o.replace(a3, "/*RESI-OCR-v1*/\nfunction ocrResiFrom(it){if(it&&it.resi)return it.resi;const m=String((it&&it.catatan)||'').toUpperCase().match(/\\b[A-Z]{2,5}\\d{6,}\\b/);return m?m[0]:'';}\n" + a3, 1)
+                      o = o.replace(a1, "const headers=['nama','no_wa','alamat','catatan','resi'];", 1)
+                      o = o.replace(a2, "const rows=items.map(it=>[it.nama||'',it.wa||'',it.alamat||'',it.catatan||'',ocrResiFrom(it)]);", 1)
+                      open(op, 'w', encoding='utf-8').write(o)
+                      print('✅ ocr.html dipatch (kolom resi)')
+                  else:
+                      print('ℹ️ ocr.html dilewati (generateCSV tidak dikenali)')
+          PY
+
+      - name: Commit perubahan
+        run: |
+          git add -A index.html sw.js ocr.html lib/zxing.min.js lib/zxing.LICENSE.txt
+          if git diff --cached --quiet; then
+            echo "✅ Tidak ada perubahan"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "feat: no. resi + scan QR/barcode di semua menu"
+            git push
+            echo "✅ Di-commit ke repo"
+          fi
