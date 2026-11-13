@@ -1,0 +1,278 @@
+name: Patch OCR - Final (Status, COD, CSV, Bug Fixes)
+
+# ocr.html: konsolidasi semua patch (status mode, ambil semua, COD, order tanpa ID,
+# bug fixes, export CSV tanpa catatan + resi kolom sendiri).
+# Aman dijalankan ulang: tiap bagian punya marker sendiri.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch ocr.html
+        run: |
+          python3 - <<'PY'
+          import sys, os
+          p = 'ocr.html'
+          if not os.path.exists(p):
+              sys.exit('❌ ocr.html tidak ditemukan di root repo')
+          s = open(p, encoding='utf-8').read()
+
+          def once(old, new, label):
+              global s
+              if s.count(old) != 1:
+                  sys.exit('❌ ' + label + ' tidak ditemukan tepat satu kali — ocr.html TIDAK diubah')
+              s = s.replace(old, new, 1)
+
+          changed = False
+
+          # ============================================================
+          # SECTION 1: OCRMODE — pilih status, ambil semua, COD, tanpa ID
+          # ============================================================
+          if '/*OCRMODE-v1*/' not in s:
+              once('<h1>📷 OCR → CSV (Sedang Diproses)</h1>', '<h1>📷 OCR → CSV</h1>', 'judul')
+              once('→ tap <strong>Ekstrak Teks</strong> → <strong>hanya order "Sedang diproses"</strong> yang diambil → Export CSV',
+                   '→ pilih <strong>status yang diambil</strong> → tap <strong>Ekstrak Teks</strong> → Export CSV', 'petunjuk')
+
+              CARD = '''    <div class="card" id="mode-card">
+        <div class="form-group" style="margin-bottom:6px">
+            <label for="ocr-status-mode">Status order yang diambil</label>
+            <select id="ocr-status-mode">
+                <option value="processing">Sedang diproses saja</option>
+                <option value="all">Ambil semua (semua status / tanpa status)</option>
+            </select>
+        </div>
+        <div class="mem-hint" id="mode-hint" style="text-align:left"></div>
+    </div>
+
+'''
+              once('    </div>\n\n    <div class="card" id="upload-card">',
+                   '    </div>\n\n' + CARD + '    <div class="card" id="upload-card">', 'kartu unggah')
+
+              once('.status-badge{display:inline-block;background:#dbeafe;',
+                   '.cod-badge{background:#fef3c7!important;color:#92400e!important}'
+                   '\n.noncod-badge{background:#e5e7eb!important;color:#374151!important}'
+                   '\n@media(prefers-color-scheme:dark){.cod-badge{background:#78350f!important;color:#fde68a!important}.noncod-badge{background:#374151!important;color:#e5e7eb!important}}'
+                   '\n.status-badge{display:inline-block;background:#dbeafe;', 'CSS lencana')
+
+              once('<span class="status-badge">✓ Sedang diproses</span>', '${ocrBadges(item)}', 'lencana daftar')
+
+              NEWFN = '''/*OCRMODE-v1*/
+          const OCR_NONCOD_RE=/\\b(?:non|bukan|tanpa)[\\s\\-]?c[o0]d\\b/i;
+          const OCR_COD_RE=/\\bc[o0ö]d\\b/i;
+          function ocrMode(){const e=document.getElementById('ocr-status-mode');return e&&e.value==='all'?'all':'processing';}
+          function ocrOrderLabel(){return ocrMode()==='all'?'order':'order "Sedang diproses"';}
+          function ocrTip(){return ocrMode()==='all'?'Pastikan screenshot menampilkan nama, nomor HP, dan alamat penerima':'Pastikan screenshot menampilkan order ID + status';}
+          function ocrUpdateModeHint(){
+              const h=document.getElementById('mode-hint');if(!h)return;
+              h.textContent=ocrMode()==='all'
+                  ?'Semua order diambil, termasuk yang tanpa status. COD / NON-COD dicatat otomatis di kolom catatan bila terbaca. Bila tidak ada ID order, pesanan dikenali dari nomor HP (hasil perlu dicek).'
+                  :'Hanya order berstatus "Sedang diproses" yang diambil. COD / NON-COD tetap dicatat bila terbaca.';
+          }
+          function ocrBadges(item){
+              const c=(item&&item.catatan)||'';let h='';
+              if(/sedang\\s+diproses/i.test(c))h+='<span class="status-badge">✓ Sedang diproses</span>';
+              if(OCR_NONCOD_RE.test(c))h+='<span class="status-badge noncod-badge">NON-COD</span>';
+              else if(OCR_COD_RE.test(c))h+='<span class="status-badge cod-badge">💰 COD</span>';
+              return h;
+          }
+          function ocrIsCodLine(l){return (OCR_NONCOD_RE.test(l)||OCR_COD_RE.test(l))&&l.length<=45;}
+          function ocrCodInfo(lines){
+              let flag='',amount='';
+              for(const l of lines){if(OCR_NONCOD_RE.test(l)){flag='NON-COD';break;}}
+              if(!flag){
+                  for(const l of lines){
+                      if(OCR_COD_RE.test(l)){
+                          flag='COD';
+                          const m=l.match(/c[o0ö]d\\s*[:\\-]?\\s*(?:rp\\.?\\s*)?(\\d[\\d.,]{3,})/i);
+                          if(m)amount=m[1].replace(/[.,]+$/,'');
+                          break;
+                      }
+                  }
+              }
+              return flag?(flag==='COD'&&amount?'COD Rp'+amount:flag):'';
+          }
+          function ocrPhoneFromLine(l){
+              if(l.length>40)return '';
+              const d=l.replace(/\\D/g,'');
+              return /^(?:62|0)?8\\d{8,12}$/.test(d)?d:'';
+          }
+          function ocrIsPhoneLine(l){return !!ocrPhoneFromLine(l);}
+          function ocrSegmentByPhone(lines,statusRegex){
+              const idx=[];lines.forEach((l,i)=>{if(ocrIsPhoneLine(l))idx.push(i);});
+              const out=[];
+              for(let k=0;k<idx.length;k++){
+                  const start=idx[k]>0?idx[k]-1:idx[k];
+                  const end=k+1<idx.length?Math.max(idx[k],idx[k+1]-2):lines.length-1;
+                  const block=lines.slice(start,end+1);
+                  let st='';
+                  for(const l of block){const sm=l.match(statusRegex);if(sm){st=sm[1].toLowerCase();break;}}
+                  out.push({orderId:'',status:st,lines:block,head:''});
+              }
+              return out;
+          }
+          function parseMultipleOrders(text){
+              const mode=ocrMode();
+              const lines=text.split('\\n').map(l=>l.trim()).filter(l=>l.length>0);
+              let orders=[];
+              let current=null;
+              const orderIdRegex=/\\b([A-Z]{2,}\\d{6,})\\b/i;
+              const statusRegex=/(sedang\\s+diproses|diproses|selesai|batal|pending|dikirim|dikemas)/i;
+              for(const line of lines){
+                  const idMatch=line.match(orderIdRegex);
+                  if(idMatch){
+                      if(current)orders.push(current);
+                      const statusMatch=line.match(statusRegex);
+                      current={orderId:idMatch[1],status:statusMatch?statusMatch[1].toLowerCase():'',lines:[],head:line};
+                  }else if(current){
+                      current.lines.push(line);
+                      if(!current.status){const sm=line.match(statusRegex);if(sm)current.status=sm[1].toLowerCase();}
+                  }
+              }
+              if(current)orders.push(current);
+              if(mode==='all'&&orders.length===0)orders=ocrSegmentByPhone(lines,statusRegex);
+              const picked=mode==='all'?orders:orders.filter(o=>{
+                  const s=(o.status||'').toLowerCase();
+                  if(/selesai|batal|dikirim|dikemas|pending/i.test(s))return false;
+                  return /diproses/i.test(s);
+              });
+              return picked.map(o=>{
+                  const cod=ocrCodInfo([o.head||'',...o.lines]);
+                  const L=o.lines.filter(l=>!ocrIsCodLine(l));
+                  let nama='',wa='',alamat='',waIdx=-1;
+                  const waPatterns=[/\\(\\+?62\\)[\\s\\-\\d]{8,}/,/\\+?62[\\s\\-\\d]{9,}/,/\\b0\\d{2}[\\s\\-]?\\d{3,4}[\\s\\-]?\\d{3,4}\\b/,/\\b8\\d{2}[\\s\\-]?\\d{3,4}[\\s\\-]?\\d{3,4}\\b/];
+                  for(let i=0;i<L.length;i++){
+                      let hit=ocrPhoneFromLine(L[i]);
+                      if(!hit){for(const p of waPatterns){if(p.test(L[i])){hit=L[i].replace(/\\D/g,'');break;}}}
+                      if(hit){wa=normalizeWhatsApp(hit);waIdx=i;break;}
+                  }
+                  if(waIdx>0)nama=L[waIdx-1];
+                  else if(waIdx===-1&&L.length>0)nama=L[0];
+                  if(waIdx>=0&&waIdx<L.length-1)alamat=L.slice(waIdx+1).join(', ');
+                  const catatan=[o.orderId,o.status,cod].filter(Boolean).join(' - ');
+                  return{nama:(nama||'').trim(),wa,alamat:(alamat||'').trim(),catatan};
+              });
+          }
+          (function(){
+              const sel=document.getElementById('ocr-status-mode');
+              if(!sel)return;
+              try{const v=localStorage.getItem('kq_ocr_mode');if(v==='all'||v==='processing')sel.value=v;}catch(e){}
+              sel.addEventListener('change',()=>{try{localStorage.setItem('kq_ocr_mode',sel.value);}catch(e){}ocrUpdateModeHint();});
+              ocrUpdateModeHint();
+          })();
+          '''
+
+              a = s.find('function parseMultipleOrders(text){')
+              b = s.find('function dedupeOrders(orders){')
+              if a < 0 or b < a:
+                  sys.exit('❌ parseMultipleOrders tidak ditemukan — ocr.html TIDAK diubah')
+              s = s[:a] + NEWFN + s[b:]
+
+              once("alert('⚠️ Tidak ada order \"Sedang diproses\" yang terdeteksi.\\n\\nTips:\\n• Pastikan screenshot menampilkan order ID + status\\n• Coba crop lebih ketat');",
+                   "alert('⚠️ Tidak ada '+ocrOrderLabel()+' yang terdeteksi.\\n\\nTips:\\n• '+ocrTip()+'\\n• Coba crop lebih ketat');", 'pesan kosong biasa')
+              once('Tidak ada order "Sedang diproses" terdeteksi.', 'Tidak ada ${ocrOrderLabel()} terdeteksi.', 'pesan kosong panjang')
+
+              print('✅ SECTION 1 (OCRMODE) diterapkan')
+              changed = True
+          else:
+              print('⏭️  SECTION 1 (OCRMODE) sudah ada')
+
+          # ============================================================
+          # SECTION 2: OCRSAFE — bug fixes
+          # ============================================================
+          if '/*OCRSAFE-v1*/' not in s:
+              once(
+                  "        infoText.insertAdjacentHTML('afterend',statsHtml);",
+                  "        /*OCRSAFE-v1*/ const _alertEl=infoText.parentElement;\n        _alertEl.querySelectorAll('.tile-info').forEach(function(n){n.remove();});\n        infoText.insertAdjacentHTML('afterend',statsHtml);",
+                  'tile-info fix'
+              )
+              once(
+                  "function ocrResiFrom(it){if(it&&it.resi)return it.resi;const m=String((it&&it.catatan)||'').toUpperCase().match(/\\b[A-Z]{2,5}\\d{6,}\\b/);return m?m[0]:'';}",
+                  "function ocrResiFrom(it){if(it&&it.resi)return it.resi;const m=String((it&&it.catatan)||'').toUpperCase().match(/\\b[A-Z]{2,}\\d{6,}\\b/);return m?m[0]:'';}",
+                  'regex resi'
+              )
+              once(
+                  "    if(!nama){alert('Nama penerima wajib diisi');return;}\n    const wa=waRaw?normalizeWhatsApp(waRaw):'';\n    items.push({nama,wa,alamat,catatan});",
+                  "    if(!nama){alert('Nama penerima wajib diisi');return;}\n    const wa=waRaw?normalizeWhatsApp(waRaw):'';\n    if(waRaw&&(!wa||wa.length<10||wa.length>15)){if(!confirm('⚠️ Nomor WA tampak tidak valid ('+(wa||waRaw)+'). Tetap tambahkan?'))return;}\n    items.push({nama,wa,alamat,catatan});",
+                  'validasi WA tambah'
+              )
+              once(
+                  "    if(!nama){alert('Nama wajib diisi');return;}\n    const waRaw=document.getElementById('edit-wa').value.trim();\n    items[editingIndex]={nama,wa:waRaw?normalizeWhatsApp(waRaw):'',alamat:document.getElementById('edit-alamat').value.trim(),catatan:document.getElementById('edit-catatan').value.trim()};",
+                  "    if(!nama){alert('Nama wajib diisi');return;}\n    const waRaw=document.getElementById('edit-wa').value.trim();\n    const waNorm=waRaw?normalizeWhatsApp(waRaw):'';\n    if(waRaw&&(!waNorm||waNorm.length<10||waNorm.length>15)){if(!confirm('⚠️ Nomor WA tampak tidak valid ('+(waNorm||waRaw)+'). Tetap simpan?'))return;}\n    items[editingIndex]={nama,wa:waNorm,alamat:document.getElementById('edit-alamat').value.trim(),catatan:document.getElementById('edit-catatan').value.trim()};",
+                  'validasi WA edit'
+              )
+              once(
+                  "function closeEditModal(){document.getElementById('edit-modal').classList.remove('active');editingIndex=-1;}",
+                  "function closeEditModal(){document.getElementById('edit-modal').classList.remove('active');editingIndex=-1;}\ndocument.getElementById('edit-modal').addEventListener('click',function(e){if(e.target&&e.target.id==='edit-modal')closeEditModal();});",
+                  'modal overlay close'
+              )
+              once(
+                  '        <div class="mem-hint" id="mem-hint"></div>',
+                  '        <button class="btn btn-secondary btn-block" id="manual-input-btn" style="margin-top:10px" onclick="document.getElementById(\'result-form-wrap\').style.display=\'block\';document.getElementById(\'result-form-wrap\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">✍️ Input Manual (tanpa OCR)</button>\n        <div class="mem-hint" id="mem-hint"></div>',
+                  'tombol input manual'
+              )
+              once(
+                  "function resetUpload(){\n    freeCurrentBlob();freePreviewUrl();freeCurrentLongImage();",
+                  "function resetUpload(){\n    freeCurrentBlob();freePreviewUrl();freeCurrentLongImage();\n    ['ocr-name','ocr-wa','ocr-alamat','ocr-catatan'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});",
+                  'reset form'
+              )
+              once(
+                  "    let successCount=0;\n    const failedPages=[];",
+                  "    let successCount=0;\n    const failedPages=[];\n    const allPdfOrders=[];",
+                  'pdf akumulator'
+              )
+              once(
+                  "                const orders=parseMultipleOrders(text);\n                orders.forEach(o=>{items.push(o);successCount++;});\n                freeCurrentBlob();",
+                  "                const orders=parseMultipleOrders(text);\n                orders.forEach(o=>{allPdfOrders.push(o);successCount++;});\n                freeCurrentBlob();",
+                  'pdf push akumulator'
+              )
+              once(
+                  "        renderItems();\n        document.getElementById('progress-wrap').classList.remove('active');\n        let msg=`✓ Selesai.\\n\\nOrder ditemukan: ${successCount}`;",
+                  "        const uniquePdf=dedupeOrders(allPdfOrders);\n        uniquePdf.forEach(o=>items.push(o));\n        const dupPdf=successCount-uniquePdf.length;\n        renderItems();\n        document.getElementById('progress-wrap').classList.remove('active');\n        let msg=`✓ Selesai.\\n\\nOrder ditemukan: ${successCount}`;\n        if(dupPdf>0)msg+=`\\n🔁 Duplikat dibuang: ${dupPdf}\\n✨ Order unik final: ${uniquePdf.length}`;",
+                  'pdf dedupe'
+              )
+              print('✅ SECTION 2 (OCRSAFE) diterapkan')
+              changed = True
+          else:
+              print('⏭️  SECTION 2 (OCRSAFE) sudah ada')
+
+          # ============================================================
+          # SECTION 3: OCRCSV — CSV tanpa catatan, resi kolom sendiri
+          # ============================================================
+          if '/*OCRCSV-v1*/' not in s:
+              once(
+                  "function generateCSV(){\n    const headers=['nama','no_wa','alamat','catatan','resi'];\n    const rows=items.map(it=>[it.nama||'',it.wa||'',it.alamat||'',it.catatan||'',ocrResiFrom(it)]);",
+                  "/*OCRCSV-v1*/\nfunction generateCSV(){\n    const headers=['nama','no_wa','alamat','resi'];\n    const rows=items.map(it=>[it.nama||'',it.wa||'',it.alamat||'',ocrResiFrom(it)]);",
+                  'generateCSV headers & rows'
+              )
+              print('✅ SECTION 3 (OCRCSV) diterapkan')
+              changed = True
+          else:
+              print('⏭️  SECTION 3 (OCRCSV) sudah ada')
+
+          if changed:
+              open(p, 'w', encoding='utf-8').write(s)
+              print('✅ ocr.html dipatch (final)')
+          else:
+              print('✅ Semua section sudah dipatch sebelumnya')
+          PY
+
+      - name: Commit perubahan
+        run: |
+          if git diff --quiet ocr.html; then
+            echo "✅ Tidak ada perubahan"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add ocr.html
+            git commit -m "feat(ocr): final — status mode, COD, CSV tanpa catatan, bug fixes"
+            git push
+            echo "✅ Di-commit ke repo"
+          fi
