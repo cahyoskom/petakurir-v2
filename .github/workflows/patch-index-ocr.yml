@@ -1,9 +1,8 @@
 name: Patch Index - Indikator Tanpa Lokasi (One-Time)
 
-# index.html: badge "📍 Tanpa Lokasi" pada record tanpa koordinat valid,
-# filter chip di list, dan info jumlah setelah import CSV.
-# Tidak mengubah alur import — hanya membantu kurir mengidentifikasi record
-# hasil OCR yang masih butuh GPS (koordinat 0,0).
+# index.html: badge "📍 Tanpa Lokasi" pada record tanpa koordinat valid
+# (biasanya hasil import CSV OCR), filter chip di list, dan info jumlah
+# setelah import sukses. Tidak mengubah alur import.
 on:
   workflow_dispatch:
 
@@ -30,56 +29,52 @@ jobs:
 
           def once(old, new, label):
               global s
-              if s.count(old) != 1:
-                  sys.exit('❌ ' + label + ' tidak ditemukan tepat satu kali — index.html TIDAK diubah')
+              n = s.count(old)
+              if n != 1:
+                  sys.exit('❌ ' + label + ' ditemukan ' + str(n) + 'x (butuh tepat 1) — index.html TIDAK diubah')
               s = s.replace(old, new, 1)
 
-          # 1) CSS badge
+          # 1) CSS badge — sisipkan sebelum </style> (satu-satunya penutup style)
           once(
-              ".status-badge{display:inline-block;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-left:4px}",
-              "/*NOLOC-v1*/\n.noloc-badge{background:#fef3c7!important;color:#92400e!important;font-weight:600}\n@media(prefers-color-scheme:dark){.noloc-badge{background:#78350f!important;color:#fde68a!important}}\n.status-badge{display:inline-block;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-left:4px}",
+              '</style>',
+              '/*NOLOC-v1*/\n'
+              '.noloc-badge{display:inline-block;background:#fef3c7;color:#92400e;'
+              'padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;'
+              'margin-left:4px;vertical-align:middle;white-space:nowrap;flex-shrink:0}\n'
+              '@media(prefers-color-scheme:dark){.noloc-badge{background:#78350f;color:#fde68a}}\n'
+              '</style>',
               'CSS noloc-badge'
           )
 
-          # 2) Badge di list — pada setiap item
+          # 2) Badge di list — sisipkan setelah nama
           once(
               '<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span>',
-              '<div class="address-item-name">${a.recipient_name}</div>${!hasValidCoordinates(a)?\'<span class="status-badge noloc-badge" title="Belum ada koordinat — buka Edit untuk set">📍 Tanpa Lokasi</span>\':\'\'}</div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span>',
+              """<div class="address-item-name">${a.recipient_name}</div>${!hasValidCoordinates(a)?'<span class="noloc-badge">📍 Tanpa Lokasi</span>':''}</div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span>""",
               'badge list'
           )
 
           # 3) Filter chip di list
           once(
               '<button class="filter-btn" data-filter="sulit">Sulit</button>',
-              '<button class="filter-btn" data-filter="sulit">Sulit</button>\n<button class="filter-btn" data-filter="nocoord">📍 Tanpa Lokasi</button>',
+              '<button class="filter-btn" data-filter="sulit">Sulit</button>\n'
+              '<button class="filter-btn" data-filter="nocoord">📍 Tanpa Lokasi</button>',
               'filter chip list'
           )
 
           # 4) Logika filter list
           once(
               "            if(currentFilter==='sulit')return a.location_type==='sulit'||a.location_type==='patokan';",
-              "            if(currentFilter==='sulit')return a.location_type==='sulit'||a.location_type==='patokan';\n            if(currentFilter==='nocoord')return !hasValidCoordinates(a);",
+              "            if(currentFilter==='sulit')return a.location_type==='sulit'||a.location_type==='patokan';\n"
+              "            if(currentFilter==='nocoord')return !hasValidCoordinates(a);",
               'filter logic list'
           )
 
-          # 5) Filter chip di map
+          # 5) Info jumlah no-coord setelah import sukses
           once(
-              '<button class="filter-btn" data-map-filter="sulit">Sulit</button>',
-              '<button class="filter-btn" data-map-filter="sulit">Sulit</button>\n<button class="filter-btn" data-map-filter="nocoord">📍 Tanpa Lokasi</button>',
-              'filter chip map'
-          )
-
-          # 6) Logika filter map
-          once(
-              "                else if(currentMapFilter==='sulit')shouldShow=addr.location_type==='sulit'||addr.location_type==='patokan';",
-              "                else if(currentMapFilter==='sulit')shouldShow=addr.location_type==='sulit'||addr.location_type==='patokan';\n                else if(currentMapFilter==='nocoord')shouldShow=!hasValidCoordinates(addr);",
-              'filter logic map'
-          )
-
-          # 7) Info jumlah no-coord setelah import sukses
-          once(
-              "    msg+=`\\n\\n💡 Semua status = \"Belum Selesai\"`;",
-              "    msg+=`\\n\\n💡 Semua status = \"Belum Selesai\"`;\n    try{const _noc=(await getAllAddresses()).filter(a=>!hasValidCoordinates(a));if(_noc.length>0)msg+=`\\n\\n📍 ${_noc.length} alamat belum punya koordinat — buka Edit → ambil GPS agar bisa di-rute.`;}catch(e){}",
+              '    msg+=`\\n\\n💡 Semua status = "Belum Selesai"`;',
+              '    msg+=`\\n\\n💡 Semua status = "Belum Selesai"`;\n'
+              '    try{const _noc=(await getAllAddresses()).filter(a=>!hasValidCoordinates(a));'
+              'if(_noc.length>0)msg+=`\\n\\n📍 ${_noc.length} alamat belum punya koordinat — buka Edit → ambil GPS agar bisa di-rute.`;}catch(e){}',
               'info nocoord import'
           )
 
