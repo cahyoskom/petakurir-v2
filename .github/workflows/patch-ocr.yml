@@ -34,7 +34,7 @@ jobs:
           changed = False
 
           # ============================================================
-          # SECTION 1: OCRMODE — pilih status, ambil semua, COD, tanpa ID
+          # SECTION 1: OCRMODE
           # ============================================================
           if '/*OCRMODE-v1*/' not in s:
               once('<h1>📷 OCR → CSV (Sedang Diproses)</h1>', '<h1>📷 OCR → CSV</h1>', 'judul')
@@ -42,19 +42,19 @@ jobs:
                    '→ pilih <strong>status yang diambil</strong> → tap <strong>Ekstrak Teks</strong> → Export CSV', 'petunjuk')
 
               CARD = '''    <div class="card" id="mode-card">
-        <div class="form-group" style="margin-bottom:6px">
-            <label for="ocr-status-mode">Status order yang diambil</label>
-            <select id="ocr-status-mode">
-                <option value="processing">Sedang diproses saja</option>
-                <option value="all">Ambil semua (semua status / tanpa status)</option>
-            </select>
-        </div>
-        <div class="mem-hint" id="mode-hint" style="text-align:left"></div>
-    </div>
+                  <div class="form-group" style="margin-bottom:6px">
+                      <label for="ocr-status-mode">Status order yang diambil</label>
+                      <select id="ocr-status-mode">
+                          <option value="processing">Sedang diproses saja</option>
+                          <option value="all">Ambil semua (semua status / tanpa status)</option>
+                      </select>
+                  </div>
+                  <div class="mem-hint" id="mode-hint" style="text-align:left"></div>
+              </div>'''
+              CARD = '\n'.join(l[10:] if l.startswith(' ' * 10) else l for l in CARD.split('\n'))
 
-'''
               once('    </div>\n\n    <div class="card" id="upload-card">',
-                   '    </div>\n\n' + CARD + '    <div class="card" id="upload-card">', 'kartu unggah')
+                   '    </div>\n\n' + CARD + '\n\n    <div class="card" id="upload-card">', 'kartu unggah')
 
               once('.status-badge{display:inline-block;background:#dbeafe;',
                    '.cod-badge{background:#fef3c7!important;color:#92400e!important}'
@@ -166,14 +166,14 @@ jobs:
               try{const v=localStorage.getItem('kq_ocr_mode');if(v==='all'||v==='processing')sel.value=v;}catch(e){}
               sel.addEventListener('change',()=>{try{localStorage.setItem('kq_ocr_mode',sel.value);}catch(e){}ocrUpdateModeHint();});
               ocrUpdateModeHint();
-          })();
-          '''
+          })();'''
+              NEWFN = '\n'.join(l[10:] if l.startswith(' ' * 10) else l for l in NEWFN.split('\n'))
 
               a = s.find('function parseMultipleOrders(text){')
               b = s.find('function dedupeOrders(orders){')
               if a < 0 or b < a:
                   sys.exit('❌ parseMultipleOrders tidak ditemukan — ocr.html TIDAK diubah')
-              s = s[:a] + NEWFN + s[b:]
+              s = s[:a] + NEWFN + '\n          ' + s[b:]
 
               once("alert('⚠️ Tidak ada order \"Sedang diproses\" yang terdeteksi.\\n\\nTips:\\n• Pastikan screenshot menampilkan order ID + status\\n• Coba crop lebih ketat');",
                    "alert('⚠️ Tidak ada '+ocrOrderLabel()+' yang terdeteksi.\\n\\nTips:\\n• '+ocrTip()+'\\n• Coba crop lebih ketat');", 'pesan kosong biasa')
@@ -244,7 +244,7 @@ jobs:
               print('⏭️  SECTION 2 (OCRSAFE) sudah ada')
 
           # ============================================================
-          # SECTION 3: OCRCSV — CSV tanpa catatan, resi kolom sendiri
+          # SECTION 3: OCRCSV
           # ============================================================
           if '/*OCRCSV-v1*/' not in s:
               once(
