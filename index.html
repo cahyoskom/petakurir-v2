@@ -179,6 +179,9 @@ input[type=number]{-moz-appearance:textfield}
 .scan-manual{display:flex;gap:8px;padding:8px 14px 12px;padding-bottom:max(12px,env(safe-area-inset-bottom,12px));background:rgba(0,0,0,.6)}
 .scan-manual input{flex:1;padding:10px;border-radius:8px;border:none;font-size:15px;text-transform:uppercase}
 .scan-manual button{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:700}
+/*NOLOC-v1*/
+.noloc-badge{display:inline-block;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:4px;vertical-align:middle;white-space:nowrap;flex-shrink:0}
+@media(prefers-color-scheme:dark){.noloc-badge{background:#78350f;color:#fde68a}}
 </style>
 </head>
 <body>
@@ -243,6 +246,7 @@ input[type=number]{-moz-appearance:textfield}
 <button class="filter-btn" data-filter="cod">COD</button>
 <button class="filter-btn" data-filter="nitip">Nitip</button>
 <button class="filter-btn" data-filter="sulit">Sulit</button>
+<button class="filter-btn" data-filter="nocoord">📍 Tanpa Lokasi</button>
 </div>
 <div style="padding:8px 12px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
 <span style="font-size:12px;color:var(--text-light);font-weight:600;white-space:nowrap">🔤 Urutkan:</span>
@@ -2402,6 +2406,7 @@ async function updateAddressList(){
             if(currentFilter==='cod')return a.payment_status?.includes('cod');
             if(currentFilter==='nitip')return a.location_type==='nitip';
             if(currentFilter==='sulit')return a.location_type==='sulit'||a.location_type==='patokan';
+            if(currentFilter==='nocoord')return !hasValidCoordinates(a);
             return true;
         });
     }
@@ -2423,7 +2428,7 @@ async function updateAddressList(){
         const rtRw=(a.rt||a.rw)?`RT ${a.rt||'-'}/RW ${a.rw||'-'}`:'';
         const kel=a.kelurahan?`Kel. ${a.kelurahan}`:'';
         const detailLine=[rtRw,kel].filter(Boolean).join(' · ');
-        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck?'checked':''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th?`<img data-lazy="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">`:''}<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang||''} ${a.house_number||''}${detailLine?`<br>${detailLine}`:''}${a.landmark||a.address?`<br>${a.landmark||a.address}`:''}</div>${waLine}${a.resi?`<div style="color:#2563eb;margin-top:2px;font-family:monospace;font-size:12px">📦 ${escapeHtmlMerge(a.resi)}</div>`:''}<div class="address-item-meta">📍 ${formatDate(a.last_visit_at||a.created_at)} · ${a.visit_count||1}x · ${rc} penerima${ap.length>1?` · ${ap.length} foto`:''}</div></div>`;
+        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck?'checked':''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th?`<img data-lazy="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">`:''}<div class="address-item-name">${a.recipient_name}</div>${!hasValidCoordinates(a)?'<span class="noloc-badge">📍 Tanpa Lokasi</span>':''}</div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang||''} ${a.house_number||''}${detailLine?`<br>${detailLine}`:''}${a.landmark||a.address?`<br>${a.landmark||a.address}`:''}</div>${waLine}${a.resi?`<div style="color:#2563eb;margin-top:2px;font-family:monospace;font-size:12px">📦 ${escapeHtmlMerge(a.resi)}</div>`:''}<div class="address-item-meta">📍 ${formatDate(a.last_visit_at||a.created_at)} · ${a.visit_count||1}x · ${rc} penerima${ap.length>1?` · ${ap.length} foto`:''}</div></div>`;
     }).join('');
     requestAnimationFrame(()=>{document.querySelectorAll('#address-list img[data-lazy]').forEach(img=>{const src=img.dataset.lazy;if(src){img.src=src;delete img.dataset.lazy;}});});
 }
@@ -2731,6 +2736,7 @@ async function processCSVImport(count){
     if(coordPreserved>0) msg+=`\n✅ Koordinat lama dipertahankan: ${coordPreserved}`;
     if(photoPreserved>0) msg+=`\n✅ Foto lama dipertahankan: ${photoPreserved}`;
     msg+=`\n\n💡 Semua status = "Belum Selesai"`;
+    try{const _noc=(await getAllAddresses()).filter(a=>!hasValidCoordinates(a));if(_noc.length>0)msg+=`\n\n📍 ${_noc.length} alamat belum punya koordinat — buka Edit → ambil GPS agar bisa di-rute.`;}catch(e){}
 
     const issues=analyzeWhatsAppNumbers(window.importNewAddresses);
     const warnings=[];
