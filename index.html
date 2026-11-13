@@ -896,13 +896,13 @@ async function kqResiFind(text){
 }
 let kqScanStream=null,kqScanTimer=null,kqScanTarget=null,kqScanBusy=false,kqScanReader=null,kqScanTrack=null,kqScanTorchOn=false;
 function kqScanMsg(t){const e=document.getElementById('scan-msg');if(e)e.textContent=t;}
-function kqScanLoadLib(){
+/*QRFILE-v1*/function kqScanLoadJsQR(){if(window.jsQR)return Promise.resolve(true);return new Promise(function(r){var t=document.createElement("script");t.src="lib/jsqr.min.js";t.onload=function(){r(!!window.jsQR)};t.onerror=function(){var u=document.createElement("script");u.src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";u.onload=function(){r(!!window.jsQR)};u.onerror=function(){r(false)};document.head.appendChild(u)};document.head.appendChild(t)})}function kqScanLoadLib(){
     if(window.ZXing)return Promise.resolve(true);
     return new Promise(res=>{
         const s=document.createElement('script');
         s.src='lib/zxing.min.js';
         s.onload=()=>res(!!window.ZXing);
-        s.onerror=()=>res(false);
+        s.onerror=()=>{var t=document.createElement("script");t.src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js";t.onload=()=>res(!!window.ZXing);t.onerror=()=>res(false);document.head.appendChild(t)};
         document.head.appendChild(s);
     });
 }
@@ -980,11 +980,11 @@ function kqScanFile(){const f=document.getElementById('scan-file');f.value='';f.
   const img=new Image();
   await new Promise((ok,no)=>{img.onload=ok;img.onerror=()=>no(new Error('gambar tidak bisa dibuka'));img.src=url;});
   let text='';
-  for(const max of [1600,1000,640]){
+  for(const max of [2000,1600,1200,900,640]){
       const sc=Math.min(1,max/Math.max(img.width,img.height));
       const c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
       c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-      text=kqScanDecodeCanvas(c);if(text)break;
+      text=kqScanDecodeCanvas(c);if(text)break;try{var i=c.getContext("2d").getImageData(0,0,c.width,c.height);if(window.jsQR){var j=jsQR(i.data,c.width,c.height,{inversionAttempts:"attemptBoth"});if(j&&j.data){text=j.data;break}}}catch(e){}
   }
   URL.revokeObjectURL(url);
   if(text)kqScanHandle(text);else kqScanMsg('Tidak ada QR/barcode terbaca di foto. Coba foto lebih dekat dan tajam.');
