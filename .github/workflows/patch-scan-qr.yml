@@ -14,36 +14,38 @@ jobs:
 
       - name: Patch index.html
         run: |
-          python3 << 'PYEOF'
+          python3 -c '
           import sys
-          s = open('index.html').read()
-          if '/*QRFILE-v1*/' in s:
-              print('sudah dipatch'); sys.exit(0)
-          new_loader = "function kqScanLoadJsQR(){if(window.jsQR)return Promise.resolve(true);return new Promise(res=>{const s=document.createElement('script');s.src='lib/jsqr.min.js';s.onload=()=>res(!!window.jsQR);s.onerror=()=>{const s2=document.createElement('script');s2.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';s2.onload=()=>res(!!window.jsQR);s2.onerror=()=>res(false);document.head.appendChild(s2);};document.head.appendChild(s);});}"
-          old_lib = 'function kqScanLoadLib(){'
-          if old_lib not in s:
-              print('ERROR: kqScanLoadLib tidak ditemukan'); sys.exit(1)
-          s = s.replace(old_lib, new_loader + '/*QRFILE-v1*/' + old_lib, 1)
-          old_zx = "s.onerror=()=>res(false);"
-          new_zx = "s.onerror=()=>{const s2=document.createElement('script');s2.src='https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js';s2.onload=()=>res(!!window.ZXing);s2.onerror=()=>res(false);document.head.appendChild(s2);};"
-          s = s.replace(old_zx, new_zx, 1)
-          s = s.replace('for(const max of [1600,1000,640]){', 'for(const max of [2000,1600,1200,900,640]){', 1)
-          old_dec = 'text=kqScanDecodeCanvas(c);if(text)break;'
-          new_dec = "text=kqScanDecodeCanvas(c);if(text)break;try{const _id=c.getContext('2d').getImageData(0,0,c.width,c.height);if(window.jsQR){const _c=jsQR(_id.data,c.width,c.height,{inversionAttempts:'attemptBoth'});if(_c&&_c.data){text=_c.data;break;}}}catch(e){}"
-          s = s.replace(old_dec, new_dec, 1)
-          open('index.html','w').write(s)
-          print('✅ patch applied')
-          PYEOF
+          s = open("index.html").read()
+          if "QRFILE-v1" in s:
+              print("already patched")
+              sys.exit(0)
+          old = "function kqScanLoadLib(){"
+          if old not in s:
+              print("ERROR: kqScanLoadLib not found")
+              sys.exit(1)
+          loader = "function kqScanLoadJsQR(){if(window.jsQR)return Promise.resolve(true);return new Promise(function(r){var t=document.createElement(\"script\");t.src=\"lib/jsqr.min.js\";t.onload=function(){r(!!window.jsQR)};t.onerror=function(){var u=document.createElement(\"script\");u.src=\"https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js\";u.onload=function(){r(!!window.jsQR)};u.onerror=function(){r(false)};document.head.appendChild(u)};document.head.appendChild(t)})}"
+          s = s.replace(old, "/*QRFILE-v1*/" + loader + old, 1)
+          z1 = "s.onerror=()=>res(false);"
+          z2 = "s.onerror=()=>{var t=document.createElement(\"script\");t.src=\"https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js\";t.onload=()=>res(!!window.ZXing);t.onerror=()=>res(false);document.head.appendChild(t)};"
+          s = s.replace(z1, z2, 1)
+          s = s.replace("for(const max of [1600,1000,640]){", "for(const max of [2000,1600,1200,900,640]){", 1)
+          d1 = "text=kqScanDecodeCanvas(c);if(text)break;"
+          d2 = "text=kqScanDecodeCanvas(c);if(text)break;try{var i=c.getContext(\"2d\").getImageData(0,0,c.width,c.height);if(window.jsQR){var j=jsQR(i.data,c.width,c.height,{inversionAttempts:\"attemptBoth\"});if(j&&j.data){text=j.data;break}}}catch(e){}"
+          s = s.replace(d1, d2, 1)
+          open("index.html", "w").write(s)
+          print("OK patched")
+          '
 
       - name: Commit
         run: |
           if git diff --quiet index.html; then
-            echo "✅ Tidak ada perubahan"
+            echo "no changes"
           else
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add index.html
-            git commit -m "fix: scan QR dari foto (jsQR fallback + CDN + multi-scale)"
+            git commit -m "fix: scan QR from photo (jsQR + ZXing CDN fallback)"
             git push
-            echo "✅ Di-commit"
+            echo "committed"
           fi
