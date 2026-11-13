@@ -108,6 +108,24 @@ jobs:
               print('✅ receiver sudah dipatch')
           PY
 
+      # Pastikan lib/ yang dibutuhkan fitur (peta, scan resi) tersedia
+      - name: Ensure lib files (leaflet, zxing)
+        run: |
+          mkdir -p lib
+          for pair in \
+            "leaflet.js|https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" \
+            "leaflet.css|https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" \
+            "zxing.min.js|https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"; do
+            f="${pair%%|*}"; url="${pair##*|}"
+            if [ ! -f "lib/$f" ]; then
+              echo "⬇️  Download lib/$f"
+              curl -fsSL -o "lib/$f" "$url" || echo "⚠️  Gagal download $f (fitur terkait akan fallback)"
+            else
+              echo "✅ lib/$f sudah ada"
+            fi
+          done
+          ls -lh lib/
+
       - name: Prepare Web Assets
         run: |
           mkdir -p www
