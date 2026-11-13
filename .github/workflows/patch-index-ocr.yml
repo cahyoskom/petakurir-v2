@@ -1,8 +1,8 @@
-name: Patch Index - Indikator Tanpa Lokasi (One-Time)
+name: Patch Build APK - Ensure lib Files (One-Time)
 
-# index.html: badge "📍 Tanpa Lokasi" pada record tanpa koordinat valid
-# (biasanya hasil import CSV OCR), filter chip di list, dan info jumlah
-# setelah import sukses. Tidak mengubah alur import.
+# build-apk.yml: tambahkan step "Ensure lib files" sebelum "Prepare Web Assets"
+# agar lib/zxing.min.js (scan resi), lib/leaflet.js & lib/leaflet.css (peta)
+# selalu tersedia. Kalau file tidak ada di repo, diunduh otomatis dari CDN.
 on:
   workflow_dispatch:
 
@@ -16,81 +16,56 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Patch index.html
+      - name: Patch build-apk.yml
         run: |
           python3 - <<'PY'
-          import sys, os
-          p = 'index.html'
+          import sys, os, textwrap
+          p = '.github/workflows/build-apk.yml'
           if not os.path.exists(p):
-              sys.exit('❌ index.html tidak ditemukan di root repo')
+              sys.exit('❌ ' + p + ' tidak ditemukan')
           s = open(p, encoding='utf-8').read()
-          if '/*NOLOC-v1*/' in s:
+          if '/*ENSURE-LIB-v1*/' in s:
               print('✅ sudah dipatch'); sys.exit(0)
 
-          def once(old, new, label):
-              global s
-              n = s.count(old)
-              if n != 1:
-                  sys.exit('❌ ' + label + ' ditemukan ' + str(n) + 'x (butuh tepat 1) — index.html TIDAK diubah')
-              s = s.replace(old, new, 1)
+          anchor = '      - name: Prepare Web Assets\n'
+          if s.count(anchor) != 1:
+              sys.exit('❌ anchor "Prepare Web Assets" tidak ditemukan tepat 1x — build-apk.yml TIDAK diubah')
 
-          # 1) CSS badge — sisipkan sebelum </style> (satu-satunya penutup style)
-          once(
-              '</style>',
-              '/*NOLOC-v1*/\n'
-              '.noloc-badge{display:inline-block;background:#fef3c7;color:#92400e;'
-              'padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;'
-              'margin-left:4px;vertical-align:middle;white-space:nowrap;flex-shrink:0}\n'
-              '@media(prefers-color-scheme:dark){.noloc-badge{background:#78350f;color:#fde68a}}\n'
-              '</style>',
-              'CSS noloc-badge'
-          )
+          NEWSTEP = textwrap.dedent('''\
+                # /*ENSURE-LIB-v1*/ Pastikan lib/ yang dibutuhkan fitur (peta, scan resi) tersedia
+                - name: Ensure lib files (leaflet, zxing)
+                  run: |
+                    mkdir -p lib
+                    for pair in \\
+                      "leaflet.js|https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" \\
+                      "leaflet.css|https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" \\
+                      "zxing.min.js|https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"; do
+                      f="${pair%%|*}"; url="${pair##*|}"
+                      if [ ! -f "lib/$f" ]; then
+                        echo "⬇️  Download lib/$f"
+                        curl -fsSL -o "lib/$f" "$url" || echo "⚠️  Gagal download $f (fitur terkait akan fallback)"
+                      else
+                        echo "✅ lib/$f sudah ada"
+                      fi
+                    done
+                    ls -lh lib/
 
-          # 2) Badge di list — sisipkan setelah nama
-          once(
-              '<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span>',
-              """<div class="address-item-name">${a.recipient_name}</div>${!hasValidCoordinates(a)?'<span class="noloc-badge">📍 Tanpa Lokasi</span>':''}</div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span>""",
-              'badge list'
-          )
+          ''')
 
-          # 3) Filter chip di list
-          once(
-              '<button class="filter-btn" data-filter="sulit">Sulit</button>',
-              '<button class="filter-btn" data-filter="sulit">Sulit</button>\n'
-              '<button class="filter-btn" data-filter="nocoord">📍 Tanpa Lokasi</button>',
-              'filter chip list'
-          )
-
-          # 4) Logika filter list
-          once(
-              "            if(currentFilter==='sulit')return a.location_type==='sulit'||a.location_type==='patokan';",
-              "            if(currentFilter==='sulit')return a.location_type==='sulit'||a.location_type==='patokan';\n"
-              "            if(currentFilter==='nocoord')return !hasValidCoordinates(a);",
-              'filter logic list'
-          )
-
-          # 5) Info jumlah no-coord setelah import sukses
-          once(
-              '    msg+=`\\n\\n💡 Semua status = "Belum Selesai"`;',
-              '    msg+=`\\n\\n💡 Semua status = "Belum Selesai"`;\n'
-              '    try{const _noc=(await getAllAddresses()).filter(a=>!hasValidCoordinates(a));'
-              'if(_noc.length>0)msg+=`\\n\\n📍 ${_noc.length} alamat belum punya koordinat — buka Edit → ambil GPS agar bisa di-rute.`;}catch(e){}',
-              'info nocoord import'
-          )
-
+          s = s.replace(anchor, NEWSTEP + anchor, 1)
           open(p, 'w', encoding='utf-8').write(s)
-          print('✅ index.html dipatch (indikator tanpa lokasi)')
+          print('✅ build-apk.yml dipatch (ensure lib files)')
           PY
 
       - name: Commit perubahan
         run: |
-          if git diff --quiet index.html; then
+          if git diff --quiet .github/workflows/build-apk.yml; then
             echo "✅ Tidak ada perubahan"
           else
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add index.html
-            git commit -m "feat(index): indikator tanpa lokasi pada record hasil import"
+            git add .github/workflows/build-apk.yml
+            git commit -m "chore(apk): ensure lib files (leaflet, zxing) sebelum prepare assets"
             git push
             echo "✅ Di-commit ke repo"
           fi
