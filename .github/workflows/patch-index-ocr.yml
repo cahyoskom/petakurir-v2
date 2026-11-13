@@ -1,0 +1,101 @@
+name: Patch Index - Indikator Tanpa Lokasi (One-Time)
+
+# index.html: badge "📍 Tanpa Lokasi" pada record tanpa koordinat valid,
+# filter chip di list, dan info jumlah setelah import CSV.
+# Tidak mengubah alur import — hanya membantu kurir mengidentifikasi record
+# hasil OCR yang masih butuh GPS (koordinat 0,0).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          import sys, os
+          p = 'index.html'
+          if not os.path.exists(p):
+              sys.exit('❌ index.html tidak ditemukan di root repo')
+          s = open(p, encoding='utf-8').read()
+          if '/*NOLOC-v1*/' in s:
+              print('✅ sudah dipatch'); sys.exit(0)
+
+          def once(old, new, label):
+              global s
+              if s.count(old) != 1:
+                  sys.exit('❌ ' + label + ' tidak ditemukan tepat satu kali — index.html TIDAK diubah')
+              s = s.replace(old, new, 1)
+
+          # 1) CSS badge
+          once(
+              ".status-badge{display:inline-block;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-left:4px}",
+              "/*NOLOC-v1*/\n.noloc-badge{background:#fef3c7!important;color:#92400e!important;font-weight:600}\n@media(prefers-color-scheme:dark){.noloc-badge{background:#78350f!important;color:#fde68a!important}}\n.status-badge{display:inline-block;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-left:4px}",
+              'CSS noloc-badge'
+          )
+
+          # 2) Badge di list — pada setiap item
+          once(
+              '<div class="address-item-name">${a.recipient_name}</div></div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span>',
+              '<div class="address-item-name">${a.recipient_name}</div>${!hasValidCoordinates(a)?\'<span class="status-badge noloc-badge" title="Belum ada koordinat — buka Edit untuk set">📍 Tanpa Lokasi</span>\':\'\'}</div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span>',
+              'badge list'
+          )
+
+          # 3) Filter chip di list
+          once(
+              '<button class="filter-btn" data-filter="sulit">Sulit</button>',
+              '<button class="filter-btn" data-filter="sulit">Sulit</button>\n<button class="filter-btn" data-filter="nocoord">📍 Tanpa Lokasi</button>',
+              'filter chip list'
+          )
+
+          # 4) Logika filter list
+          once(
+              "            if(currentFilter==='sulit')return a.location_type==='sulit'||a.location_type==='patokan';",
+              "            if(currentFilter==='sulit')return a.location_type==='sulit'||a.location_type==='patokan';\n            if(currentFilter==='nocoord')return !hasValidCoordinates(a);",
+              'filter logic list'
+          )
+
+          # 5) Filter chip di map
+          once(
+              '<button class="filter-btn" data-map-filter="sulit">Sulit</button>',
+              '<button class="filter-btn" data-map-filter="sulit">Sulit</button>\n<button class="filter-btn" data-map-filter="nocoord">📍 Tanpa Lokasi</button>',
+              'filter chip map'
+          )
+
+          # 6) Logika filter map
+          once(
+              "                else if(currentMapFilter==='sulit')shouldShow=addr.location_type==='sulit'||addr.location_type==='patokan';",
+              "                else if(currentMapFilter==='sulit')shouldShow=addr.location_type==='sulit'||addr.location_type==='patokan';\n                else if(currentMapFilter==='nocoord')shouldShow=!hasValidCoordinates(addr);",
+              'filter logic map'
+          )
+
+          # 7) Info jumlah no-coord setelah import sukses
+          once(
+              "    msg+=`\\n\\n💡 Semua status = \"Belum Selesai\"`;",
+              "    msg+=`\\n\\n💡 Semua status = \"Belum Selesai\"`;\n    try{const _noc=(await getAllAddresses()).filter(a=>!hasValidCoordinates(a));if(_noc.length>0)msg+=`\\n\\n📍 ${_noc.length} alamat belum punya koordinat — buka Edit → ambil GPS agar bisa di-rute.`;}catch(e){}",
+              'info nocoord import'
+          )
+
+          open(p, 'w', encoding='utf-8').write(s)
+          print('✅ index.html dipatch (indikator tanpa lokasi)')
+          PY
+
+      - name: Commit perubahan
+        run: |
+          if git diff --quiet index.html; then
+            echo "✅ Tidak ada perubahan"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add index.html
+            git commit -m "feat(index): indikator tanpa lokasi pada record hasil import"
+            git push
+            echo "✅ Di-commit ke repo"
+          fi
