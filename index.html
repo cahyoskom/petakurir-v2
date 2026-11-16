@@ -439,7 +439,7 @@ input[type=number]{-moz-appearance:textfield}
 <button class="btn-secondary" id="detail-nav-btn" style="padding:12px;border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px">🧭 Navigasi</button>
 <button class="btn-secondary" id="detail-share-btn" style="padding:12px;border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px">📤 Share</button>
 <button class="btn-primary" id="detail-visit-btn" style="padding:12px;border:none;border-radius:6px;font-weight:600;font-size:13px">📍 Kunjungan</button>
-<button class="btn-danger" id="detail-delete-btn" style="grid-column:span 2;padding:12px;border:none;border-radius:6px;font-weight:600;font-size:13px">🗑️ Hapus Alamat</button>
+<button class="btn-secondary" id="detail-quicksave-btn" style="padding:12px;border:1px solid #10b981;border-radius:6px;font-weight:600;font-size:13px;background:#10b981;color:#fff" onclick="kqQuickPhotoFor(currentDetailId)">📸 Foto</button><button class="btn-danger" id="detail-delete-btn" style="grid-column:span 2;padding:12px;border:none;border-radius:6px;font-weight:600;font-size:13px">🗑️ Hapus Alamat</button>
 </div>
 </div>
 </div>
@@ -2428,7 +2428,7 @@ async function updateAddressList(){
         const rtRw=(a.rt||a.rw)?`RT ${a.rt||'-'}/RW ${a.rw||'-'}`:'';
         const kel=a.kelurahan?`Kel. ${a.kelurahan}`:'';
         const detailLine=[rtRw,kel].filter(Boolean).join(' · ');
-        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck?'checked':''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th?`<img data-lazy="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">`:''}<div class="address-item-name">${a.recipient_name}</div>${!hasValidCoordinates(a)?'<span class="noloc-badge">📍 Tanpa Lokasi</span>':''}</div><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang||''} ${a.house_number||''}${detailLine?`<br>${detailLine}`:''}${a.landmark||a.address?`<br>${a.landmark||a.address}`:''}</div>${waLine}${a.resi?`<div style="color:#2563eb;margin-top:2px;font-family:monospace;font-size:12px">📦 ${escapeHtmlMerge(a.resi)}</div>`:''}<div class="address-item-meta">📍 ${formatDate(a.last_visit_at||a.created_at)} · ${a.visit_count||1}x · ${rc} penerima${ap.length>1?` · ${ap.length} foto`:''}</div></div>`;
+        return `<div class="address-item" data-addr-id="${a.id}" onclick="showAddressDetail('${a.id}')"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px"><div style="display:flex;align-items:center;flex:1;gap:8px"><input type="checkbox" class="address-item-checkbox" data-addr-id="${a.id}" ${ck?'checked':''} style="cursor:pointer" onclick="event.stopPropagation(); toggleBulkSelect('${a.id}')">${th?`<img data-lazy="${th}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;pointer-events:none">`:''}<div class="address-item-name">${a.recipient_name}</div>${!hasValidCoordinates(a)?'<span class="noloc-badge">📍 Tanpa Lokasi</span>':''}</div><button onclick="event.stopPropagation(); kqQuickPhotoFor('${a.id}')" style="width:36px;height:36px;border-radius:50%;background:#10b981;color:#fff;border:none;cursor:pointer;font-size:16px;flex-shrink:0;padding:0;display:flex;align-items:center;justify-content:center;margin-right:6px" title="Quick Foto">📸</button><span style="color:${sc};font-weight:600;font-size:12px">${sl}</span></div><div class="address-item-details">${a.gang||''} ${a.house_number||''}${detailLine?`<br>${detailLine}`:''}${a.landmark||a.address?`<br>${a.landmark||a.address}`:''}</div>${waLine}${a.resi?`<div style="color:#2563eb;margin-top:2px;font-family:monospace;font-size:12px">📦 ${escapeHtmlMerge(a.resi)}</div>`:''}<div class="address-item-meta">📍 ${formatDate(a.last_visit_at||a.created_at)} · ${a.visit_count||1}x · ${rc} penerima${ap.length>1?` · ${ap.length} foto`:''}</div></div>`;
     }).join('');
     requestAnimationFrame(()=>{document.querySelectorAll('#address-list img[data-lazy]').forEach(img=>{const src=img.dataset.lazy;if(src){img.src=src;delete img.dataset.lazy;}});});
 }
@@ -3374,5 +3374,6 @@ window.addEventListener('load',()=>setTimeout(init,50));
 <script src="lib/quicksave.js"></script>
 <!--QUICKSAVE-v1-->
 <input type="file" id="kqQuickPhoto" accept="image/*" capture="environment" style="display:none">
+<!--QS-CARD-v1-->
 </body>
 </html>
