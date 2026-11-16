@@ -14,7 +14,7 @@ jobs:
 
       - name: Update quicksave.js
         run: |
-          python3 -c '
+          cat > /tmp/p1.py <<'PYEOF'
           import sys, os
           if not os.path.exists("lib/quicksave.js"):
               sys.exit("ERROR: lib/quicksave.js tidak ada. Upload dulu.")
@@ -24,106 +24,110 @@ jobs:
               sys.exit(0)
           add = """
 
-async function kqQuickPhotoFor(addrId){
-    if(!addrId){showModal("Error","ID alamat kosong");return;}
-    const a=await getAddressById(addrId);
-    if(!a){showModal("Error","Alamat tidak ditemukan");return;}
-    const existing=extractAddressPhotos(a);
-    if(existing.length>=2){
-        showConfirmModal("Foto Sudah Ada ("+existing.length+")","Alamat sudah punya "+existing.length+" foto. Ganti foto lama?",
-            function(){kqQuickPhotoCapture(addrId)});
-        return;
-    }
-    kqQuickPhotoCapture(addrId);
-}
+          async function kqQuickPhotoFor(addrId){
+              if(!addrId){showModal("Error","ID alamat kosong");return;}
+              const a=await getAddressById(addrId);
+              if(!a){showModal("Error","Alamat tidak ditemukan");return;}
+              const existing=extractAddressPhotos(a);
+              if(existing.length>=2){
+                  showConfirmModal("Foto Sudah Ada ("+existing.length+")","Alamat sudah punya "+existing.length+" foto. Ganti foto lama?",
+                      function(){kqQuickPhotoCapture(addrId)});
+                  return;
+              }
+              kqQuickPhotoCapture(addrId);
+          }
 
-function kqQuickPhotoCapture(addrId){
-    const input=document.getElementById("kqQuickPhoto");
-    if(!input){showModal("Error","Input foto tidak ada");return;}
-    input.value="";
-    input.onchange=async function(e){
-        const file=e.target.files&&e.target.files[0];
-        if(!file)return;
-        showLoading("Menyimpan foto...");
-        try{
-            const compressed=await compressImage(file,900,0.72);
-            if(!compressed)throw new Error("Gagal proses foto");
-            const a=await getAddressById(addrId);
-            if(!a)throw new Error("Alamat tidak ditemukan");
-            let photos=extractAddressPhotos(a);
-            if(photos.length===0){photos=[compressed];}
-            else if(photos.length===1){photos=[photos[0],compressed];}
-            else{photos=[compressed,photos[1]];}
-            a.photos=photos;
-            a.photo=photos[0];
-            a.updated_at=new Date().toISOString();
-            if(!a.history)a.history=[];
-            a.history.push({date:new Date().toISOString(),status:"foto",notes:"Quick foto via card"});
-            await saveAddress(a);
-            hideLoading();
-            updateMapMarkers();
-            updateAddressList();
-            toast("Foto tersimpan: "+a.recipient_name,"success");
-            if(currentDetailId===addrId)setTimeout(function(){showAddressDetail(addrId)},200);
-        }catch(err){
-            hideLoading();
-            showModal("Error","Gagal: "+err.message);
-        }
-    };
-    input.click();
-}
-"""
-          open("lib/quicksave.js","w").write(qs + add)
+          function kqQuickPhotoCapture(addrId){
+              const input=document.getElementById("kqQuickPhoto");
+              if(!input){showModal("Error","Input foto tidak ada");return;}
+              input.value="";
+              input.onchange=async function(e){
+                  const file=e.target.files&&e.target.files[0];
+                  if(!file)return;
+                  showLoading("Menyimpan foto...");
+                  try{
+                      const compressed=await compressImage(file,900,0.72);
+                      if(!compressed)throw new Error("Gagal proses foto");
+                      const a=await getAddressById(addrId);
+                      if(!a)throw new Error("Alamat tidak ditemukan");
+                      let photos=extractAddressPhotos(a);
+                      if(photos.length===0){photos=[compressed];}
+                      else if(photos.length===1){photos=[photos[0],compressed];}
+                      else{photos=[compressed,photos[1]];}
+                      a.photos=photos;
+                      a.photo=photos[0];
+                      a.updated_at=new Date().toISOString();
+                      if(!a.history)a.history=[];
+                      a.history.push({date:new Date().toISOString(),status:"foto",notes:"Quick foto via card"});
+                      await saveAddress(a);
+                      hideLoading();
+                      updateMapMarkers();
+                      updateAddressList();
+                      toast("Foto tersimpan: "+a.recipient_name,"success");
+                      if(currentDetailId===addrId)setTimeout(function(){showAddressDetail(addrId)},200);
+                  }catch(err){
+                      hideLoading();
+                      showModal("Error","Gagal: "+err.message);
+                  }
+              };
+              input.click();
+          }
+          """
+          open("lib/quicksave.js","a").write(add)
           print("OK: kqQuickPhotoFor added")
-          '
+          PYEOF
+          python3 /tmp/p1.py
 
       - name: Patch index.html
         run: |
-          python3 -c '
+          cat > /tmp/p2.py <<'PYEOF'
           import sys
-          s = open("index.html").read()
+          s = open("index.html", encoding="utf-8").read()
           if "QS-CARD-v1" in s:
-              print("already patched"); sys.exit(0)
+              print("already patched")
+              sys.exit(0)
 
-          # 1. Pastikan script ref + input ada
+          # 1) Pastikan script ref + input ada
           if "lib/quicksave.js" not in s:
               s = s.replace("</body>", "<script src=\"lib/quicksave.js\"></script>\n</body>", 1)
+              print("OK: script ref added")
           if "id=\"kqQuickPhoto\"" not in s:
               s = s.replace("</body>", "<input type=\"file\" id=\"kqQuickPhoto\" accept=\"image/*\" capture=\"environment\" style=\"display:none\">\n</body>", 1)
+              print("OK: input file added")
 
-          # 2. Hapus tombol btnQuickSaveList global (kalau ada dari patch sebelumnya)
+          # 2) Hapus tombol list global (kalau ada dari patch 1)
           if "id=\"btnQuickSaveList\"" in s:
               idx = s.find("id=\"btnQuickSaveList\"")
               if idx > 0:
                   start = s.rfind("<button", 0, idx)
-                  end = s.find("</button>", idx) + len("</button>")
+                  end = s.find("</button>", idx) + 9
                   if start > 0 and end > start:
                       s = s[:start] + s[end:]
                       print("OK: tombol list global dihapus")
 
-          # 3. Tambah tombol per-card di updateAddressList
+          # 3) Tambah tombol per-card
           old_span = "<span style=\"color:${sc};font-weight:600;font-size:12px\">${sl}</span>"
-          if old_span in s and "kqQuickPhotoFor" not in s[:s.find(old_span)+200]:
-              btn = "<button onclick=\"event.stopPropagation(); kqQuickPhotoFor('" + "${a.id}" + "')\" style=\"width:36px;height:36px;border-radius:50%;background:#10b981;color:#fff;border:none;cursor:pointer;font-size:16px;flex-shrink:0;padding:0;display:flex;align-items:center;justify-content:center;margin-right:6px\" title=\"Quick Foto\">📸</button>"
+          if old_span in s:
+              btn = "<button onclick=\"event.stopPropagation(); kqQuickPhotoFor('${a.id}')\" style=\"width:36px;height:36px;border-radius:50%;background:#10b981;color:#fff;border:none;cursor:pointer;font-size:16px;flex-shrink:0;padding:0;display:flex;align-items:center;justify-content:center;margin-right:6px\" title=\"Quick Foto\">📸</button>"
               s = s.replace(old_span, btn + old_span, 1)
               print("OK: tombol per-card ditambahkan")
           else:
-              print("WARN: pattern card tidak ketemu (mungkin sudah ada tombol)")
+              print("WARN: pattern card tidak ditemukan")
 
-          # 4. Tambah tombol di detail sheet (sebelum delete btn)
+          # 4) Tambah tombol di detail sheet
           old_del = "<button class=\"btn-danger\" id=\"detail-delete-btn\""
           if old_del in s and "detail-quicksave-btn" not in s:
               btn = "<button class=\"btn-secondary\" id=\"detail-quicksave-btn\" style=\"padding:12px;border:1px solid #10b981;border-radius:6px;font-weight:600;font-size:13px;background:#10b981;color:#fff\" onclick=\"kqQuickPhotoFor(currentDetailId)\">📸 Foto</button>"
               s = s.replace(old_del, btn + old_del, 1)
               print("OK: tombol detail sheet ditambahkan")
 
-          # 5. Marker
-          if "QS-CARD-v1" not in s:
-              s = s.replace("</body>", "<!--QS-CARD-v1-->\n</body>", 1)
+          # 5) Marker
+          s = s.replace("</body>", "<!--QS-CARD-v1-->\n</body>", 1)
 
-          open("index.html","w").write(s)
+          open("index.html", "w", encoding="utf-8").write(s)
           print("OK: index.html patched")
-          '
+          PYEOF
+          python3 /tmp/p2.py
 
       - name: Commit
         run: |
