@@ -197,7 +197,7 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 
 <div class="container">
-<header><h1>📦 Kurir-Q</h1><div style="display:flex;align-items:center;gap:2px"><button class="menu-btn" id="scan-btn" onclick="kqScanOpen()" title="Scan resi">📷</button><button class="menu-btn" id="menu-btn">☰</button></div></header>
+<header><h1>📦 Kurir-Q</h1><div style="display:flex;align-items:center;gap:2px"><button class="menu-btn" id="quicksave-btn" onclick="kqQuickSave()" title="Quick save foto">📸</button><button class="menu-btn" id="scan-btn" onclick="kqScanOpen()" title="Scan resi">📷</button><button class="menu-btn" id="menu-btn">☰</button></div></header>
 <main>
 <!-- PETA: Hapus class active -->
 <div class="page" id="map-page">
@@ -222,7 +222,7 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 <div id="map"></div>
 <button id="zoom-to-location-btn" title="Geser untuk pindah · Tap untuk refresh lokasi">🎯</button>
-<div class="fab-container"><button class="fab" id="record-btn" title="Catat Selesai">✓</button></div>
+<div class="fab-container"><button class="fab" id="quicksave-fab" onclick="kqQuickSave()" title="Quick Save Foto" style="background:#10b981">📸</button><button class="fab" id="record-btn" title="Catat Selesai">✓</button></div>
 </div>
 
 <!-- DAFTAR ALAMAT: Tambahkan class active -->
@@ -3371,5 +3371,8 @@ window.addEventListener('load',()=>setTimeout(init,50));
   <div class="scan-manual"><input id="scan-manual-input" type="text" placeholder="atau ketik no. resi"><button onclick="kqScanManual()">Cari</button></div>
   <input type="file" id="scan-file" accept="image/*" style="display:none">
 </div>
+<script src="lib/quicksave.js"></script>
+<!--QUICKSAVE-v1-->
+<input type="file" id="kqQuickPhoto" accept="image/*" capture="environment" style="display:none">
 </body>
 </html>
