@@ -1,0 +1,78 @@
+name: Patch Quick Save (One-Time)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: |
+          python3 -c '
+          import sys, os
+          if not os.path.exists("lib/quicksave.js"):
+              sys.exit("ERROR: lib/quicksave.js tidak ada di repo. Upload dulu.")
+          s = open("index.html").read()
+          if "QUICKSAVE-v1" in s:
+              print("already patched"); sys.exit(0)
+          
+          # 1. Script tag reference + input file sebelum </body>
+          if "lib/quicksave.js" not in s:
+              s = s.replace(
+                  "</body>",
+                  "<script src=\"lib/quicksave.js\"></script>\n<!--QUICKSAVE-v1-->\n</body>",
+                  1
+              )
+          if "id=\"kqQuickPhoto\"" not in s:
+              s = s.replace(
+                  "</body>",
+                  "<input type=\"file\" id=\"kqQuickPhoto\" accept=\"image/*\" capture=\"environment\" style=\"display:none\">\n</body>",
+                  1
+              )
+          
+          # 2. Tombol header 📸 sebelum scan-btn
+          if "id=\"scan-btn\"" in s and "quicksave-btn" not in s:
+              idx = s.find("id=\"scan-btn\"")
+              start = s.rfind("<button", 0, idx)
+              if start > 0:
+                  btn = "<button class=\"menu-btn\" id=\"quicksave-btn\" onclick=\"kqQuickSave()\" title=\"Quick save foto\">📸</button>"
+                  s = s[:start] + btn + s[start:]
+          
+          # 3. FAB hijau di peta sebelum record-btn
+          if "id=\"record-btn\"" in s and "quicksave-fab" not in s:
+              idx = s.find("id=\"record-btn\"")
+              start = s.rfind("<button", 0, idx)
+              if start > 0:
+                  btn = "<button class=\"fab\" id=\"quicksave-fab\" onclick=\"kqQuickSave()\" title=\"Quick Save Foto\" style=\"background:#10b981\">📸</button>"
+                  s = s[:start] + btn + s[start:]
+          
+          # 4. Tombol hijau di list sort row sebelum btnOptimizeRoute
+          if "id=\"btnOptimizeRoute\"" in s and "btnQuickSaveList" not in s:
+              idx = s.find("id=\"btnOptimizeRoute\"")
+              start = s.rfind("<button", 0, idx)
+              if start > 0:
+                  btn = "<button class=\"btn-small\" id=\"btnQuickSaveList\" onclick=\"kqQuickSave()\" title=\"Quick Save Foto\" style=\"background:#10b981;color:#fff;border-color:#10b981\">📸</button>"
+                  s = s[:start] + btn + s[start:]
+          
+          open("index.html","w").write(s)
+          print("OK patched: header + fab + list + input + js-ref")
+          '
+
+      - name: Commit
+        run: |
+          if git diff --quiet index.html; then
+            echo "no changes"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add index.html
+            git commit -m "feat: quick save foto + GPS di peta & daftar"
+            git push
+            echo "committed"
+          fi
