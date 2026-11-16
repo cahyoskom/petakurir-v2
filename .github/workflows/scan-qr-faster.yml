@@ -1,0 +1,85 @@
+name: Scan QR Faster
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch scan QR
+        run: |
+          cat > /tmp/p.py <<'PYEOF'
+          import re, sys, textwrap
+          s = open("index.html", encoding="utf-8").read()
+          if "QR-FAST-v1" in s:
+              print("already patched")
+              sys.exit(0)
+          if "jsQR.min.js" not in s:
+              s = s.replace(
+                  "</head>",
+                  '<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" async></script>\n</head>',
+                  1
+              )
+              print("OK: jsQR script tag added")
+          pat = r"kqScanTimer\s*=\s*setInterval\s*\(\s*\(\s*\)\s*=>\s*\{.*?\}\s*,\s*160\s*\)\s*;"
+          loop = textwrap.dedent("""\
+              /*QR-FAST-v1*/
+              kqScanTimer=setInterval(()=>{
+              if(kqScanBusy||v.readyState<2||!v.videoWidth)return;
+              kqScanBusy=true;
+              try{
+              const sc=Math.min(1,1280/v.videoWidth);
+              canvas.width=Math.round(v.videoWidth*sc);
+              canvas.height=Math.round(v.videoHeight*sc);
+              canvas.getContext("2d").drawImage(v,0,0,canvas.width,canvas.height);
+              let text=kqScanDecodeCanvas(canvas);
+              if(!text&&window.jsQR){
+              try{const id=canvas.getContext("2d").getImageData(0,0,canvas.width,canvas.height);const c=jsQR(id.data,canvas.width,canvas.height,{inversionAttempts:"attemptBoth"});if(c&&c.data)text=c.data;}catch(e){}
+              }
+              if(!text){
+              const rots=[90,180,270];
+              for(let ri=0;ri<rots.length;ri++){
+              if(text)break;
+              const rot=rots[ri];
+              const rc=document.createElement("canvas");
+              rc.width=canvas.width;rc.height=canvas.height;
+              const rctx=rc.getContext("2d");
+              rctx.translate(rc.width/2,rc.height/2);
+              rctx.rotate(rot*Math.PI/180);
+              rctx.drawImage(canvas,-canvas.width/2,-canvas.height/2);
+              text=kqScanDecodeCanvas(rc);
+              if(!text&&window.jsQR){
+              try{const rid=rctx.getImageData(0,0,rc.width,rc.height);const rc2=jsQR(rid.data,rc.width,rc.height,{inversionAttempts:"attemptBoth"});if(rc2&&rc2.data)text=rc2.data;}catch(e){}
+              }
+              rc.width=0;rc.height=0;
+              }
+              }
+              if(text){try{navigator.vibrate&&navigator.vibrate(80);}catch(e){}kqScanHandle(text);}
+              }finally{kqScanBusy=false;}
+              },80);""")
+          s, n = re.subn(pat, loop, s, count=1, flags=re.DOTALL)
+          if n == 0:
+              print("ERROR: pattern not found")
+              sys.exit(1)
+          print("OK: scan loop replaced")
+          open("index.html", "w", encoding="utf-8").write(s)
+          print("DONE")
+          PYEOF
+          python3 /tmp/p.py
+      - name: Commit
+        run: |
+          if git diff --quiet index.html; then
+            echo "no change"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add index.html
+            git commit -m "perf: faster QR scan (80ms + rotation + jsQR)"
+            git push
+            echo "committed"
+          fi
