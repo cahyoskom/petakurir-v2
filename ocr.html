@@ -271,8 +271,8 @@ let wakeLock=null;
     else el.textContent=`📊 Mode normal (target ${OCR_TARGET_WIDTH}px)`;
 })();
 
-// ============ WHATSAPP NORMALIZATION (SIMPLE) ============
-/*WANORM-v3*/
+// ============ WHATSAPP NORMALIZATION (FINAL) ============
+/*WANORM-v4*/
 function normalizeWhatsApp(input){
     if(!input)return '';
     let d=String(input).replace(/\D/g,'');
@@ -280,6 +280,8 @@ function normalizeWhatsApp(input){
     while(d.startsWith('00')) d=d.slice(2);
     if(d.startsWith('62')) d=d.slice(2);
     if(d.startsWith('0')) d=d.slice(1);
+    // FIX OCR misread "0" jadi "16"/"17"/"19"/"6"/"7"/"9" sebelum "28" (0813 → 162813, dll)
+    if(/^[1679]{1,2}28\d{7,}/.test(d)) d=d.replace(/^[1679]{1,2}28/, '8');
     if(!d)return '';
     return '62'+d;
 }
